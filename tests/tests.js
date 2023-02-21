@@ -1,0 +1,14 @@
+import * as helios from "@hyperionbt/helios"
+import fs from "fs";
+import * as tester from './contractTesting'
+
+const contract = fs.readFileSync("../contract.helios").toString();
+// test helpers and fixtures can be loaded from different files and concatenated
+const helpers = fs.readFileSync("./test_helpers.helios").toString();
+const fixtures = fs.readFileSync("./test_fixtures.helios").toString();
+const program = helios.Program.new(contract + helpers + fixtures);
+const testContract = program.compile();
+
+tester.setup(program, testContract);
+
+await tester.testSuccess("update_nft_success", ["empty_datum", "update_nft_redeemer_good", "update_nft_ctx"]);

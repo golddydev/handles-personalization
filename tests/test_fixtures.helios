@@ -1,0 +1,52 @@
+// REDEEMERS
+const update_nft_redeemer_good = Redeemer::UPDATE_NFT_HANDLE { "xar12345" }
+
+// DATUMS
+const empty_datum = Datum { "" }
+
+// CONTEXTS
+const empty_ctx: ScriptContext = ScriptContext::new_spending(Tx{}, TxOutputId{})
+
+// ScriptContext wraps a Tx object:
+// Tx::new(
+//     inputs:      []TxInput,
+//     ref_inputs:  []TxInput,
+//     outputs:     []TxOutput,
+//     fee:         Value,
+//     minted:      Value,
+//     dcerts:      []DCert,
+//     withdrawals: Map[StakingCredential]Int,
+//     time_range:  TimeRange,
+//     signatories: []PubKeyHash,
+//     redeemers:   Map[ScriptPurpose]AnyType,
+//     datums:      Map[DatumHash]AnyType
+// ) -> Tx
+
+const update_nft_ctx: ScriptContext = ScriptContext::new_spending(
+    Tx::new(
+        []TxInput{
+            TxInput::new(TxOutputId::new(TxId::new(#0123456789012345678901234567890123456789012345678901234567891234), 0)
+                , TxOutput::new(
+                    Address::new(Credential::new_validator(ValidatorHash::new(#01234567890123456789012345678901234567890123456789012347)), Option[StakingCredential]::None)
+                    , Value::lovelace(10000000)
+                    , OutputDatum::new_none()
+                )
+            )
+        },
+        []TxInput{},
+        []TxOutput{
+            TxOutput::new(Address::new(Credential::new_pubkey(#9876543210012345678901234567890123456789012345678901234567891234), Option[StakingCredential]::None)
+                    , Value::lovelace(9840000)
+                    , OutputDatum::new_none()
+            )
+        },
+        Value::lovelace(160000),
+        Value::ZERO,
+        []DCert{},
+        Map[StakingCredential]Int{},
+        TimeRange::from(Time::new(1001)),
+        []PubKeyHash{#9876543210012345678901234567890123456789012345678901234567891234},
+        Map[DatumHash]Data{}
+    ),
+    TxOutputId::new(TxId::new(#0123456789012345678901234567890123456789012345678901234567891234), 0);
+)
