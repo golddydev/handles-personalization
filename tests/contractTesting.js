@@ -1,4 +1,4 @@
-import {Color} from 'colors.js'
+import {Color} from './colors.js'
 
 let _program;
 let _contract;

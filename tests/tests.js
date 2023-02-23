@@ -1,6 +1,6 @@
 import * as helios from "@hyperionbt/helios"
 import fs from "fs";
-import * as tester from './contractTesting'
+import * as tester from './contractTesting.js'
 
 const contract = fs.readFileSync("../contract.helios").toString();
 // test helpers and fixtures can be loaded from different files and concatenated

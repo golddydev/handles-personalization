@@ -22,22 +22,42 @@ const empty_ctx: ScriptContext = ScriptContext::new_spending(Tx{}, TxOutputId{})
 //     datums:      Map[DatumHash]AnyType
 // ) -> Tx
 
+const test_script_hash: ValidatorHash = ValidatorHash::new(#01234567890123456789012345678901234567890123456789000001)
+const test_owner_hash: ValidatorHash = ValidatorHash::new(#01234567890123456789012345678901234567890123456789000002)
+const script_tx_hash: TxId = TxId::new(#0123456789012345678901234567890123456789012345678901234567891234)
+const owner_tx_hash: TxId = TxId::new(#0123456789012345678901234567890123456789012345678901234567891235)
+const tx_output_id: TxId = TxId::new(#0123456789012345678901234567890123456789012345678901234567891234)
+const test_signature_hash: PubKeyHash = PubKeyHash::new(#9876543210012345678901234567890123456789012345678901234567891234)
+
 const update_nft_ctx: ScriptContext = ScriptContext::new_spending(
     Tx::new(
         []TxInput{
-            TxInput::new(TxOutputId::new(TxId::new(#0123456789012345678901234567890123456789012345678901234567891234), 0)
+            TxInput::new(TxOutputId::new(owner_tx_hash, 0)
                 , TxOutput::new(
-                    Address::new(Credential::new_validator(ValidatorHash::new(#01234567890123456789012345678901234567890123456789012347)), Option[StakingCredential]::None)
-                    , Value::lovelace(10000000)
+                    Address::new(Credential::new_validator(test_owner_hash), Option[StakingCredential]::None)
+                    , Value::lovelace(10000000) + Value::new(AssetClass::new(HANDLE_POLICY, LBL_222 + ("xar12345".encode_utf8())), 1)
+                    , OutputDatum::new_none()
+                )
+            )
+            , TxInput::new(TxOutputId::new(script_tx_hash, 0)
+                , TxOutput::new(
+                    Address::new(Credential::new_validator(test_script_hash), Option[StakingCredential]::None)
+                    , Value::lovelace(10000000) + Value::new(AssetClass::new(HANDLE_POLICY, LBL_100 + ("xar12345".encode_utf8())), 1)
                     , OutputDatum::new_none()
                 )
             )
         },
         []TxInput{},
         []TxOutput{
-            TxOutput::new(Address::new(Credential::new_pubkey(#9876543210012345678901234567890123456789012345678901234567891234), Option[StakingCredential]::None)
-                    , Value::lovelace(9840000)
-                    , OutputDatum::new_none()
+            TxOutput::new(
+                Address::new(Credential::new_validator(test_owner_hash), Option[StakingCredential]::None)
+                , Value::lovelace(10000000) + Value::new(AssetClass::new(HANDLE_POLICY, LBL_222 + ("xar12345".encode_utf8())), 1)
+                , OutputDatum::new_none()
+            ),
+            TxOutput::new(
+                Address::new(Credential::new_validator(test_script_hash), Option[StakingCredential]::None)
+                , Value::lovelace(10000000) + Value::new(AssetClass::new(HANDLE_POLICY, LBL_100 + ("xar12345".encode_utf8())), 1)
+                , OutputDatum::new_none()
             )
         },
         Value::lovelace(160000),
@@ -45,8 +65,9 @@ const update_nft_ctx: ScriptContext = ScriptContext::new_spending(
         []DCert{},
         Map[StakingCredential]Int{},
         TimeRange::from(Time::new(1001)),
-        []PubKeyHash{#9876543210012345678901234567890123456789012345678901234567891234},
+        []PubKeyHash{test_signature_hash},
+        Map[ScriptPurpose]Data{},
         Map[DatumHash]Data{}
     ),
-    TxOutputId::new(TxId::new(#0123456789012345678901234567890123456789012345678901234567891234), 0);
+    TxOutputId::new(tx_output_id, 0)
 )

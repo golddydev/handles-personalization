@@ -20,13 +20,12 @@ enum Redeemer {
     // VENDOR_INFO_UPDATED // The Sundae Swap case of saving vendor settings to your Handle
 }
 
-struct ApprovedPfpPolicy {
-    policy_id: String: {
-        
-    }
-
-}
-const HANDLE_POLICY: MintingPolicyHash = MintingPolicyHash::new(#5ca7f4e1e708ddf1958b2b7e65134738ebba5d8c803bdbe50ea0f3c6)
+struct Datum { holder: String }
+// struct ApprovedPfpPolicy {
+//     policy_id: String: { 
+//     }
+// }
+const HANDLE_POLICY: MintingPolicyHash = MintingPolicyHash::new(#f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9a)
 // NFT Handles and SubHandles
 // asset_name_label 222 means asset_name starts with 000de140
 const LBL_222: ByteArray = #000de140 // (222)bigirishlion
@@ -42,8 +41,38 @@ const HANDLES_FEE_ADDRESS_HASH: Credential = Credential::new_pubkey(PubKeyHash::
 const HANDLES_FEE: Int = 2000000
 const HANDLES_CRED_HASH: Credential = Credential::new_pubkey(PubKeyHash::new(#))
 
-const HANDLES_APPROVED_POLICIES: AssetClass = AssetClass::new(handle_policy, LBL_222 + ("pfp_policy_ids").encode_utf8())
-const HANDLES_APPROVED_BGS: AssetClass = AssetClass::new(handle_policy, LBL_222 + ("bg_policy_ids").encode_utf8())
+const HANDLES_APPROVED_POLICIES: AssetClass = AssetClass::new(HANDLE_POLICY, LBL_222 + ("pfp_policy_ids").encode_utf8())
+const HANDLES_APPROVED_BGS: AssetClass = AssetClass::new(HANDLE_POLICY, LBL_222 + ("bg_policy_ids").encode_utf8())
+
+
+func hasRequiredTokens(pz: Redeemer::UPDATE_NFT_HANDLE, ctx: ScriptContext) -> Bool {
+    owners_handle: AssetClass = AssetClass::new(HANDLE_POLICY, LBL_222 + (pz.handle.encode_utf8()));
+    reference_token: AssetClass = AssetClass::new(HANDLE_POLICY, LBL_100 + (pz.handle.encode_utf8()));
+
+    // User Token as input
+    if (ctx.tx.inputs.any((input: TxInput) -> Bool { input.output.value.get_safe(owners_handle) == 1 })) {
+        // Reference Token as input
+        if (ctx.tx.inputs.any((input: TxInput) -> Bool { input.output.value.get_safe(reference_token) == 1 })) {
+            // Reference Token back to pz contract
+            if (ctx.tx.outputs.any((output: TxOutput) -> Bool {
+                this_script_hash: ValidatorHash = ctx.get_current_validator_hash();
+                output.value.get_safe(reference_token) == 1 
+                    && (
+                        output.address.credential == Credential::new_validator(this_script_hash)
+                        //|| 
+                        // below used for testing
+                        //output.address.credential == Credential::new_validator(ValidatorHash::new(#))
+                    )
+            }))
+            { 
+                true 
+            }
+            else { error("Reference Token not returned to contract") }
+        }
+        else { error("Reference Token is not in input list") }
+    }
+    else { error("Handle is not in input list") }
+}
 
 func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
     redeemer.switch {
@@ -54,6 +83,9 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
             // jsonHashesToCid() && 
             // designerAssetsAreValid() &&
             // handleStandardIsValid()
+        },
+        else => {
+            datum.holder == ""
         }
         // , pz: UPDATE_VIRTUAL_SUBHANDLE => {
         //     areNftAssetsValid()
@@ -69,39 +101,16 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
     }
 }
 
-func hasRequiredTokens(pz: Map, ctx: ScriptContext) -> Bool {
-    owners_handle: AssetClass = AssetClass::new(HANDLE_POLICY, LBL_222 + (pz.handle).encode_utf8())
-    reference_token: AssetClass = AssetClass::new(HANDLE_POLICY, LBL_100 + (pz.handle).encode_utf8())
-
-    // User Token as input
-    if (ctx.Tx.inputs.any((input: TxInput) -> Bool { input.output.value.get(owners_handle) == 1 })){
-        // Reference Token as input
-        if (ctx.Tx.inputs.any((input: TxInput) -> Bool { input.output.value.get(reference_token) == 1 })) {
-            // Reference Token back to pz contract
-            if (ctx.Tx.outputs.any((output: TxOutput) -> Bool {
-                this_script_hash: ValidatorHash = ctx.get_current_validator_hash();
-                output.value.get(reference_token) == 1 && output.address.credential == Credential::new_validator(this_script_hash) 
-            }))
-            { 
-                true 
-            }
-            else { error("Reference Token not returned to contract") }
-        }
-        else { error("Reference Token is not in input list") }
-    }
-    else { error("Handle is not in input list") }
-}
-
 // func referencesAreValid(ctx: ScriptContext) -> Bool {
 //     // Includes Handle Data token from Handles policy && Kora credential hash
-//     ctx.Tx.ref_inputs.all((input: TxInput) -> Bool {
+//     ctx.tx.ref_inputs.all((input: TxInput) -> Bool {
 //         input.output.address.credential == HANDLES_CRED_HASH
 //     })
 // }
 
 // func feesArePaid(ctx: ScriptContext) -> Bool {
 //     // ₳XX to Handles fee address
-//     if (ctx.Tx.outputs.any((output: TxOutput) -> Bool {
+//     if (ctx.tx.outputs.any((output: TxOutput) -> Bool {
 //         output.address.credential == HANDLES_FEE_ADDRESS_HASH && output.value.contains(Value::lovelace(HANDLES_FEE))
 //     }))
 //     {
@@ -111,7 +120,7 @@ func hasRequiredTokens(pz: Map, ctx: ScriptContext) -> Bool {
 // }
 
 // func jsonHashesToCid(redeemer: Redeemer, ctx: ScriptContext) {
-//     ref_datum: Data = ctx.Tx.outputs.find((output: TxOutput) => Bool { output.value.get(handle_ref_class) == 1 }).datum.get_inline_datum
+//     ref_datum: Data = ctx.tx.outputs.find((output: TxOutput) => Bool { output.value.get(handle_ref_class) == 1 }).datum.get_inline_datum
 //     // Parse the IPFS CID out
 //     output_cid: ByteArray = # // <- Parse it out here
 //     cid_header + hex_encode(redeemer.personalization) == output_cid 
@@ -123,10 +132,10 @@ func hasRequiredTokens(pz: Map, ctx: ScriptContext) -> Bool {
 //     if (redeemer.personalization.find_key_safe((key: String): Bool -> {key == "pfp_asset_name"}) != Option[String]::None){
 //         if (redeemer.personalization.pfp_asset_name != "") {
 //             pfp: AssetClass = AssetClass::new(redeemer.personalization.pfp_policy, redeemer.personalization.pfp_asset_name)
-//             pfpInput: TxInput = ctx.Tx.inputs.find((input: TxInput) -> Bool { input.output.value.contains(pfp)})
-//             pfpOutput = ctx.Tx.outputs.find((output: TxOutput) -> Bool { output.value.contains(pfp) })
+//             pfpInput: TxInput = ctx.tx.inputs.find((input: TxInput) -> Bool { input.output.value.contains(pfp)})
+//             pfpOutput = ctx.tx.outputs.find((output: TxOutput) -> Bool { output.value.contains(pfp) })
 //             // Is it from approved PFP collections list
-//             approved_pfps = ctx.Tx.ref_inputs.find((input: TxInput) -> Bool {
+//             approved_pfps = ctx.tx.ref_inputs.find((input: TxInput) -> Bool {
 //                 input.output.address.credential == HANDLES_CRED_HASH && input.output.value.get(handle_ref_class) == 1
 //             }).datum.get_inline_datum()
 //             if (approved_pfps.find(item: ))
@@ -141,8 +150,8 @@ func hasRequiredTokens(pz: Map, ctx: ScriptContext) -> Bool {
 //     // If Background, is it in the inputs and is it output to same address
 //     Ony do this if bg is in personalization
 //     bg: AssetClass = AssetClass::new(redeemer.personalization.bg_policy, redeemer.personalization.bg_asset_name)
-//     bgInput: TxInput = ctx.Tx.inputs.find((input: TxInput) -> Bool { input.output.value.contains(bg)})
-//     bgOutput = ctx.Tx.outputs.find((output: TxOutput) -> Bool { output.value.contains(bg) })
+//     bgInput: TxInput = ctx.tx.inputs.find((input: TxInput) -> Bool { input.output.value.contains(bg)})
+//     bgOutput = ctx.tx.outputs.find((output: TxOutput) -> Bool { output.value.contains(bg) })
 //     // Is it from approved backgrounds collections list
 
 //     // Is it being sent back to the holder?
