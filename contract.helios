@@ -31,19 +31,15 @@ const HANDLE_POLICY: MintingPolicyHash = MintingPolicyHash::new(#f0ff48bbb7bbe9d
 const LBL_222: ByteArray = #000de140 // (222)bigirishlion
 // asset_name_label 100 means asset_name starts with 000643b0
 const LBL_100: ByteArray = #000643b0 // (100)bigirishlion
-
-//VIRTUAL_SUBHANDLES
+// VIRTUAL_SUBHANDLES
 // asset_name_label 111 means asset_name starts with 0014df10 
 const LBL_111: ByteArray = #0014df10 // (111)bigirishlion
 
-// HandlesFeeAddressHash
 const HANDLES_FEE_ADDRESS_HASH: Credential = Credential::new_pubkey(PubKeyHash::new(#))
 const HANDLES_FEE: Int = 2000000
 const HANDLES_CRED_HASH: Credential = Credential::new_pubkey(PubKeyHash::new(#))
-
 const HANDLES_APPROVED_POLICIES: AssetClass = AssetClass::new(HANDLE_POLICY, LBL_222 + ("pfp_policy_ids").encode_utf8())
 const HANDLES_APPROVED_BGS: AssetClass = AssetClass::new(HANDLE_POLICY, LBL_222 + ("bg_policy_ids").encode_utf8())
-
 
 func hasRequiredTokens(pz: Redeemer::UPDATE_NFT_HANDLE, ctx: ScriptContext) -> Bool {
     owners_handle: AssetClass = AssetClass::new(HANDLE_POLICY, LBL_222 + (pz.handle.encode_utf8()));
@@ -56,16 +52,10 @@ func hasRequiredTokens(pz: Redeemer::UPDATE_NFT_HANDLE, ctx: ScriptContext) -> B
             // Reference Token back to pz contract
             if (ctx.tx.outputs.any((output: TxOutput) -> Bool {
                 this_script_hash: ValidatorHash = ctx.get_current_validator_hash();
-                output.value.get_safe(reference_token) == 1 
-                    && (
-                        output.address.credential == Credential::new_validator(this_script_hash)
-                        //|| 
-                        // below used for testing
-                        //output.address.credential == Credential::new_validator(ValidatorHash::new(#))
-                    )
+                output.value.get_safe(reference_token) == 1 && output.address.credential == Credential::new_validator(this_script_hash)
             }))
-            { 
-                true 
+            {
+                true
             }
             else { error("Reference Token not returned to contract") }
         }

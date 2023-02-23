@@ -35,7 +35,7 @@ export async function testFailure(testName, paramNames, message=null) {
               console.log(`${Color.FgGreen}Test ${testName} was successful!${Color.Reset}`);
             }
             else {
-              logFail(testName, res, args);
+              logFail(testName, res, args, false, message);
             }
           }
           else {
@@ -51,22 +51,32 @@ export async function testFailure(testName, paramNames, message=null) {
       })
 }
 
-export async function logFail(testName, obj, args, isRuntimeError=false) {
+export async function logFail(testName, obj, args, isCodeError=false, message=null) {
     console.log(`${Color.FgRed}Test ${testName} failed!${Color.Reset}`);
     console.log(`${Color.FgRed}------------------------------${Color.Reset}`)
-    let message = obj
     console.log(`   ${Color.FgYellow}ARGS:${Color.Reset}`, args.map((v) => v.toString()));
-    if (isRuntimeError) {
-      console.log("   **RUNTIME ERROR**");
+    if (isCodeError) {
+      console.log(`   ${Color.FgRed}**RUNTIME ERROR**${Color.Reset}`);
     }
-    else {
-      console.log(`   ${Color.FgYellow}MESSAGE:${Color.Reset}`);
-      if (Array.isArray(obj)){
-        console.log(obj[0]);
+    console.log(`   ${Color.FgYellow}MESSAGE:${Color.Reset}`);
+    if (Array.isArray(obj)){
+      console.log(obj[0]);
+      console.log(`\n`);
+      if (message) {
+        console.log(`   ${Color.FgYellow}EXPECTED:\n   ${Color.FgBlue}${message}${Color.Reset}`);
         if (obj.length > 1) {
-          console.log(`\n\n   ${Color.FgYellow}PRINT STATEMENTS:${Color.Reset}\n   ${obj[1].join("\n   ")}`);
+          // Helios error() is always the last in the output/print statements obj[1].length-1]
+          console.log(`   ${Color.FgYellow}RECEIVED:\n   ${Color.FgRed}${obj[1][obj[1].length-1]}${Color.Reset}`);
         }
       }
+      else {
+        if (obj.length > 1) {
+          console.log(`   ${Color.FgYellow}PRINT STATEMENTS:${Color.Reset}\n   ${obj[1].join("\n   ")}`);
+        }
+      }
+    }
+    else {
+      console.log(obj);
     }
     console.log(`${Color.FgRed}------------------------------${Color.Reset}`)
 }
