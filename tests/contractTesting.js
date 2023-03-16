@@ -2,59 +2,70 @@ import {Color} from './colors.js'
 
 let _program;
 let _contract;
+let _testCount;
+let _successCount;
+let _failCount;
 
 export function setup(program, contract) {
   _program = program;
   _contract = contract;
-
+  _testCount = 0;
+  _successCount = 0;
+  _failCount = 0;
 }
 
 // evalParam(p) and runWithPrint(p[]). Look for unit "()" response
-export async function testSuccess(testName, paramNames) {
+export async function testApproval(testGroup, testName, paramNames) {
+  _testCount++;
   const args = paramNames.map((p) => _program.evalParam(p));
-  _contract.runWithPrint(args).then((res) => {
+  await _contract.runWithPrint(args).then((res) => {
       const assertion = res[0].toString() == "()";
       if (assertion) {
-        console.log(`${Color.FgGreen}Test ${testName} was successful!${Color.Reset}`);
+        _successCount++
+        console.log(`${Color.FgGreen}*success* - APPROVE - ${testGroup} '${testName}'${Color.Reset}`);
       } else {
-          logFail(testName, res, args);
+        logFail(testGroup, testName, res, args, 'APPROVE');
       }
     })
     .catch((err) => {
-      logFail(testName, err, args, true);
+      logFail(testGroup, testName, err, args, 'APPROVE', true);
     });
 }
 
-export async function testFailure(testName, paramNames, message=null) {
+export async function testDenial(testGroup, testName, paramNames, message=null) {
+    _testCount++;
     const args = paramNames.map((p) => _program.evalParam(p));
-    _contract.runWithPrint(args).then((res) => {
+    await _contract.runWithPrint(args).then((res) => {
         const assertion = res[0].toString() != "()";
         if (assertion) {
           if (message) {
             if (res[1][0] == message) {
-              console.log(`${Color.FgGreen}Test ${testName} was successful!${Color.Reset}`);
+              _successCount++
+              console.log(`${Color.FgGreen}*success* - DENY    - ${testGroup} '${testName}'${Color.Reset}`);
             }
             else {
-              logFail(testName, res, args, false, message);
+              logFail(testGroup, testName, res, args, 'DENY', false, message);
             }
           }
           else {
-            console.log(`${Color.FgGreen}Test ${testName} was successful!${Color.Reset}`);
+            _successCount++
+            console.log(`${Color.FgGreen}*success* - DENY    - ${testGroup} '${testName}'${Color.Reset}`);
           }
         } 
         else {
-            logFail(testName, res, args);
+            logFail(testGroup, testName, res, args, 'DENY');
         }
       })
       .catch((err) => {
-        logFail(testName, err, args, true);
+        logFail(testGroup, testName, err, args, 'DENY', true);
       })
 }
 
-export async function logFail(testName, obj, args, isCodeError=false, message=null) {
-    console.log(`${Color.FgRed}Test ${testName} failed!${Color.Reset}`);
+function logFail(testGroup, testName, obj, args, type, isCodeError=false, message=null) {
+    _failCount++
+    console.log(`${Color.FgRed}*failure* - ${type.padEnd(7)} - ${testGroup} '${testName}'${Color.Reset}`);
     console.log(`${Color.FgRed}------------------------------${Color.Reset}`)
-    console.log(`   ${Color.FgYellow}ARGS:${Color.Reset}`, args.map((v) => v.toString()));
+    // console.log(`   ${Color.FgYellow}ARGS:${Color.Reset}`, args.map((v) => v.toString()));
     if (isCodeError) {
       console.log(`   ${Color.FgRed}**RUNTIME ERROR**${Color.Reset}`);
     }
@@ -79,4 +90,12 @@ export async function logFail(testName, obj, args, isCodeError=false, message=nu
       console.log(obj);
     }
     console.log(`${Color.FgRed}------------------------------${Color.Reset}`)
+}
+export function displayStats() {
+  console.log(`${Color.FgBlue}** SUMMARY **${Color.Reset}`)
+  console.log(`${Color.FgBlue}${_testCount.toString().padStart(5)} total tests${Color.Reset}`)
+  if (_successCount > 0)
+    console.log(`${Color.FgGreen}${_successCount.toString().padStart(5)} successful${Color.Reset}`)
+  if (_failCount > 0)
+    console.log(`${Color.FgRed}${_failCount.toString().padStart(5)} failed${Color.Reset}`)
 }
