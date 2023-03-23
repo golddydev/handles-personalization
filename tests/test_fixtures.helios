@@ -1,10 +1,13 @@
+// STRINGS
+const handle = "xar12345"
 // REDEEMERS
-const update_nft_redeemer_good = Redeemer::UPDATE_NFT_HANDLE { "xar12345" }
+const update_nft_redeemer_good = Redeemer::UPDATE_NFT_HANDLE { handle }
+const good_admin_redeemer = Redeemer::ADMIN_UPDATE
 
 // DATUMS
 const good_datum = Datum { 
     nft_attributes: NftAttributes {
-        name: "xar12345",
+        name: handle,
         image: "ipfs://image_cid",
         mediaType: "image/png",
         og: false,
@@ -32,10 +35,14 @@ const good_datum = Datum {
 const treasury_bytes = #01234567890123456789012345678901234567890123456789000004
 const ada_handles_bytes = #01234567890123456789012345678901234567890123456789000003
 const pz_provider_bytes = #01234567890123456789012345678901234567890123456789000005
-const script_hash: ValidatorHash = ValidatorHash::new(#01234567890123456789012345678901234567890123456789000001)
-const owner_hash: ValidatorHash = ValidatorHash::new(#01234567890123456789012345678901234567890123456789000002)
+const admin_bytes = #01234567890123456789012345678901234567890123456789000007
+const script_creds_bytes = #01234567890123456789012345678901234567890123456789000001
+const owner_bytes = #9876543210012345678901234567890123456789012345678901234567891235
+const script_hash: ValidatorHash = ValidatorHash::new(script_creds_bytes)
+const owner_hash: PubKeyHash = PubKeyHash::new(owner_bytes)
 const handles_hash: ValidatorHash = ValidatorHash::new(ada_handles_bytes)
 const provider_hash: ValidatorHash = ValidatorHash::new(pz_provider_bytes)
+const treasury_hash: ValidatorHash = ValidatorHash::new(treasury_bytes)
 
 // TRANSACTION HASHES
 const script_tx_hash: TxId = TxId::new(#0123456789012345678901234567890123456789012345678901234567891234)
@@ -44,7 +51,7 @@ const handles_tx_hash: TxId = TxId::new(#012345678901234567890123456789012345678
 const tx_output_id: TxId = TxId::new(#0123456789012345678901234567890123456789012345678901234567891234)
 
 // SIGNATURE HASHES
-const test_signature_hash: PubKeyHash = PubKeyHash::new(#9876543210012345678901234567890123456789012345678901234567891234)
+const owner_pubkey_hash: PubKeyHash = PubKeyHash::new(#9876543210012345678901234567890123456789012345678901234567891235)
 
 // SETTINGS
 const pz_settings = PzSettings {
@@ -53,8 +60,7 @@ const pz_settings = PzSettings {
     pz_min_fee: 4000000,
     pz_providers: []ByteArray{ada_handles_bytes, pz_provider_bytes},
     valid_contracts: []ByteArray{#01234567890123456789012345678901234567890123456789000001},
-    admin_creds: []ByteArray{},
-    fee_cred: #01234567890123456789012345678901234567890123456789000004,
+    admin_creds: []ByteArray{admin_bytes},
     inputs_cred: ada_handles_bytes
 }
 const pz_settings_new_contract = PzSettings {
@@ -64,47 +70,49 @@ const pz_settings_new_contract = PzSettings {
     pz_providers: []ByteArray{ada_handles_bytes, pz_provider_bytes},
     valid_contracts: []ByteArray{#01234567890123456789012345678901234567890123456789000007},
     admin_creds: []ByteArray{},
-    fee_cred: #01234567890123456789012345678901234567890123456789000004,
     inputs_cred: ada_handles_bytes
 }
 
 
-func buildOutput(credential_hash: ValidatorHash, lovelace_amt: Int, policy: MintingPolicyHash, label: ByteArray, handle: String, datum: OutputDatum) -> TxOutput {
+func buildOutput(credential: Credential, lovelace_amt: Int, policy: MintingPolicyHash, label: ByteArray, handle_name: String, datum: OutputDatum) -> TxOutput {
     TxOutput::new(
-        Address::new(Credential::new_validator(credential_hash), Option[StakingCredential]::None)
-        , Value::lovelace(lovelace_amt) + Value::new(AssetClass::new(policy, label + (handle.encode_utf8())), 1)
+        Address::new(credential, Option[StakingCredential]::None)
+        , Value::lovelace(lovelace_amt) + Value::new(AssetClass::new(policy, label + (handle_name.encode_utf8())), 1)
         , datum
     )
 }
 
 // INPUTS
-const good_owner_input: TxInput = TxInput::new(TxOutputId::new(owner_tx_hash, 0), buildOutput(owner_hash, 10000000, HANDLE_POLICY, LBL_222, "xar12345", OutputDatum::new_none()))
-const good_ref_token_input: TxInput = TxInput::new(TxOutputId::new(script_tx_hash, 0), buildOutput(script_hash, 10000000, HANDLE_POLICY, LBL_100, "xar12345", OutputDatum::new_none()))
-const bad_ref_token_input_name: TxInput = TxInput::new(TxOutputId::new(script_tx_hash, 0), buildOutput(script_hash, 10000000, HANDLE_POLICY, LBL_100, "xar12346", OutputDatum::new_none()))
-const bad_ref_token_input_label: TxInput = TxInput::new(TxOutputId::new(script_tx_hash, 0), buildOutput(script_hash, 10000000, HANDLE_POLICY, #000653b0, "xar12345", OutputDatum::new_none()))
-const bad_ref_token_input_creds: TxInput = TxInput::new(TxOutputId::new(script_tx_hash, 0), buildOutput(owner_hash, 10000000, HANDLE_POLICY, LBL_100, "xar12345", OutputDatum::new_none()))
-const bad_ref_token_input_policy: TxInput = TxInput::new(TxOutputId::new(script_tx_hash, 0), buildOutput(script_hash, 10000000, MintingPolicyHash::new(#f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9b), LBL_100, "xar12345", OutputDatum::new_none()))
-const not_real_handle_input: TxInput = TxInput::new(TxOutputId::new(owner_tx_hash, 0), buildOutput(owner_hash, 10000000, MintingPolicyHash::new(#f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9b), LBL_222, "xar12345", OutputDatum::new_none()))
-const wrong_handle_name_input: TxInput = TxInput::new(TxOutputId::new(owner_tx_hash, 0), buildOutput(owner_hash, 10000000, HANDLE_POLICY, LBL_222, "xar12346", OutputDatum::new_none()))
-const wrong_handle_label_input: TxInput = TxInput::new(TxOutputId::new(owner_tx_hash, 0), buildOutput(owner_hash, 10000000, HANDLE_POLICY, #000653b0, "xar12346", OutputDatum::new_none()))
+const good_ref_token_input: TxInput = TxInput::new(TxOutputId::new(script_tx_hash, 0), buildOutput(Credential::new_validator(script_hash), 10000000, HANDLE_POLICY, LBL_100, handle, OutputDatum::new_none()))
+const bad_ref_token_input_name: TxInput = TxInput::new(TxOutputId::new(script_tx_hash, 0), buildOutput(Credential::new_validator(script_hash), 10000000, HANDLE_POLICY, LBL_100, "xar12346", OutputDatum::new_none()))
+const bad_ref_token_input_label: TxInput = TxInput::new(TxOutputId::new(script_tx_hash, 0), buildOutput(Credential::new_validator(script_hash), 10000000, HANDLE_POLICY, #000653b0, handle, OutputDatum::new_none()))
+const bad_ref_token_input_creds: TxInput = TxInput::new(TxOutputId::new(script_tx_hash, 0), buildOutput(Credential::new_pubkey(owner_hash), 10000000, HANDLE_POLICY, LBL_100, handle, OutputDatum::new_none()))
+const bad_ref_token_input_policy: TxInput = TxInput::new(TxOutputId::new(script_tx_hash, 0), buildOutput(Credential::new_validator(script_hash), 10000000, MintingPolicyHash::new(#f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9b), LBL_100, handle, OutputDatum::new_none()))
+const not_real_handle_input: TxInput = TxInput::new(TxOutputId::new(owner_tx_hash, 0), buildOutput(Credential::new_pubkey(owner_hash), 10000000, MintingPolicyHash::new(#f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9b), LBL_222, handle, OutputDatum::new_none()))
 
 // REFERENCE INPUTS
-const good_ref_input_bg: TxInput = TxInput::new(TxOutputId::new(handles_tx_hash, 0), buildOutput(handles_hash, 10000000, HANDLE_POLICY, LBL_222, "bg_policy_ids", OutputDatum::new_none()))
-const good_ref_input_bg_sub: TxInput = TxInput::new(TxOutputId::new(handles_tx_hash, 0), buildOutput(provider_hash, 10000000, HANDLE_POLICY, LBL_222, "partner@bg_policy_ids", OutputDatum::new_none()))
-const good_ref_input_pfp: TxInput = TxInput::new(TxOutputId::new(handles_tx_hash, 0), buildOutput(handles_hash, 10000000, HANDLE_POLICY, LBL_222, "pfp_policy_ids", OutputDatum::new_none()))
-const good_ref_input_pfp_sub: TxInput = TxInput::new(TxOutputId::new(handles_tx_hash, 0), buildOutput(provider_hash, 10000000, HANDLE_POLICY, LBL_222, "partner@pfp_policy_ids", OutputDatum::new_none()))
-const good_ref_input_pz: TxInput = TxInput::new(TxOutputId::new(script_tx_hash, 0), buildOutput(handles_hash, 10000000, HANDLE_POLICY, LBL_222, "pz_settings", OutputDatum::new_inline(pz_settings)))
-const bad_ref_input_pz: TxInput = TxInput::new(TxOutputId::new(script_tx_hash, 0), buildOutput(provider_hash, 10000000, HANDLE_POLICY, LBL_222, "pz_settings", OutputDatum::new_inline(pz_settings)))
-const good_ref_input_pz_new_contract: TxInput = TxInput::new(TxOutputId::new(script_tx_hash, 0), buildOutput(handles_hash, 10000000, HANDLE_POLICY, LBL_222, "pz_settings", OutputDatum::new_inline(pz_settings_new_contract)))
+const good_owner_input: TxInput = TxInput::new(TxOutputId::new(owner_tx_hash, 0), buildOutput(Credential::new_pubkey(owner_hash), 10000000, HANDLE_POLICY, LBL_222, handle, OutputDatum::new_none()))
+const wrong_handle_name_input: TxInput = TxInput::new(TxOutputId::new(owner_tx_hash, 0), buildOutput(Credential::new_pubkey(owner_hash), 10000000, HANDLE_POLICY, LBL_222, "xar12346", OutputDatum::new_none()))
+const wrong_handle_label_input: TxInput = TxInput::new(TxOutputId::new(owner_tx_hash, 0), buildOutput(Credential::new_pubkey(owner_hash), 10000000, HANDLE_POLICY, #000653b0, "xar12346", OutputDatum::new_none()))
+const good_ref_input_bg: TxInput = TxInput::new(TxOutputId::new(handles_tx_hash, 0), buildOutput(Credential::new_validator(handles_hash), 10000000, HANDLE_POLICY, LBL_222, "bg_policy_ids", OutputDatum::new_none()))
+const good_ref_input_bg_sub: TxInput = TxInput::new(TxOutputId::new(handles_tx_hash, 0), buildOutput(Credential::new_validator(provider_hash), 10000000, HANDLE_POLICY, LBL_222, "partner@bg_policy_ids", OutputDatum::new_none()))
+const good_ref_input_pfp: TxInput = TxInput::new(TxOutputId::new(handles_tx_hash, 0), buildOutput(Credential::new_validator(handles_hash), 10000000, HANDLE_POLICY, LBL_222, "pfp_policy_ids", OutputDatum::new_none()))
+const good_ref_input_pfp_sub: TxInput = TxInput::new(TxOutputId::new(handles_tx_hash, 0), buildOutput(Credential::new_validator(provider_hash), 10000000, HANDLE_POLICY, LBL_222, "partner@pfp_policy_ids", OutputDatum::new_none()))
+const good_ref_input_pz: TxInput = TxInput::new(TxOutputId::new(script_tx_hash, 0), buildOutput(Credential::new_validator(handles_hash), 10000000, HANDLE_POLICY, LBL_222, "pz_settings", OutputDatum::new_inline(pz_settings)))
+const bad_ref_input_pz: TxInput = TxInput::new(TxOutputId::new(script_tx_hash, 0), buildOutput(Credential::new_validator(provider_hash), 10000000, HANDLE_POLICY, LBL_222, "pz_settings", OutputDatum::new_inline(pz_settings)))
+const good_ref_input_pz_new_contract: TxInput = TxInput::new(TxOutputId::new(script_tx_hash, 0), buildOutput(Credential::new_validator(handles_hash), 10000000, HANDLE_POLICY, LBL_222, "pz_settings", OutputDatum::new_inline(pz_settings_new_contract)))
 
 // OUTPUTS
-const good_owner_output: TxOutput = buildOutput(owner_hash, 10000000, HANDLE_POLICY, LBL_222, "xar12345", OutputDatum::new_none())
-const good_ref_token_output: TxOutput = buildOutput(script_hash, 10000000, HANDLE_POLICY, LBL_100, "xar12345", OutputDatum::new_none())
-const good_treasury_output: TxOutput = buildOutput(ValidatorHash::new(treasury_bytes), 10000000, MintingPolicyHash::new(#), #, "", OutputDatum::new_none())
-const good_provider_output: TxOutput = buildOutput(ValidatorHash::new(pz_provider_bytes), 10000000, MintingPolicyHash::new(#), #, "", OutputDatum::new_none())
-const bad_output_fee: TxOutput = buildOutput(ValidatorHash::new(ada_handles_bytes), 100000, MintingPolicyHash::new(#), #, "", OutputDatum::new_none())
-const bad_output_address: TxOutput = buildOutput(ValidatorHash::new(#01234567890123456789012345678901234567890123456789000006), 10000000, MintingPolicyHash::new(#), #, "", OutputDatum::new_none())
-const bad_ref_token_output: TxOutput = buildOutput(owner_hash, 10000000, HANDLE_POLICY, LBL_100, "xar12345", OutputDatum::new_none())
+const good_owner_output: TxOutput = buildOutput(Credential::new_pubkey(owner_hash), 10000000, HANDLE_POLICY, LBL_222, handle, OutputDatum::new_none())
+const good_ref_token_output: TxOutput = buildOutput(Credential::new_validator(script_hash), 10000000, HANDLE_POLICY, LBL_100, handle, OutputDatum::new_none())
+const good_treasury_output: TxOutput = buildOutput(Credential::new_validator(treasury_hash), 10000000, MintingPolicyHash::new(#), #, "", OutputDatum::new_inline(handle.encode_utf8()))
+const bad_treasury_output_datum: TxOutput = buildOutput(Credential::new_validator(treasury_hash), 10000000, MintingPolicyHash::new(#), #, "", OutputDatum::new_inline("xar12346".encode_utf8()))
+const good_provider_output: TxOutput = buildOutput(Credential::new_validator(provider_hash), 10000000, MintingPolicyHash::new(#), #, "", OutputDatum::new_inline(handle.encode_utf8()))
+const bad_provider_output_datum: TxOutput = buildOutput(Credential::new_validator(provider_hash), 10000000, MintingPolicyHash::new(#), #, "", OutputDatum::new_inline("xar12346".encode_utf8()))
+const bad_output_fee: TxOutput = buildOutput(Credential::new_validator(handles_hash), 100000, MintingPolicyHash::new(#), #, "", OutputDatum::new_inline(handle.encode_utf8()))
+const bad_output_address: TxOutput = buildOutput(Credential::new_validator(ValidatorHash::new(#01234567890123456789012345678901234567890123456789000006)), 
+    10000000, MintingPolicyHash::new(#), #, "", OutputDatum::new_inline(handle.encode_utf8()))
+const bad_ref_token_output: TxOutput = buildOutput(Credential::new_pubkey(owner_hash), 10000000, HANDLE_POLICY, LBL_100, handle, OutputDatum::new_none())
 
 // CONTEXTS
 
@@ -122,8 +130,8 @@ const bad_ref_token_output: TxOutput = buildOutput(owner_hash, 10000000, HANDLE_
 //     redeemers:   Map[ScriptPurpose]AnyType,
 //     datums:      Map[DatumHash]AnyType
 // ) -> Tx
-
-func buildScriptContext(inputs: []TxInput, ref_inputs: []TxInput, outputs: []TxOutput) -> ScriptContext {
+//Line 400
+func buildScriptContext(inputs: []TxInput, ref_inputs: []TxInput, outputs: []TxOutput, signers: []PubKeyHash = []PubKeyHash{owner_pubkey_hash}) -> ScriptContext {
     ScriptContext::new_spending(
         Tx::new(
             inputs,
@@ -134,7 +142,7 @@ func buildScriptContext(inputs: []TxInput, ref_inputs: []TxInput, outputs: []TxO
             []DCert{},
             Map[StakingCredential]Int{},
             TimeRange::from(Time::new(1001)),
-            []PubKeyHash{test_signature_hash},
+            signers,
             Map[ScriptPurpose]Data{},
             Map[DatumHash]Data{}
         ),
@@ -142,53 +150,53 @@ func buildScriptContext(inputs: []TxInput, ref_inputs: []TxInput, outputs: []TxO
     )
 }
 const good_default: ScriptContext = buildScriptContext(
-    []TxInput{good_owner_input, good_ref_token_input},
-    []TxInput{good_ref_input_bg, good_ref_input_pfp, good_ref_input_pz},
+    []TxInput{good_ref_token_input},
+    []TxInput{good_ref_input_bg, good_ref_input_pfp, good_ref_input_pz, good_owner_input},
     []TxOutput{good_owner_output, good_ref_token_output, good_treasury_output, good_provider_output}
 )
 const good_ref_sub: ScriptContext = buildScriptContext(
-    []TxInput{good_owner_input, good_ref_token_input},
-    []TxInput{good_ref_input_bg_sub, good_ref_input_pfp_sub, good_ref_input_pz},
+    []TxInput{good_ref_token_input},
+    []TxInput{good_ref_input_bg_sub, good_ref_input_pfp_sub, good_ref_input_pz, good_owner_input},
     []TxOutput{good_owner_output, good_ref_token_output, good_treasury_output, good_provider_output}
 )
 const bad_ref_token_wrong_output: ScriptContext = buildScriptContext(
-    []TxInput{good_owner_input, good_ref_token_input},
-    []TxInput{good_ref_input_bg, good_ref_input_pfp, good_ref_input_pz},
+    []TxInput{good_ref_token_input},
+    []TxInput{good_ref_input_bg, good_ref_input_pfp, good_ref_input_pz, good_owner_input},
     []TxOutput{good_owner_output, bad_ref_token_output, good_treasury_output, good_provider_output}
 )
 const bad_ref_token_name: ScriptContext = buildScriptContext(
-    []TxInput{good_owner_input, bad_ref_token_input_name},
-    []TxInput{good_ref_input_bg, good_ref_input_pfp, good_ref_input_pz},
+    []TxInput{bad_ref_token_input_name},
+    []TxInput{good_ref_input_bg, good_ref_input_pfp, good_ref_input_pz, good_owner_input},
     []TxOutput{good_owner_output, good_ref_token_output, good_treasury_output, good_provider_output}
 )
 const bad_ref_token_label: ScriptContext = buildScriptContext(
-    []TxInput{good_owner_input, bad_ref_token_input_label},
-    []TxInput{good_ref_input_bg, good_ref_input_pfp, good_ref_input_pz},
+    []TxInput{bad_ref_token_input_label},
+    []TxInput{good_ref_input_bg, good_ref_input_pfp, good_ref_input_pz, good_owner_input},
     []TxOutput{good_owner_output, good_ref_token_output, good_treasury_output, good_provider_output}
 )
 const bad_ref_token_creds: ScriptContext = buildScriptContext(
-    []TxInput{good_owner_input, bad_ref_token_input_creds},
-    []TxInput{good_ref_input_bg, good_ref_input_pfp, good_ref_input_pz},
+    []TxInput{bad_ref_token_input_creds},
+    []TxInput{good_ref_input_bg, good_ref_input_pfp, good_ref_input_pz, good_owner_input},
     []TxOutput{good_owner_output, good_ref_token_output, good_treasury_output, good_provider_output}
 )
 const bad_ref_token_policy: ScriptContext = buildScriptContext(
-    []TxInput{good_owner_input, bad_ref_token_input_policy},
-    []TxInput{good_ref_input_bg, good_ref_input_pfp, good_ref_input_pz},
+    []TxInput{bad_ref_token_input_policy},
+    []TxInput{good_ref_input_bg, good_ref_input_pfp, good_ref_input_pz, good_owner_input},
     []TxOutput{good_owner_output, good_ref_token_output, good_treasury_output, good_provider_output}
 )
 const missing_bg_ref_input: ScriptContext = buildScriptContext(
-    []TxInput{good_owner_input, bad_ref_token_input_policy},
-    []TxInput{good_ref_input_pfp, good_ref_input_pz},
+    []TxInput{bad_ref_token_input_policy},
+    []TxInput{good_ref_input_pfp, good_ref_input_pz, good_owner_input},
     []TxOutput{good_owner_output, good_ref_token_output, good_treasury_output, good_provider_output}
 )
 const missing_pfp_ref_input: ScriptContext = buildScriptContext(
-    []TxInput{good_owner_input, bad_ref_token_input_policy},
-    []TxInput{good_ref_input_bg, good_ref_input_pz},
+    []TxInput{bad_ref_token_input_policy},
+    []TxInput{good_ref_input_bg, good_ref_input_pz, good_owner_input},
     []TxOutput{good_owner_output, good_ref_token_output, good_treasury_output, good_provider_output}
 )
 const missing_pz_ref_input: ScriptContext = buildScriptContext(
-    []TxInput{good_owner_input, bad_ref_token_input_policy},
-    []TxInput{good_ref_input_bg, good_ref_input_pfp},
+    []TxInput{bad_ref_token_input_policy},
+    []TxInput{good_ref_input_bg, good_ref_input_pfp, good_owner_input},
     []TxOutput{good_owner_output, good_ref_token_output, good_treasury_output, good_provider_output}
 )
 const handle_missing_from_inputs: ScriptContext = buildScriptContext(
@@ -197,47 +205,69 @@ const handle_missing_from_inputs: ScriptContext = buildScriptContext(
     []TxOutput{good_owner_output, good_ref_token_output, good_treasury_output, good_provider_output}
 )
 const not_a_real_handle: ScriptContext = buildScriptContext(
-    []TxInput{not_real_handle_input, good_ref_token_input},
-    []TxInput{good_ref_input_bg, good_ref_input_pfp, good_ref_input_pz},
+    []TxInput{good_ref_token_input},
+    []TxInput{good_ref_input_bg, good_ref_input_pfp, good_ref_input_pz, not_real_handle_input},
     []TxOutput{good_owner_output, good_ref_token_output, good_treasury_output, good_provider_output}
 )
 const wrong_handle_name: ScriptContext = buildScriptContext(
-    []TxInput{wrong_handle_name_input, good_ref_token_input},
-    []TxInput{good_ref_input_bg, good_ref_input_pfp, good_ref_input_pz},
+    []TxInput{good_ref_token_input},
+    []TxInput{good_ref_input_bg, good_ref_input_pfp, good_ref_input_pz, wrong_handle_name_input},
     []TxOutput{good_owner_output, good_ref_token_output, good_treasury_output, good_provider_output}
 )
 const wrong_handle_label: ScriptContext = buildScriptContext(
-    []TxInput{wrong_handle_label_input, good_ref_token_input},
-    []TxInput{good_ref_input_bg, good_ref_input_pfp, good_ref_input_pz},
+    []TxInput{good_ref_token_input},
+    []TxInput{good_ref_input_bg, good_ref_input_pfp, good_ref_input_pz, wrong_handle_label_input},
     []TxOutput{good_owner_output, good_ref_token_output, good_treasury_output, good_provider_output}
 )
 const provider_fee_wrong: ScriptContext = buildScriptContext(
-    []TxInput{good_owner_input, good_ref_token_input},
-    []TxInput{good_ref_input_bg, good_ref_input_pfp, good_ref_input_pz},
+    []TxInput{good_ref_token_input},
+    []TxInput{good_ref_input_bg, good_ref_input_pfp, good_ref_input_pz, good_owner_input},
     []TxOutput{good_owner_output, good_ref_token_output, good_treasury_output, bad_output_fee}
 )
 const provider_address_wrong: ScriptContext = buildScriptContext(
-    []TxInput{good_owner_input, good_ref_token_input},
-    []TxInput{good_ref_input_bg, good_ref_input_pfp, good_ref_input_pz},
+    []TxInput{good_ref_token_input},
+    []TxInput{good_ref_input_bg, good_ref_input_pfp, good_ref_input_pz, good_owner_input},
     []TxOutput{good_owner_output, good_ref_token_output, good_treasury_output, bad_output_address}
 )
+const provider_datum_wrong: ScriptContext = buildScriptContext(
+    []TxInput{good_ref_token_input},
+    []TxInput{good_ref_input_bg, good_ref_input_pfp, good_ref_input_pz, good_owner_input},
+    []TxOutput{good_owner_output, good_ref_token_output, good_treasury_output, bad_provider_output_datum}
+)
 const treasury_fee_wrong: ScriptContext = buildScriptContext(
-    []TxInput{good_owner_input, good_ref_token_input},
-    []TxInput{good_ref_input_bg, good_ref_input_pfp, good_ref_input_pz},
+    []TxInput{good_ref_token_input},
+    []TxInput{good_ref_input_bg, good_ref_input_pfp, good_ref_input_pz, good_owner_input},
     []TxOutput{good_owner_output, good_ref_token_output, bad_output_fee, good_provider_output}
 )
 const treasury_address_wrong: ScriptContext = buildScriptContext(
-    []TxInput{good_owner_input, good_ref_token_input},
-    []TxInput{good_ref_input_bg, good_ref_input_pfp, good_ref_input_pz},
+    []TxInput{good_ref_token_input},
+    []TxInput{good_ref_input_bg, good_ref_input_pfp, good_ref_input_pz, good_owner_input},
     []TxOutput{good_owner_output, good_ref_token_output, bad_output_address, good_provider_output}
 )
+const treasury_datum_wrong: ScriptContext = buildScriptContext(
+    []TxInput{good_ref_token_input},
+    []TxInput{good_ref_input_bg, good_ref_input_pfp, good_ref_input_pz, good_owner_input},
+    []TxOutput{good_owner_output, good_ref_token_output, bad_treasury_output_datum, good_provider_output}
+)
 const pz_settings_wrong_address: ScriptContext = buildScriptContext(
-    []TxInput{good_owner_input, good_ref_token_input},
-    []TxInput{good_ref_input_bg, good_ref_input_pfp, bad_ref_input_pz},
+    []TxInput{good_ref_token_input},
+    []TxInput{good_ref_input_bg, good_ref_input_pfp, bad_ref_input_pz, good_owner_input},
     []TxOutput{good_owner_output, good_ref_token_output, good_treasury_output, good_provider_output}
 )
 const wrong_contract_address: ScriptContext = buildScriptContext(
-    []TxInput{good_owner_input, good_ref_token_input},
-    []TxInput{good_ref_input_bg, good_ref_input_pfp, good_ref_input_pz_new_contract},
+    []TxInput{good_ref_token_input},
+    []TxInput{good_ref_input_bg, good_ref_input_pfp, good_ref_input_pz_new_contract, good_owner_input},
     []TxOutput{good_owner_output, good_ref_token_output, good_treasury_output, good_provider_output}
+)
+const good_admin_ctx: ScriptContext = buildScriptContext(
+    []TxInput{good_ref_token_input},
+    []TxInput{good_ref_input_bg, good_ref_input_pfp, good_ref_input_pz, good_owner_input},
+    []TxOutput{good_owner_output, good_ref_token_output, good_treasury_output, good_provider_output},
+    []PubKeyHash{PubKeyHash::new(admin_bytes)}
+)
+const wrong_admin_ctx: ScriptContext = buildScriptContext(
+    []TxInput{good_ref_token_input},
+    []TxInput{good_ref_input_bg, good_ref_input_pfp, good_ref_input_pz, good_owner_input},
+    []TxOutput{good_owner_output, good_ref_token_output, good_treasury_output, good_provider_output},
+    []PubKeyHash{PubKeyHash::new(#01234567890123456789012345678901234567890123456789000008)}
 )

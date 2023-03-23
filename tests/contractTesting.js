@@ -2,27 +2,27 @@ import {Color} from './colors.js'
 
 let _program;
 let _contract;
-let _testCount;
-let _successCount;
-let _failCount;
+let testCount;
+let successCount;
+let failCount;
 
 export function setup(program, contract) {
   _program = program;
   _contract = contract;
-  _testCount = 0;
-  _successCount = 0;
-  _failCount = 0;
+  testCount = 0;
+  successCount = 0;
+  failCount = 0;
 }
 
 // evalParam(p) and runWithPrint(p[]). Look for unit "()" response
 export async function testApproval(testGroup, testName, paramNames) {
-  _testCount++;
+  testCount++;
   const args = paramNames.map((p) => _program.evalParam(p));
   await _contract.runWithPrint(args).then((res) => {
       const assertion = res[0].toString() == "()";
       if (assertion) {
-        _successCount++
-        console.log(`${Color.FgGreen}*success* - APPROVE - ${testGroup} '${testName}'${Color.Reset}`);
+        successCount++
+        console.log(`${Color.FgGreen}*success* - APPROVE - ${testGroup.padEnd(25)} '${testName}'${Color.Reset}`);
       } else {
         logFail(testGroup, testName, res, args, 'APPROVE');
       }
@@ -33,23 +33,23 @@ export async function testApproval(testGroup, testName, paramNames) {
 }
 
 export async function testDenial(testGroup, testName, paramNames, message=null) {
-    _testCount++;
+    testCount++;
     const args = paramNames.map((p) => _program.evalParam(p));
     await _contract.runWithPrint(args).then((res) => {
         const assertion = res[0].toString() != "()";
         if (assertion) {
           if (message) {
             if (res[1][0] == message) {
-              _successCount++
-              console.log(`${Color.FgGreen}*success* - DENY    - ${testGroup} '${testName}'${Color.Reset}`);
+              successCount++
+              console.log(`${Color.FgGreen}*success* - DENY    - ${testGroup.padEnd(25)} '${testName}'${Color.Reset}`);
             }
             else {
               logFail(testGroup, testName, res, args, 'DENY', false, message);
             }
           }
           else {
-            _successCount++
-            console.log(`${Color.FgGreen}*success* - DENY    - ${testGroup} '${testName}'${Color.Reset}`);
+            successCount++
+            console.log(`${Color.FgGreen}*success* - DENY    - ${testGroup.padEnd(25)} '${testName}'${Color.Reset}`);
           }
         } 
         else {
@@ -62,8 +62,8 @@ export async function testDenial(testGroup, testName, paramNames, message=null) 
 }
 
 function logFail(testGroup, testName, obj, args, type, isCodeError=false, message=null) {
-    _failCount++
-    console.log(`${Color.FgRed}*failure* - ${type.padEnd(7)} - ${testGroup} '${testName}'${Color.Reset}`);
+    failCount++
+    console.log(`${Color.FgRed}*failure* - ${type.padEnd(7)} - ${testGroup.padEnd(25)} '${testName}'${Color.Reset}`);
     console.log(`${Color.FgRed}------------------------------${Color.Reset}`)
     // console.log(`   ${Color.FgYellow}ARGS:${Color.Reset}`, args.map((v) => v.toString()));
     if (isCodeError) {
@@ -91,11 +91,16 @@ function logFail(testGroup, testName, obj, args, type, isCodeError=false, messag
     }
     console.log(`${Color.FgRed}------------------------------${Color.Reset}`)
 }
+
 export function displayStats() {
   console.log(`${Color.FgBlue}** SUMMARY **${Color.Reset}`)
-  console.log(`${Color.FgBlue}${_testCount.toString().padStart(5)} total tests${Color.Reset}`)
-  if (_successCount > 0)
-    console.log(`${Color.FgGreen}${_successCount.toString().padStart(5)} successful${Color.Reset}`)
-  if (_failCount > 0)
-    console.log(`${Color.FgRed}${_failCount.toString().padStart(5)} failed${Color.Reset}`)
+  console.log(`${Color.FgBlue}${testCount.toString().padStart(5)} total tests${Color.Reset}`)
+  if (successCount > 0)
+    console.log(`${Color.FgGreen}${successCount.toString().padStart(5)} successful${Color.Reset}`)
+  if (failCount > 0)
+    console.log(`${Color.FgRed}${failCount.toString().padStart(5)} failed${Color.Reset}`)
+}
+
+export function getTotals() {
+  return {testCount, successCount, failCount}
 }
