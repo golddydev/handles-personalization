@@ -45,7 +45,7 @@ struct PzSettings {
     pz_providers: []ByteArray
     valid_contracts: []ByteArray
     admin_creds: []ByteArray
-    inputs_address: ByteArray
+    settings_address: ByteArray
 }
 
 struct Datum {
@@ -103,8 +103,8 @@ func loadPzSettings(ctx: ScriptContext) -> PzSettings {
     });
     if (pz_input != Option[TxInput]::None) {
         settings = PzSettings::from_data(pz_input.unwrap().output.datum.get_inline_data());
-        //print(pz_input.unwrap().output.address.serialize().show() + " == " + settings.inputs_address.show());
-        if (pz_input.unwrap().output.address.serialize() == settings.inputs_address) {
+        //print(pz_input.unwrap().output.address.serialize().show() + " == " + settings.settings_address.show());
+        if (pz_input.unwrap().output.address.serialize() == settings.settings_address) {
             settings
         }
         else { error("pz_settings reference input not from ADA Handle") }

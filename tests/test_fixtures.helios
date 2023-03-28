@@ -62,7 +62,7 @@ const pz_settings = PzSettings {
     pz_providers: []ByteArray{#5839 + ada_handles_address, #5839 + pz_provider_address},
     valid_contracts: []ByteArray{#01234567890123456789012345678901234567890123456789000001},
     admin_creds: []ByteArray{admin_bytes},
-    inputs_address: #5839 + ada_handles_address
+    settings_address: #5839 + ada_handles_address
 }
 const pz_settings_new_contract = PzSettings {
     treasury_fee: 1000000,
@@ -71,7 +71,7 @@ const pz_settings_new_contract = PzSettings {
     pz_providers: []ByteArray{#5839 + ada_handles_address, #5839 + pz_provider_address},
     valid_contracts: []ByteArray{#01234567890123456789012345678901234567890123456789000007},
     admin_creds: []ByteArray{},
-    inputs_address: #5839 + ada_handles_address
+    settings_address: #5839 + ada_handles_address
 }
 
 // INPUTS
