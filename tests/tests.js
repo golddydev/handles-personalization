@@ -34,7 +34,7 @@ Promise.all([
     tester.testDenial("UPDATE_NFT_HANDLE", "missing pz reference input", ["good_datum", "update_nft_redeemer_good", "missing_pz_ref_input"], "pz_settings reference input not present"),
     tester.testDenial("UPDATE_NFT_HANDLE", "provider fee wrong", ["good_datum", "update_nft_redeemer_good", "provider_fee_wrong"], "Personalization provider not found or fee unpaid"),
     tester.testDenial("UPDATE_NFT_HANDLE", "provider address wrong", ["good_datum", "update_nft_redeemer_good", "provider_address_wrong"], "Personalization provider not found or fee unpaid"),
-    tester.testDenial("UPDATE_NFT_HANDLE", "provider address wrong", ["good_datum", "update_nft_redeemer_good", "provider_datum_wrong"], "Personalization provider not found or fee unpaid"),
+    tester.testDenial("UPDATE_NFT_HANDLE", "provider datum wrong", ["good_datum", "update_nft_redeemer_good", "provider_datum_wrong"], "Personalization provider not found or fee unpaid"),
     tester.testDenial("UPDATE_NFT_HANDLE", "treasury fee wrong", ["good_datum", "update_nft_redeemer_good", "treasury_fee_wrong"], "Handle treasury fee unpaid"),
     tester.testDenial("UPDATE_NFT_HANDLE", "treasury address wrong", ["good_datum", "update_nft_redeemer_good", "treasury_address_wrong"], "Handle treasury fee unpaid"),
     tester.testDenial("UPDATE_NFT_HANDLE", "treasury datum wrong", ["good_datum", "update_nft_redeemer_good", "treasury_datum_wrong"], "Handle treasury fee unpaid"),

@@ -20,6 +20,7 @@ export async function testApproval(testGroup, testName, paramNames) {
   const args = paramNames.map((p) => _program.evalParam(p));
   await _contract.runWithPrint(args).then((res) => {
       const assertion = res[0].toString() == "()";
+      //console.log(res[1]);
       if (assertion) {
         successCount++
         console.log(`${Color.FgGreen}*success* - APPROVE - ${testGroup.padEnd(25)} '${testName}'${Color.Reset}`);
@@ -37,6 +38,7 @@ export async function testDenial(testGroup, testName, paramNames, message=null) 
     const args = paramNames.map((p) => _program.evalParam(p));
     await _contract.runWithPrint(args).then((res) => {
         const assertion = res[0].toString() != "()";
+        //console.log(res[1]);
         if (assertion) {
           if (message) {
             if (res[1][0] == message) {

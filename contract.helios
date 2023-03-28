@@ -40,12 +40,12 @@ struct PzData {
 
 struct PzSettings {
     treasury_fee: Int
-    treasury_cred: ByteArray
+    treasury_address: ByteArray
     pz_min_fee: Int
     pz_providers: []ByteArray
     valid_contracts: []ByteArray
     admin_creds: []ByteArray
-    inputs_cred: ByteArray
+    inputs_address: ByteArray
 }
 
 struct Datum {
@@ -72,10 +72,13 @@ func hasRequiredTokens(pz: Redeemer::UPDATE_NFT_HANDLE, ctx: ScriptContext) -> B
     owners_handle: AssetClass = AssetClass::new(HANDLE_POLICY, LBL_222 + (pz.handle.encode_utf8()));
     reference_token: AssetClass = AssetClass::new(HANDLE_POLICY, LBL_100 + (pz.handle.encode_utf8()));
 
-    // User Token as ref_input
+    // User Token (Handle) as ref_input
     if (ctx.tx.ref_inputs.any((input: TxInput) -> Bool { 
+        // print("address_cred: " + input.output.address.credential.serialize().show());
         input.output.value.get_safe(owners_handle) == 1
-            && ctx.tx.signatories.any((signer: PubKeyHash) -> Bool {input.output.address.credential == Credential::new_pubkey(signer)})    
+            && ctx.tx.signatories.any((signer: PubKeyHash) -> Bool {
+                // print("signer_cred: " + Credential::new_pubkey(signer).serialize().show());
+                input.output.address.credential == Credential::new_pubkey(signer)})    
     })) {
         // Reference Token as input
         if (ctx.tx.inputs.any((input: TxInput) -> Bool { 
@@ -100,7 +103,8 @@ func loadPzSettings(ctx: ScriptContext) -> PzSettings {
     });
     if (pz_input != Option[TxInput]::None) {
         settings = PzSettings::from_data(pz_input.unwrap().output.datum.get_inline_data());
-        if (pz_input.unwrap().output.address.credential == Credential::new_validator(ValidatorHash::new(settings.inputs_cred))) {
+        //print(pz_input.unwrap().output.address.serialize().show() + " == " + settings.inputs_address.show());
+        if (pz_input.unwrap().output.address.serialize() == settings.inputs_address) {
             settings
         }
         else { error("pz_settings reference input not from ADA Handle") }
@@ -117,27 +121,14 @@ func checkInputsAndLoadSettings(ctx: ScriptContext) -> PzSettings {
         || (input.output.value.contains_policy(HANDLE_POLICY) && input.output.value.get_policy(HANDLE_POLICY).any((asset_name: ByteArray, count: Int) -> Bool {
                 asset_name.ends_with("@bg_policy_ids".encode_utf8()) && count == 1
             }))
-        && settings.pz_providers.any((cred: ByteArray) -> Bool {
-                if (cred.length == 32) {
-                    input.output.address.credential == Credential::new_pubkey(PubKeyHash::new(cred))
-                }
-                else {
-                    input.output.address.credential == Credential::new_validator(ValidatorHash::new(cred))
-                }
-            })
+        && settings.pz_providers.any((addr: ByteArray) -> Bool { input.output.address.serialize() == addr })
     })) {
         if (ctx.tx.ref_inputs.any((input: TxInput) -> Bool {
             input.output.value.get_safe(PFP_HANDLE) == 1 
             || (input.output.value.contains_policy(HANDLE_POLICY) && input.output.value.get_policy(HANDLE_POLICY).any((asset_name: ByteArray, count: Int) -> Bool {
                     asset_name.ends_with("@pfp_policy_ids".encode_utf8()) && count == 1
                 }))
-            && settings.pz_providers.any((cred: ByteArray) -> Bool {
-                if (cred.length == 32) {
-                    input.output.address.credential == Credential::new_pubkey(PubKeyHash::new(cred))
-                }
-                else {
-                    input.output.address.credential == Credential::new_validator(ValidatorHash::new(cred))
-                }})
+            && settings.pz_providers.any((addr: ByteArray) -> Bool { input.output.address.serialize() == addr })
         })) {
             settings
         }
@@ -150,21 +141,14 @@ func feesArePaid(ctx: ScriptContext, settings: PzSettings, handle: String) -> Bo
     // Treasury fee paid
     if (ctx.tx.outputs.any((output: TxOutput) -> Bool {
         // Check that datum is attached so it can be spent (also guard against double satisfaction)
-        output.address.credential == Credential::new_validator(ValidatorHash::new(settings.treasury_cred)) 
+        output.address.serialize() == settings.treasury_address
             && output.value.contains(Value::lovelace(settings.treasury_fee))
             && output.datum.get_inline_data().switch{b: ByteArray => { b == handle.encode_utf8() }, else => {false}}
     })) {
         // PZ provider fee paid
         if (ctx.tx.outputs.any((output: TxOutput) -> Bool {
-            // TODO: Check that datum is attached so it can be spent (also guard against double satisfaction)
-            settings.pz_providers.any((cred: ByteArray) -> Bool {
-                if (cred.length == 32) {
-                    output.address.credential == Credential::new_pubkey(PubKeyHash::new(cred))
-                }
-                else {
-                    output.address.credential == Credential::new_validator(ValidatorHash::new(cred))
-                }
-            })
+            // Check that datum is attached so it can be spent (also guard against double satisfaction)
+            settings.pz_providers.any((addr: ByteArray) -> Bool { output.address.serialize() == addr })
             && output.value.contains(Value::lovelace(settings.pz_min_fee))
             && output.datum.get_inline_data().switch{b: ByteArray => { b == handle.encode_utf8() }, else => {false}}
         })) {
