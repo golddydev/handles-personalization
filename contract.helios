@@ -102,7 +102,10 @@ func loadPzSettings(ctx: ScriptContext) -> PzSettings {
         input.output.value.get_safe(PZ_HANDLE) == 1
     });
     if (pz_input != Option[TxInput]::None) {
-        settings = PzSettings::from_data(pz_input.unwrap().output.datum.get_inline_data());
+        settings = PzSettings::from_data(pz_input.unwrap().output.datum.switch{
+                inline: Inline => inline.data,
+                else => error("Invalid pz_settings data")
+            });
         //print(pz_input.unwrap().output.address.serialize().show() + " == " + settings.settings_address.show());
         if (pz_input.unwrap().output.address.serialize() == settings.settings_address) {
             settings
@@ -143,14 +146,20 @@ func feesArePaid(ctx: ScriptContext, settings: PzSettings, handle: String) -> Bo
         // Check that datum is attached so it can be spent (also guard against double satisfaction)
         output.address.serialize() == settings.treasury_address
             && output.value.contains(Value::lovelace(settings.treasury_fee))
-            && output.datum.get_inline_data().switch{b: ByteArray => { b == handle.encode_utf8() }, else => {false}}
+            && output.datum.switch {
+                inline: Inline => inline.data,
+                else => error("Invalid pz_settings data")
+            }.switch{b: ByteArray => { b == handle.encode_utf8() }, else => {false}}
     })) {
         // PZ provider fee paid
         if (ctx.tx.outputs.any((output: TxOutput) -> Bool {
             // Check that datum is attached so it can be spent (also guard against double satisfaction)
             settings.pz_providers == output.address.serialize()
             && output.value.contains(Value::lovelace(settings.pz_min_fee))
-            && output.datum.get_inline_data().switch{b: ByteArray => { b == handle.encode_utf8() }, else => {false}}
+            && output.datum.switch {
+                inline: Inline => inline.data,
+                else => error("Invalid pz_settings data")
+            }.switch{b: ByteArray => { b == handle.encode_utf8() }, else => {false}}
         })) {
             true
         }
