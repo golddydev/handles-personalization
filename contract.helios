@@ -42,9 +42,9 @@ struct PzSettings {
     treasury_fee: Int
     treasury_address: ByteArray
     pz_min_fee: Int
-    pz_providers: []ByteArray
-    valid_contracts: []ByteArray
-    admin_creds: []ByteArray
+    pz_providers: ByteArray
+    valid_contracts: ByteArray
+    admin_creds: ByteArray
     settings_address: ByteArray
 }
 
@@ -121,14 +121,14 @@ func checkInputsAndLoadSettings(ctx: ScriptContext) -> PzSettings {
         || (input.output.value.contains_policy(HANDLE_POLICY) && input.output.value.get_policy(HANDLE_POLICY).any((asset_name: ByteArray, count: Int) -> Bool {
                 asset_name.ends_with("@bg_policy_ids".encode_utf8()) && count == 1
             }))
-        && settings.pz_providers.any((addr: ByteArray) -> Bool { input.output.address.serialize() == addr })
+        && settings.pz_providers == input.output.address.serialize()
     })) {
         if (ctx.tx.ref_inputs.any((input: TxInput) -> Bool {
             input.output.value.get_safe(PFP_HANDLE) == 1 
             || (input.output.value.contains_policy(HANDLE_POLICY) && input.output.value.get_policy(HANDLE_POLICY).any((asset_name: ByteArray, count: Int) -> Bool {
                     asset_name.ends_with("@pfp_policy_ids".encode_utf8()) && count == 1
                 }))
-            && settings.pz_providers.any((addr: ByteArray) -> Bool { input.output.address.serialize() == addr })
+            && settings.pz_providers == input.output.address.serialize()
         })) {
             settings
         }
@@ -148,7 +148,7 @@ func feesArePaid(ctx: ScriptContext, settings: PzSettings, handle: String) -> Bo
         // PZ provider fee paid
         if (ctx.tx.outputs.any((output: TxOutput) -> Bool {
             // Check that datum is attached so it can be spent (also guard against double satisfaction)
-            settings.pz_providers.any((addr: ByteArray) -> Bool { output.address.serialize() == addr })
+            settings.pz_providers == output.address.serialize()
             && output.value.contains(Value::lovelace(settings.pz_min_fee))
             && output.datum.get_inline_data().switch{b: ByteArray => { b == handle.encode_utf8() }, else => {false}}
         })) {
@@ -160,7 +160,7 @@ func feesArePaid(ctx: ScriptContext, settings: PzSettings, handle: String) -> Bo
 }
 
 func isValidContract(ctx: ScriptContext, settings: PzSettings) -> Bool {
-    if (settings.valid_contracts.any((cred: ByteArray) -> Bool {Credential::new_validator(ctx.get_current_validator_hash()) == Credential::new_validator(ValidatorHash::new(cred))})) {
+    if (Credential::new_validator(ValidatorHash::new(settings.valid_contracts)) == Credential::new_validator(ctx.get_current_validator_hash())) {
         true
     }
     else {
@@ -183,7 +183,7 @@ func main(_, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
         },
         ADMIN_UPDATE => {
             settings: PzSettings = loadPzSettings(ctx);
-            ctx.tx.signatories.all((signer: PubKeyHash) -> Bool {settings.admin_creds.any((admin: ByteArray) -> Bool {signer == PubKeyHash::new(admin)})})
+            ctx.tx.signatories.any((signer: PubKeyHash) -> Bool {PubKeyHash::new(settings.admin_creds) == signer})
         }
         // , pz: UPDATE_VIRTUAL_SUBHANDLE => {
         //     areNftAssetsValid()

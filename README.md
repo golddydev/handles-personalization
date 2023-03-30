@@ -6,7 +6,7 @@
 
 ## Testing
 ```sh
-cd tests
 npm install
+cd tests
 node tests.js
 ```
