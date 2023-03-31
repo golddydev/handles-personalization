@@ -41,7 +41,8 @@ Promise.all([
     tester.testDenial("UPDATE_NFT_HANDLE", "pz settings wrong address", ["good_datum", "update_nft_redeemer_good", "pz_settings_wrong_address"], "pz_settings reference input not from ADA Handle"),
     tester.testDenial("UPDATE_NFT_HANDLE", "wrong contract address", ["good_datum", "update_nft_redeemer_good", "wrong_contract_address"], "Contract not found in valid contracts list"),
 
-    tester.testDenial("ADMIN_UPDATE", "wrong admin signer", ["good_datum", "good_admin_redeemer", "wrong_admin_ctx"])
+    tester.testDenial("ADMIN_UPDATE", "wrong admin signer", ["good_datum", "good_admin_redeemer", "wrong_admin_ctx"], "Required admin signer(s) not present"),
+    tester.testDenial("ADMIN_UPDATE", "no admin signers", ["good_datum", "good_admin_redeemer", "no_admin_signers_ctx"], "Required admin signer(s) not present")
 
 ]).then(() => {
     tester.displayStats()

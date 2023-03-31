@@ -183,7 +183,13 @@ func main(_, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
         },
         ADMIN_UPDATE => {
             settings: PzSettings = loadPzSettings(ctx);
-            ctx.tx.signatories.all((signer: PubKeyHash) -> Bool {settings.admin_creds.any((admin: ByteArray) -> Bool {signer == PubKeyHash::new(admin)})})
+            if (ctx.tx.signatories.length > 0 && 
+                ctx.tx.signatories.all((signer: PubKeyHash) -> Bool {settings.admin_creds.any((admin: ByteArray) -> Bool {signer == PubKeyHash::new(admin)})}))
+            {
+                true
+            }
+            else { error("Required admin signer(s) not present") }
+            
         }
         // , pz: UPDATE_VIRTUAL_SUBHANDLE => {
         //     areNftAssetsValid()

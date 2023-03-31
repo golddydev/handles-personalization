@@ -384,3 +384,9 @@ const wrong_admin_ctx: ScriptContext = buildScriptContext(
     []TxOutput{good_ref_token_output, good_treasury_output, good_provider_output},
     []PubKeyHash{PubKeyHash::new(#01234567890123456789012345678901234567890123456789000008)}
 )
+const no_admin_signers_ctx: ScriptContext = buildScriptContext(
+    []TxInput{good_ref_token_input},
+    []TxInput{good_ref_input_bg, good_ref_input_pfp, good_ref_input_pz, good_owner_input},
+    []TxOutput{good_ref_token_output, good_treasury_output, good_provider_output},
+    []PubKeyHash{}
+)
