@@ -31,19 +31,14 @@ const good_datum = Datum {
     }
 }
 
-func bytes_to_addr(addr: ByteArray) -> Address {
-    Address::from_data(OutputDatum::new_inline(addr).data)
-}
-
 // HASHES
 const admin_bytes = #01234567890123456789012345678901234567890123456789000007
 const script_creds_bytes = #01234567890123456789012345678901234567890123456789000001
 const owner_bytes = #9876543210012345678901234567890123456789012345678901234567891235
 const script_hash: ValidatorHash = ValidatorHash::new(script_creds_bytes)
-const owner_hash: PubKeyHash = PubKeyHash::new(owner_bytes)
-const treasury_address = #01f3ee7285f975e001222c8fa065b19a328938fdb8309cb9a35f2bfc7bc251da0507cacfe8146dcb7e528c695a35824bc1d005880b234a507d
-const ada_handles_address = #01f3ee7285f975e001222c8fa065b19a328938fdb8309cb9a35f2bfc7bc251da0507cacfe8146dcb7e528c695a35824bc1d005880b234a507f
-const pz_provider_address = #01f3ee7285f975e001222c8fa065b19a328938fdb8309cb9a35f2bfc7bc251da0507cacfe8146dcb7e528c695a35824bc1d005880b234a507e
+const treasury_bytes = #01234567890123456789012345678901234567890123456789000002
+const ada_handles_bytes = #01234567890123456789012345678901234567890123456789000003
+const pz_provider_bytes = #01234567890123456789012345678901234567890123456789000004
 
 // TRANSACTION HASHES
 const script_tx_hash: TxId = TxId::new(#0123456789012345678901234567890123456789012345678901234567891234)
@@ -57,21 +52,21 @@ const owner_pubkey_hash: PubKeyHash = PubKeyHash::new(#9876543210012345678901234
 // SETTINGS
 const pz_settings = PzSettings {
     treasury_fee: 1000000,
-    treasury_address: #5839 + treasury_address,
+    treasury_cred: treasury_bytes,
     pz_min_fee: 4000000,
-    pz_providers: []ByteArray{#5839 + ada_handles_address, #5839 + pz_provider_address},
-    valid_contracts: []ByteArray{#01234567890123456789012345678901234567890123456789000001},
+    pz_providers: []ByteArray{ada_handles_bytes, pz_provider_bytes},
+    valid_contracts: []ByteArray{script_creds_bytes},
     admin_creds: []ByteArray{admin_bytes},
-    settings_address: #5839 + ada_handles_address
+    settings_cred: ada_handles_bytes
 }
 const pz_settings_new_contract = PzSettings {
     treasury_fee: 1000000,
-    treasury_address: #5839 + treasury_address,
+    treasury_cred: treasury_bytes,
     pz_min_fee: 4000000,
-    pz_providers: []ByteArray{#5839 + ada_handles_address, #5839 + pz_provider_address},
-    valid_contracts: []ByteArray{#01234567890123456789012345678901234567890123456789000007},
+    pz_providers: []ByteArray{ada_handles_bytes, pz_provider_bytes},
+    valid_contracts: []ByteArray{admin_bytes},
     admin_creds: []ByteArray{},
-    settings_address: #5839 + ada_handles_address
+    settings_cred: ada_handles_bytes
 }
 
 // INPUTS
@@ -98,7 +93,7 @@ const bad_ref_token_input_label: TxInput = TxInput::new(TxOutputId::new(script_t
     )
 const bad_ref_token_input_creds: TxInput = TxInput::new(TxOutputId::new(script_tx_hash, 0),
         TxOutput::new(
-            Address::new(Credential::new_pubkey(owner_hash), Option[StakingCredential]::None)
+            Address::new(Credential::new_validator(ValidatorHash::new(owner_bytes)), Option[StakingCredential]::None)
             , Value::lovelace(10000000) + Value::new(AssetClass::new(HANDLE_POLICY, LBL_100 + (handle.encode_utf8())), 1)
             , OutputDatum::new_none()
         )
@@ -112,7 +107,7 @@ const bad_ref_token_input_policy: TxInput = TxInput::new(TxOutputId::new(script_
     )
 const not_real_handle_input: TxInput = TxInput::new(TxOutputId::new(owner_tx_hash, 0),
         TxOutput::new(
-            Address::new(Credential::new_pubkey(owner_hash), Option[StakingCredential]::None)
+            Address::new(Credential::new_pubkey(PubKeyHash::new(owner_bytes)), Option[StakingCredential]::None)
             , Value::lovelace(10000000) + Value::new(AssetClass::new(MintingPolicyHash::new(#f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9b), LBL_222 + (handle.encode_utf8())), 1)
             , OutputDatum::new_none()
         )
@@ -121,70 +116,70 @@ const not_real_handle_input: TxInput = TxInput::new(TxOutputId::new(owner_tx_has
 // REFERENCE INPUTS
 const good_owner_input: TxInput = TxInput::new(TxOutputId::new(owner_tx_hash, 0),
         TxOutput::new(
-            Address::new(Credential::new_pubkey(owner_hash), Option[StakingCredential]::None)
+            Address::new(Credential::new_pubkey(PubKeyHash::new(owner_bytes)), Option[StakingCredential]::None)
             , Value::lovelace(10000000) + Value::new(AssetClass::new(HANDLE_POLICY, LBL_222 + (handle.encode_utf8())), 1)
             , OutputDatum::new_none()
         )
     )
 const wrong_handle_name_input: TxInput = TxInput::new(TxOutputId::new(owner_tx_hash, 0),
         TxOutput::new(
-            Address::new(Credential::new_pubkey(owner_hash), Option[StakingCredential]::None)
+            Address::new(Credential::new_pubkey(PubKeyHash::new(owner_bytes)), Option[StakingCredential]::None)
             , Value::lovelace(10000000) + Value::new(AssetClass::new(HANDLE_POLICY, LBL_222 + ("xar12346".encode_utf8())), 1)
             , OutputDatum::new_none()
         )
     )
 const wrong_handle_label_input: TxInput = TxInput::new(TxOutputId::new(owner_tx_hash, 0),
         TxOutput::new(
-            Address::new(Credential::new_pubkey(owner_hash), Option[StakingCredential]::None)
+            Address::new(Credential::new_pubkey(PubKeyHash::new(owner_bytes)), Option[StakingCredential]::None)
             , Value::lovelace(10000000) + Value::new(AssetClass::new(HANDLE_POLICY, #000653b0 + (handle.encode_utf8())), 1)
             , OutputDatum::new_none()
         )
     )
 const good_ref_input_bg: TxInput = TxInput::new(TxOutputId::new(handles_tx_hash, 0),
         TxOutput::new(
-            bytes_to_addr(ada_handles_address)
+            Address::new(Credential::new_validator(ValidatorHash::new(ada_handles_bytes)), Option[StakingCredential]::None)
             , Value::lovelace(10000000) + Value::new(AssetClass::new(HANDLE_POLICY, LBL_222 + ("bg_policy_ids".encode_utf8())), 1)
             , OutputDatum::new_none()
         )
     )
 const good_ref_input_bg_sub: TxInput = TxInput::new(TxOutputId::new(handles_tx_hash, 0),
         TxOutput::new(
-            bytes_to_addr(pz_provider_address)
+            Address::new(Credential::new_validator(ValidatorHash::new(pz_provider_bytes)), Option[StakingCredential]::None)
             , Value::lovelace(10000000) + Value::new(AssetClass::new(HANDLE_POLICY, LBL_222 + ("partner@bg_policy_ids".encode_utf8())), 1)
             , OutputDatum::new_none()
         )
     )
 const good_ref_input_pfp: TxInput = TxInput::new(TxOutputId::new(handles_tx_hash, 0),
         TxOutput::new(
-            bytes_to_addr(ada_handles_address)
+            Address::new(Credential::new_validator(ValidatorHash::new(ada_handles_bytes)), Option[StakingCredential]::None)
             , Value::lovelace(10000000) + Value::new(AssetClass::new(HANDLE_POLICY, LBL_222 + ("pfp_policy_ids".encode_utf8())), 1)
             , OutputDatum::new_none()
         )
     )
 const good_ref_input_pfp_sub: TxInput = TxInput::new(TxOutputId::new(handles_tx_hash, 0),
         TxOutput::new(
-            bytes_to_addr(pz_provider_address)
+            Address::new(Credential::new_validator(ValidatorHash::new(pz_provider_bytes)), Option[StakingCredential]::None)
             , Value::lovelace(10000000) + Value::new(AssetClass::new(HANDLE_POLICY, LBL_222 + ("partner@pfp_policy_ids".encode_utf8())), 1)
             , OutputDatum::new_none()
         )
     )
 const good_ref_input_pz: TxInput = TxInput::new(TxOutputId::new(script_tx_hash, 0),
         TxOutput::new(
-            bytes_to_addr(ada_handles_address)
+            Address::new(Credential::new_validator(ValidatorHash::new(ada_handles_bytes)), Option[StakingCredential]::None)
             , Value::lovelace(10000000) + Value::new(AssetClass::new(HANDLE_POLICY, LBL_222 + ("pz_settings".encode_utf8())), 1)
             , OutputDatum::new_inline(pz_settings)
         )
     )
 const bad_ref_input_pz: TxInput = TxInput::new(TxOutputId::new(script_tx_hash, 0),
         TxOutput::new(
-            bytes_to_addr(pz_provider_address)
+            Address::new(Credential::new_validator(ValidatorHash::new(pz_provider_bytes)), Option[StakingCredential]::None)
             , Value::lovelace(10000000) + Value::new(AssetClass::new(HANDLE_POLICY, LBL_222 + ("pz_settings".encode_utf8())), 1)
             , OutputDatum::new_inline(pz_settings)
         )
     )
 const good_ref_input_pz_new_contract: TxInput = TxInput::new(TxOutputId::new(script_tx_hash, 0),
         TxOutput::new(
-            bytes_to_addr(ada_handles_address)
+            Address::new(Credential::new_validator(ValidatorHash::new(ada_handles_bytes)), Option[StakingCredential]::None)
             , Value::lovelace(10000000) + Value::new(AssetClass::new(HANDLE_POLICY, LBL_222 + ("pz_settings".encode_utf8())), 1)
             , OutputDatum::new_inline(pz_settings_new_contract)
         )
@@ -192,7 +187,7 @@ const good_ref_input_pz_new_contract: TxInput = TxInput::new(TxOutputId::new(scr
 
 // OUTPUTS
 const good_owner_output: TxOutput = TxOutput::new(
-            Address::new(Credential::new_pubkey(owner_hash), Option[StakingCredential]::None)
+            Address::new(Credential::new_pubkey(PubKeyHash::new(owner_bytes)), Option[StakingCredential]::None)
             , Value::lovelace(10000000) + Value::new(AssetClass::new(HANDLE_POLICY, LBL_222 + (handle.encode_utf8())), 1)
             , OutputDatum::new_none())
 const good_ref_token_output: TxOutput = TxOutput::new(
@@ -200,35 +195,35 @@ const good_ref_token_output: TxOutput = TxOutput::new(
             , Value::lovelace(10000000) + Value::new(AssetClass::new(HANDLE_POLICY, LBL_100 + (handle.encode_utf8())), 1)
             , OutputDatum::new_none())
 const good_treasury_output: TxOutput = TxOutput::new(
-            bytes_to_addr(treasury_address)
+            Address::new(Credential::new_validator(ValidatorHash::new(treasury_bytes)), Option[StakingCredential]::None)
             , Value::lovelace(10000000)
             , OutputDatum::new_inline(handle.encode_utf8()))
 const bad_treasury_output_datum: TxOutput = TxOutput::new(
-            bytes_to_addr(treasury_address)
+            Address::new(Credential::new_validator(ValidatorHash::new(treasury_bytes)), Option[StakingCredential]::None)
             , Value::lovelace(10000000)
             , OutputDatum::new_inline("xar12346".encode_utf8()))
 const good_provider_output: TxOutput = TxOutput::new(
-            bytes_to_addr(pz_provider_address)
+            Address::new(Credential::new_validator(ValidatorHash::new(pz_provider_bytes)), Option[StakingCredential]::None)
             , Value::lovelace(10000000)
             , OutputDatum::new_inline(handle.encode_utf8()))
 const bad_provider_output_datum: TxOutput = TxOutput::new(
-            bytes_to_addr(pz_provider_address)
+            Address::new(Credential::new_validator(ValidatorHash::new(pz_provider_bytes)), Option[StakingCredential]::None)
             , Value::lovelace(10000000)
             , OutputDatum::new_inline("xar12346".encode_utf8()))
 const bad_output_fee: TxOutput = TxOutput::new(
-            bytes_to_addr(treasury_address)
+            Address::new(Credential::new_validator(ValidatorHash::new(treasury_bytes)), Option[StakingCredential]::None)
             , Value::lovelace(100000)
             , OutputDatum::new_inline(handle.encode_utf8()))
 const bad_provider_output_fee: TxOutput = TxOutput::new(
-            bytes_to_addr(pz_provider_address)
+            Address::new(Credential::new_validator(ValidatorHash::new(pz_provider_bytes)), Option[StakingCredential]::None)
             , Value::lovelace(100000)
             , OutputDatum::new_inline(handle.encode_utf8()))
 const bad_output_address: TxOutput = TxOutput::new(
-            bytes_to_addr(#01f3ee7285f975e001222c8fa065b19a328938fdb8309cb9a35f2bfc7bc251da0507cacfe8146dcb7e528c695a35824bc1d005880b234a507a)
+            Address::new(Credential::new_validator(ValidatorHash::new(#01234567890123456789012345678901234567890123456789000009)), Option[StakingCredential]::None)
             , Value::lovelace(10000000)
             , OutputDatum::new_inline(handle.encode_utf8()))
 const bad_ref_token_output: TxOutput = TxOutput::new(
-            Address::new(Credential::new_pubkey(owner_hash), Option[StakingCredential]::None)
+            Address::new(Credential::new_validator(ValidatorHash::new(owner_bytes)), Option[StakingCredential]::None)
             , Value::lovelace(10000000) + Value::new(AssetClass::new(HANDLE_POLICY, LBL_100 + (handle.encode_utf8())), 1)
             , OutputDatum::new_none())
 
