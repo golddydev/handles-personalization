@@ -1,33 +1,33 @@
 // STRINGS
 const handle = "xar12345"
 // REDEEMERS
-const update_nft_redeemer_good = Redeemer::UPDATE_NFT_HANDLE { handle }
+const update_nft_redeemer_good = Redeemer::UPDATE_NFT_HANDLE { handle: handle, designer: #d8799fff }
 const good_admin_redeemer = Redeemer::ADMIN_UPDATE
 
 // DATUMS
-const good_datum = Datum { 
-    nft_attributes: NftAttributes {
-        name: handle,
-        image: "ipfs://image_cid",
-        mediaType: "image/png",
-        og: false,
-        rarity: "basic",
-        length: 8,
-        character_type: "characters,numbers",
-        numeric_modifier: "",
-        og_number: 0,
-        version: 1
+const good_datum = Cip68Datum { 
+    nft_attributes: Map[String]Data {
+        "name": OutputDatum::new_inline(handle).data,
+        "image": OutputDatum::new_inline("ipfs://image_cid").data,
+        "mediaType": OutputDatum::new_inline("image/png").data,
+        "og": OutputDatum::new_inline(0).data,
+        "rarity": OutputDatum::new_inline("basic").data,
+        "length": OutputDatum::new_inline(8).data,
+        "character_type": OutputDatum::new_inline("characters,numbers").data,
+        "numeric_modifier": OutputDatum::new_inline("").data,
+        "og_number": OutputDatum::new_inline(0).data,
+        "version": OutputDatum::new_inline(1).data
     }, 
     version: 1, 
-    pz_data: PzData {
-        custom_image: "ipfs://cid",
-        bg_image: "ipfs://cid",
-        pfp_image: "ipfs://cid",
-        settings: "ipfs://cid",
-        socials: "ipfs://cid",
-        vendor: "ipfs://cid",
-        default: true,
-        holder: "stake1..."
+    pz_data: Map[String]Data {
+        "custom_image": OutputDatum::new_inline("ipfs://cid").data,
+        "bg_image": OutputDatum::new_inline("ipfs://cid").data,
+        "pfp_image": OutputDatum::new_inline("ipfs://cid").data,
+        "designer": OutputDatum::new_inline("ipfs://zb2rheN3tw536wH89uccFxjC2A45x4fi52kr7aX1LjKiX31Ug").data,
+        "socials": OutputDatum::new_inline("ipfs://cid").data,
+        "vendor": OutputDatum::new_inline("ipfs://cid").data,
+        "default": OutputDatum::new_inline(1).data,
+        "holder": OutputDatum::new_inline("stake1...").data
     }
 }
 
@@ -193,7 +193,7 @@ const good_owner_output: TxOutput = TxOutput::new(
 const good_ref_token_output: TxOutput = TxOutput::new(
             Address::new(Credential::new_validator(script_hash), Option[StakingCredential]::None)
             , Value::lovelace(10000000) + Value::new(AssetClass::new(HANDLE_POLICY, LBL_100 + (handle.encode_utf8())), 1)
-            , OutputDatum::new_none())
+            , OutputDatum::new_inline(good_datum))
 const good_treasury_output: TxOutput = TxOutput::new(
             Address::new(Credential::new_validator(ValidatorHash::new(treasury_bytes)), Option[StakingCredential]::None)
             , Value::lovelace(10000000)
