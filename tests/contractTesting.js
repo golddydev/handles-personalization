@@ -35,7 +35,7 @@ function logTest(shouldApprove, testGroup, testName, paramNames, message=null, r
   if (!assertion || hasPrintStatements)
     console.log(`${textColor}------------------------------${Color.Reset}`)
   
-  console.log(`${textColor}*${assertion ? "succcess" : "failure"}* - ${(shouldApprove ? "APPROVE" : "DENY").padEnd(7)} - ${testGroup.padEnd(25)} '${testName}'${Color.Reset}`);
+  console.log(`${textColor}*${assertion ? "success" : "failure"}* - ${(shouldApprove ? "APPROVE" : "DENY").padEnd(7)} - ${testGroup.padEnd(25)} '${testName}'${Color.Reset}`);
   
   if (hasPrintStatements)
     console.log(`   ${Color.FgYellow}PRINT STATEMENTS:${Color.Reset}\n   ${res[1].join("\n   ")}`);
@@ -61,6 +61,142 @@ function logTest(shouldApprove, testGroup, testName, paramNames, message=null, r
   
   if (!assertion || hasPrintStatements)
     console.log(`${textColor}------------------------------${Color.Reset}`)
+}
+
+export class ScriptContext {
+  inputs = [];
+  referenceInputs = [];
+  outputs = [];
+  signers;
+
+  constructor() {
+    this.inputs = [new TxInput('script_tx_hash', new TxOutput('script_creds_bytes'))];
+
+    const goodBgInput = new TxInput('handles_tx_hash', new TxOutput('ada_handles_bytes', '', '"bg"'));
+    const goodPfpInput = new TxInput('handles_tx_hash', new TxOutput('ada_handles_bytes', '', '"pfp"'));
+    const goodBgListInput = new TxInput('handles_tx_hash', new TxOutput('ada_handles_bytes', 'LBL_222', '"bg_policy_ids"'));
+    goodBgListInput.output.datumType = 'inline';
+    goodBgListInput.output.datum = 'bg_policy_ids';
+    const goodPfpListInput = new TxInput('handles_tx_hash', new TxOutput('ada_handles_bytes', 'LBL_222', '"pfp_policy_ids"'));
+    goodPfpListInput.output.datumType = 'inline';
+    goodPfpListInput.output.datum = 'pfp_policy_ids';
+    const goodPzInput = new TxInput('handles_tx_hash', new TxOutput('ada_handles_bytes', 'LBL_222', '"pz_settings"'));
+    goodPzInput.output.datumType = 'inline';
+    goodPzInput.output.datum = 'pz_settings';
+    const goodOwnerInput = new TxInput('owner_tx_hash', new TxOutput('owner_bytes', 'LBL_222', 'handle'));
+    goodOwnerInput.output.hashType = 'pubkey';
+    this.referenceInputs = [goodBgInput, goodPfpInput, goodBgListInput, goodPfpListInput, goodPzInput, goodOwnerInput];
+
+    const goodRefTokenOutput = new TxOutput('script_creds_bytes');
+    goodRefTokenOutput.datumType = 'inline';
+    goodRefTokenOutput.datum = 'good_datum';
+    const goodTreasuryOutput = new TxOutput('treasury_bytes', null, null, '');
+    goodTreasuryOutput.datumType = 'inline';
+    goodTreasuryOutput.datum = 'handle.encode_utf8()';
+    const goodProviderOutput = new TxOutput('pz_provider_bytes', null, null, '');
+    goodProviderOutput.datumType = 'inline';
+    goodProviderOutput.datum = 'handle.encode_utf8()';
+    this.outputs = [goodRefTokenOutput, goodTreasuryOutput, goodProviderOutput];
+    this.signers = ['#9876543210012345678901234567890123456789012345678901234567891235'];
+  }
+
+  render() {
+    //console.log(this.inputs, this.referenceInputs, this.outputs)
+    let renderedInputs = '';
+    for (let i=0; i<this.inputs.length; i++){
+      renderedInputs += this.inputs[i].render() + (i+1 == this.inputs.length ? '' : ', ');
+    }
+    let renderedRefs = '';
+    for (let i=0; i<this.referenceInputs.length; i++){
+      renderedRefs += this.referenceInputs[i].render() + (i+1 == this.referenceInputs.length ? '' : ', ');
+    }
+    let renderedOutputs = '';
+    for (let i=0; i<this.outputs.length; i++){
+      renderedOutputs += this.outputs[i].render() + (i+1 == this.outputs.length ? '' : ', ');
+    }
+    let renderedSigners = '';
+    for (let i=0; i<this.signers.length; i++){
+      renderedSigners += `PubKeyHash::new(${this.signers[i]})${i+1 == this.signers.length ? '' : ', '}`;
+    }
+    return `ScriptContext::new_spending(
+        Tx::new(
+          []TxInput{${renderedInputs}},
+          []TxInput{${renderedRefs}},
+          []TxOutput{${renderedOutputs}},
+          Value::lovelace(160000),
+          Value::ZERO,
+          []DCert{},
+          Map[StakingCredential]Int{},
+          TimeRange::from(Time::new(1001)),
+          []PubKeyHash{${renderedSigners}},
+          Map[ScriptPurpose]Data{},
+          Map[DatumHash]Data{}
+        ),
+        TxOutputId::new(tx_output_id, 0)
+    )`
+  }
+}
+
+export class TxInput {
+  hash = '';
+  output;
+
+  constructor(hash='pz_provider_bytes', output=(new TxOutput())) {
+    this.hash = hash;
+    this.output = output;
+   }
+
+  render() {
+    return `TxInput::new(TxOutputId::new(${this.hash}, 0), ${this.output.render()})`
+  }
+
+}
+
+export class TxOutput {
+  hashType = 'validator';
+  datumType = 'none';
+  hash = '';
+  label = '';
+  asset = '';
+  lovelace = '10000000';
+  datum = 'good_datum';
+  policy = 'HANDLE_POLICY';
+  value = '';
+  
+  constructor(hash='pz_provider_bytes', label='LBL_100', asset='handle', value=null) {
+    if (hash != null) {
+      this.hash = hash;
+    }
+    if (label != null) {
+      this.label = label;
+    }
+    if (asset != null) {
+      this.asset = asset;
+    }
+    if (value == null) {
+      this.value = `+ Value::new(AssetClass::new(${this.policy}, ${this.label}${this.label ? ' + ': ''}(${this.asset}.encode_utf8())), 1)`;
+    }
+    else {
+      this.value = value;
+    }
+   }
+
+  render() {
+    let hashString = 'validator(Validator';
+    if (this.hashType == 'pubkey') {
+      hashString = 'pubkey(PubKey';
+    }
+    let datumString = `none()`;
+    if (this.datumType == 'inline') {
+      datumString = `inline(${this.datum})`;
+    }
+
+    return `TxOutput::new(
+              Address::new(Credential::new_${hashString}Hash::new(${this.hash})), Option[StakingCredential]::None)
+              , Value::lovelace(${this.lovelace}) ${this.value}
+              , OutputDatum::new_${datumString}
+            )`
+  }
 }
 
 export function displayStats() {
