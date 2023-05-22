@@ -250,8 +250,8 @@ func checkRequiredPfPs(pfp_asset: Option[Data], pfp_datum_opt:Option[OutputDatum
                 )
                 && (
                     pfp_is_displayed = (require_pfp_displayed_opt == Option[Data]::None 
-                        || Bool::from_data(require_pfp_displayed_opt.unwrap().get_inline_data()) == false
-                        || (Bool::from_data(require_pfp_displayed_opt.unwrap().get_inline_data()) 
+                        || Int::from_data(require_pfp_displayed_opt.unwrap().get_inline_data()).to_bool() == false
+                        || (Int::from_data(require_pfp_displayed_opt.unwrap().get_inline_data()).to_bool()
                             && pfp_asset != Option[Data]::None && bytes.starts_with(ByteArray::from_data(pfp_asset.unwrap()))));
                     if (throw_errors) {
                         assert(pfp_is_displayed, "Required PFP isn't displayed in Handle");
@@ -276,7 +276,7 @@ func designerSettingsAreValid(designer: Map[String]Data, pfp_datum_opt:Option[Ou
         bg_datum = Map[String]Data::from_data(bg_datum_opt.unwrap().get_inline_data());
         force: Option[Data] = bg_datum_opt.get_safe("force_creator_settings");
         areRequiredPfpsPresent: Bool = checkRequiredPfPs(designer.get_safe("pfp_asset"), pfp_datum_opt, bg_datum_opt, owner_cred, ctx, true);
-        if (force != Option[Data]::None && Bool::from_data(force.unwrap()) == true) {
+        if (force != Option[Data]::None && Int::from_data(force.unwrap()).to_bool() == true) {
             bg_border_colors: Option[Data] = bg_datum.get_safe("bg_border_colors");
             bg_border_color: ByteArray = ByteArray::from_data(designer.get("bg_border_color"));
             assert(bg_border_colors == Option[Data]::None || []ByteArray::from_data(bg_border_colors.unwrap()).find_safe((color:ByteArray) -> Bool { 
@@ -410,8 +410,8 @@ func pzDatumIsValid(
         assert(pfp_asset_opt == Option[Data]::None || approvers.get("pfp_approvers").any((pol: ByteArray, pattern: Map[ByteArray][]Int) -> Bool {
             pol == pfp_asset.mph.serialize() && pattern.any((p: ByteArray, props: []Int) -> Bool {
                 pfp_asset.token_name.starts_with(p) 
-                    && Bool::from_data(new_datum.get("trial")) == Int::from_data(props.get(1)).to_bool()
-                    && Bool::from_data(new_datum.get("nsfw")) == Int::from_data(props.get(0)).to_bool()
+                    && Int::from_data(new_datum.get("trial")) == Int::from_data(props.get(1))
+                    && Int::from_data(new_datum.get("nsfw")) == Int::from_data(props.get(0))
             })
         }), "pfp_policy is in trial or nsfw, but Handle is not");
 
@@ -421,8 +421,8 @@ func pzDatumIsValid(
         assert(bg_asset_opt == Option[Data]::None || approvers.get("bg_approvers").any((pol: ByteArray, pattern: Map[ByteArray][]Int) -> Bool {
             pol == bg_asset.mph.serialize() && pattern.any((p: ByteArray, props: []Int) -> Bool {
                 bg_asset.token_name.starts_with(p) 
-                    && Bool::from_data(new_datum.get("trial")) == Int::from_data(props.get(1)).to_bool()
-                    && Bool::from_data(new_datum.get("nsfw")) == Int::from_data(props.get(0)).to_bool()
+                    && Int::from_data(new_datum.get("trial")) == Int::from_data(props.get(1))
+                    && Int::from_data(new_datum.get("nsfw")) == Int::from_data(props.get(0))
             })
         }), "bg_policy is in trial or nsfw, but Handle is not");
 
@@ -490,16 +490,14 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                 designer_is_reset = (ByteArray::from_data(redeemer.designer.get("pfp_border_color")) == #
                     && String::from_data(redeemer.designer.get("font")) == ""
                     && ByteArray::from_data(redeemer.designer.get("font_color")) == #ffffff
-                    && []Int::from_data(redeemer.designer.get("font_shadow_size")) == []Int{0,0,0}
                     && ByteArray::from_data(redeemer.designer.get("font_shadow_color")) == #
-                    && []ByteArray::from_data(redeemer.designer.get("text_ribbon_colors")) == []ByteArray{#}
-                    && String::from_data(redeemer.designer.get("text_ribbon_gradient")) == ""
+                    && []ByteArray::from_data(redeemer.designer.get("text_ribbon_colors")) == []ByteArray{}
                     && ByteArray::from_data(redeemer.designer.get("bg_asset")) == #
                     && ByteArray::from_data(redeemer.designer.get("pfp_asset")) == #
                     && ByteArray::from_data(redeemer.designer.get("bg_color")) == #
                     && ByteArray::from_data(redeemer.designer.get("bg_border_color")) == #
                     && String::from_data(redeemer.designer.get("qr_link")) == ""
-                    && Map[String]String::from_data(redeemer.designer.get("socials")) == Map[String]String{});
+                    && Map[String]String::from_data(redeemer.designer.get("socials")) == []ByteArray{});
 
                 pz_datum_is_reset && designer_is_reset
             }
@@ -509,3 +507,4 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
         }
     }
 }
+
