@@ -9,35 +9,35 @@ const update_nft_redeemer_good = Redeemer::PERSONALIZE { handle: handle, designe
 
 // DATUMS
 const good_datum = Datum { 
-    nft_attributes: Map[String]Data {
+    nft: Map[String]Data {
         "name": OutputDatum::new_inline(handle).data,
         "image": OutputDatum::new_inline("ipfs://image_cid").data,
         "mediaType": OutputDatum::new_inline("image/jpeg").data,
         "og": OutputDatum::new_inline(0).data,
+        "og_number": OutputDatum::new_inline(1).data,
         "rarity": OutputDatum::new_inline("basic").data,
         "length": OutputDatum::new_inline(8).data,
-        "character_type": OutputDatum::new_inline("characters,numbers").data,
-        "numeric_modifier": OutputDatum::new_inline("").data,
-        "og_number": OutputDatum::new_inline(0).data,
-        "version": OutputDatum::new_inline(1).data,
-        "files": OutputDatum::new_inline([]Map[String]Data{
-            Map[String]Data{
-            "name": OutputDatum::new_inline("original_image").data,
-            "src": OutputDatum::new_inline("ipfs://image_cid").data,
-            "mediaType": OutputDatum::new_inline("image/jpeg").data
-    }}).data
+        "characters": OutputDatum::new_inline("characters,numbers").data,
+        "numeric_modifiers": OutputDatum::new_inline("").data,
+        "version": OutputDatum::new_inline(1).data
     }, 
     version: 1, 
-    pz_data: Map[String]Data {
+    extra: Map[String]Data {
+        "standard_image": OutputDatum::new_inline("ipfs://cid").data,
         "bg_image": OutputDatum::new_inline("ipfs://cid").data,
         "pfp_image": OutputDatum::new_inline("ipfs://cid").data,
         "designer": OutputDatum::new_inline("ipfs://zdj7WcVrQQWFxq6iPHJfPUrRA2EV6kPA7oyHLPgM5mxn5hXcw").data,
+        "pfp_asset": OutputDatum::new_inline(#).data,
+        "bg_asset": OutputDatum::new_inline(#).data,
+        "portal": OutputDatum::new_inline("ipfs://cid").data,
         "socials": OutputDatum::new_inline("ipfs://cid").data,
         "vendor": OutputDatum::new_inline("ipfs://cid").data,
         "default": OutputDatum::new_inline(1).data,
-        "holder": OutputDatum::new_inline("stake1...").data,
-        "provider_hash": OutputDatum::new_inline(#).data,
+        "last_update_address": OutputDatum::new_inline("stake1...").data,
+        "validated_by": OutputDatum::new_inline(#).data,
         "agreed_terms": OutputDatum::new_inline("https://tou").data,
+        "trial": OutputDatum::new_inline(0).data,
+        "nsfw": OutputDatum::new_inline(0).data,
         "migrate_sig_required": OutputDatum::new_inline(0).data
     }
 }
@@ -65,7 +65,7 @@ const pz_settings = PzSettings {
     treasury_fee: 1000000,
     treasury_cred: treasury_bytes,
     pz_min_fee: 4000000,
-    pz_providers: []ByteArray{ada_handles_bytes, pz_provider_bytes},
+    pz_providers: Map[ByteArray]ByteArray{ada_handles_bytes: ada_handles_bytes, pz_provider_bytes: pz_provider_bytes},
     valid_contracts: []ByteArray{script_creds_bytes},
     admin_creds: []ByteArray{admin_bytes},
     settings_cred: ada_handles_bytes
@@ -74,7 +74,7 @@ const pz_settings_new_contract = PzSettings {
     treasury_fee: 1000000,
     treasury_cred: treasury_bytes,
     pz_min_fee: 4000000,
-    pz_providers: []ByteArray{ada_handles_bytes, pz_provider_bytes},
+    pz_providers: Map[ByteArray]ByteArray{ada_handles_bytes: ada_handles_bytes, pz_provider_bytes: pz_provider_bytes},
     valid_contracts: []ByteArray{admin_bytes},
     admin_creds: []ByteArray{},
     settings_cred: ada_handles_bytes
