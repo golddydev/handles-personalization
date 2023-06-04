@@ -161,7 +161,7 @@ func getAssetDatum(asset: AssetClass, ctx: ScriptContext) -> OutputDatum {
     output: Option[TxOutput] = (
         if (asset.token_name.starts_with(LBL_222) || asset.token_name.starts_with(LBL_444)) {
             real_name: ByteArray = asset.token_name.slice(4, asset.token_name.length);
-            findAsReferenceOrOutput(asset.mph, real_name, 1, ctx, false, false)
+            findAsReferenceOrOutput(asset.mph, LBL_100 + real_name, 1, ctx, false, false)
         } 
         else {
             findAsReferenceOrOutput(asset.mph, asset.token_name, 1, ctx, false, false)
@@ -170,7 +170,7 @@ func getAssetDatum(asset: AssetClass, ctx: ScriptContext) -> OutputDatum {
     output.unwrap().datum
 }
 
-func assetIsValid(asset_type:String, designer: Map[String]Data, approvers: Map[String]Map[ByteArray]Map[ByteArray][]Int, ctx: ScriptContext) -> (Bool, Option[Credential], Option[OutputDatum]) {
+func assetIsValid(asset_type:String, designer: Map[String]Data, approvers: Map[String]Map[ByteArray]Map[ByteArray][]Int, ctx: ScriptContext) -> (Bool, Option[Credential], OutputDatum) {
     if (designer.find_key_safe((key: String) -> { key == asset_type + "_asset" }) != Option[String]::None) {
         asset: AssetClass = parseAsset(ByteArray::from_data(designer.get(asset_type + "_asset")));
 
@@ -184,23 +184,24 @@ func assetIsValid(asset_type:String, designer: Map[String]Data, approvers: Map[S
         approved: Map[ByteArray]Map[ByteArray][]Int = approvers.get(asset_type + "_approvers");
 
         assert(approved.any((pol: ByteArray, pattern: Map[ByteArray][]Int) -> Bool {
-            pol == asset.mph.serialize() && pattern.any((p: ByteArray, _) -> Bool { asset.token_name.starts_with(p) })
+            // print(pol.serialize().show() + " = " + asset.mph.serialize().show() + " & " + asset.token_name.show());
+            pol.serialize() == asset.mph.serialize() && pattern.any((p: ByteArray, _) -> Bool { asset.token_name.starts_with(p) })
         }), asset_type + " is not in the approved list");
-        (true, Option[Credential]::Some{asset_output.unwrap().address.credential}, Option[OutputDatum]::Some{asset_datum})
+        (true, Option[Credential]::Some{asset_output.unwrap().address.credential}, asset_datum)
     }
     else {
-        (true, Option[Credential]::None, Option[OutputDatum]::None)
+        (true, Option[Credential]::None, OutputDatum::new_none())
     }
 
 }
-func getAndValidateDesignerAssets(designer: Map[String]Data, owner_cred: Credential, approvers: Map[String]Map[ByteArray]Map[ByteArray][]Int, ctx: ScriptContext, throw_errors:Bool) -> (Option[OutputDatum], Option[OutputDatum], Credential, Bool) {
+func getAndValidateDesignerAssets(designer: Map[String]Data, owner_cred: Credential, approvers: Map[String]Map[ByteArray]Map[ByteArray][]Int, ctx: ScriptContext, throw_errors:Bool) -> (OutputDatum, OutputDatum, Credential, Bool) {
     // handle, pfp, and bg can be ref_input or output
     // handle determines the address creds, all others must match 
     // We know we have a signature from the owner.
 
     // print("REDEEMER: " + designer.serialize().show());
-    (pfp_valid: Bool, pfp_cred: Option[Credential], pfp_datum_opt: Option[OutputDatum]) = assetIsValid("pfp", designer, approvers, ctx);
-    (bg_valid: Bool, bg_cred: Option[Credential], bg_datum_opt: Option[OutputDatum]) = assetIsValid("bg", designer, approvers, ctx);
+    (pfp_valid: Bool, pfp_cred: Option[Credential], pfp_datum_opt: OutputDatum) = assetIsValid("pfp", designer, approvers, ctx);
+    (bg_valid: Bool, bg_cred: Option[Credential], bg_datum_opt: OutputDatum) = assetIsValid("bg", designer, approvers, ctx);
     pfp_cred_valid: Bool = pfp_cred == Option[Credential]::None || pfp_cred.unwrap() == owner_cred;
     bg_cred_valid: Bool = bg_cred == Option[Credential]::None || bg_cred.unwrap() == owner_cred;
     if (throw_errors) {
@@ -214,9 +215,9 @@ func getAndValidateDesignerAssets(designer: Map[String]Data, owner_cred: Credent
     }
 }
 
-func checkRequiredPfPs(pfp_asset: Option[Data], bg_datum_opt:Option[OutputDatum], owner_cred:Credential, ctx: ScriptContext, throw_errors: Bool) -> Bool {
-    if (bg_datum_opt != Option[OutputDatum]::None) {
-        bg_datum = Map[String]Data::from_data(bg_datum_opt.unwrap().get_inline_data());
+func checkRequiredPfPs(pfp_asset: Option[Data], bg_datum_opt:OutputDatum, owner_cred:Credential, ctx: ScriptContext, throw_errors: Bool) -> Bool {
+    if (bg_datum_opt != OutputDatum::new_none()) {
+        bg_datum = Map[String]Data::from_data(bg_datum_opt.get_inline_data());
         require_pfp_collections_opt: Option[Data] = bg_datum.get_safe("require_pfp_collections");
         require_pfp_attributes_opt: Option[Data] = bg_datum.get_safe("require_pfp_attributes");
         require_pfp_displayed_opt: Option[Data] = bg_datum.get_safe("require_pfp_displayed");
@@ -269,11 +270,11 @@ func checkRequiredPfPs(pfp_asset: Option[Data], bg_datum_opt:Option[OutputDatum]
     }
 }
 
-func designerSettingsAreValid(designer: Map[String]Data, bg_datum_opt:Option[OutputDatum], owner_cred:Credential, ctx: ScriptContext) -> Bool {
-    if (bg_datum_opt != Option[OutputDatum]::None) {
-        bg_datum = Map[String]Data::from_data(bg_datum_opt.unwrap().get_inline_data());
+func designerSettingsAreValid(pz_data:Map[String]Data, designer: Map[String]Data, bg_datum_opt:OutputDatum, owner_cred:Credential, ctx: ScriptContext) -> Bool {
+    if (bg_datum_opt != OutputDatum::new_none()) {
+        bg_datum = Map[String]Data::from_data(bg_datum_opt.get_inline_data());
         force: Option[Data] = bg_datum.get_safe("force_creator_settings");
-        areRequiredPfpsPresent: Bool = checkRequiredPfPs(designer.get_safe("pfp_asset"), bg_datum_opt, owner_cred, ctx, true);
+        areRequiredPfpsPresent: Bool = checkRequiredPfPs(pz_data.get_safe("pfp_asset"), bg_datum_opt, owner_cred, ctx, true);
         if (force != Option[Data]::None && Int::from_data(force.unwrap()).to_bool() == true) {
             bg_border_colors: Option[Data] = bg_datum.get_safe("bg_border_colors");
             bg_border_color: ByteArray = ByteArray::from_data(designer.get("bg_border_color"));
@@ -388,8 +389,7 @@ func migrationSignersAreValid(ctx: ScriptContext, settings: PzSettings) -> Bool 
 
 func pzDatumIsValid(
     owner_token: TxOutput, 
-    reference_token: TxOutput, 
-    designer: Map[String]Data, 
+    reference_token: TxOutput,
     settings: PzSettings, 
     approvers: Map[String]Map[ByteArray]Map[ByteArray][]Int, 
     ctx: ScriptContext) -> Bool {
@@ -402,35 +402,37 @@ func pzDatumIsValid(
         provider: Option[PubKeyHash] = ctx.tx.signatories.find_safe((signer: PubKeyHash) -> Bool { settings.pz_providers.any((cred: ByteArray, _) -> Bool {signer == PubKeyHash::new(cred) && cred == validated_by})});
         assert((validated_by == # && provider == Option[PubKeyHash]::None) || provider != Option[PubKeyHash]::None, "validated_by is not set correctly");
 
-        pfp_asset_opt: Option[Data] = designer.get_safe("pfp_asset");
+        pfp_asset_opt: Option[Data] = pz_data.get_safe("pfp_asset");
         pfp_asset: AssetClass = pfp_asset_opt.switch{Some{a} => parseAsset(ByteArray::from_data(a)), else => AssetClass::new(MintingPolicyHash::new(#), #)};
 
         assert(pfp_asset_opt == Option[Data]::None || approvers.get("pfp_approvers").any((pol: ByteArray, pattern: Map[ByteArray][]Int) -> Bool {
-            pol == pfp_asset.mph.serialize() && pattern.any((p: ByteArray, props: []Int) -> Bool {
+            pol.serialize() == pfp_asset.mph.serialize() && pattern.any((p: ByteArray, props: []Int) -> Bool {
                 pfp_asset.token_name.starts_with(p) 
                     && Int::from_data(pz_data.get("trial")) == props.get(1)
                     && Int::from_data(pz_data.get("nsfw")) == props.get(0)
             })
         }), "pfp_policy is in trial or nsfw, but Handle is not");
 
-        bg_asset_opt: Option[Data] = designer.get_safe("bg_asset");
+        bg_asset_opt: Option[Data] = pz_data.get_safe("bg_asset");
         bg_asset: AssetClass = bg_asset_opt.switch{Some{a} => parseAsset(ByteArray::from_data(a)), else => AssetClass::new(MintingPolicyHash::new(#), #)};
 
         assert(bg_asset_opt == Option[Data]::None || approvers.get("bg_approvers").any((pol: ByteArray, pattern: Map[ByteArray][]Int) -> Bool {
-            pol == bg_asset.mph.serialize() && pattern.any((p: ByteArray, props: []Int) -> Bool {
+            pol.serialize() == bg_asset.mph.serialize() && pattern.any((p: ByteArray, props: []Int) -> Bool {
                 bg_asset.token_name.starts_with(p) 
                     && Int::from_data(pz_data.get("trial")) == props.get(1)
                     && Int::from_data(pz_data.get("nsfw")) == props.get(0)
             })
         }), "bg_policy is in trial or nsfw, but Handle is not");
 
-        assert(bg_asset_opt == Option[Data]::None || 
-            String::from_data(Datum::from_data(getAssetDatum(bg_asset, ctx).get_inline_data()).nft.get("image")) == String::from_data(pz_data.get("bg_image")),
-            "bg_image doesn't match bg_asset datum");
+        assert(bg_asset_opt == Option[Data]::None || (
+                bg_datum: OutputDatum = getAssetDatum(bg_asset, ctx);
+                bg_datum == OutputDatum::new_none() || String::from_data(Datum::from_data(bg_datum.get_inline_data()).nft.get("image")) == String::from_data(pz_data.get("bg_image"))
+            ), "bg_image doesn't match bg_asset datum");
 
-        assert(pfp_asset_opt == Option[Data]::None || 
-            String::from_data(Datum::from_data(getAssetDatum(pfp_asset, ctx).get_inline_data()).nft.get("image")) == String::from_data(pz_data.get("pfp_image")),
-            "pfp_image doesn't match pfp_asset datum");
+        assert(pfp_asset_opt == Option[Data]::None || (
+                pfp_datum: OutputDatum = getAssetDatum(pfp_asset, ctx);
+                pfp_datum == OutputDatum::new_none() || String::from_data(Datum::from_data(pfp_datum.get_inline_data()).nft.get("image")) == String::from_data(pz_data.get("pfp_image"))
+            ), "pfp_image doesn't match pfp_asset datum");
 
         true
 }
@@ -440,15 +442,16 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
         pz: PERSONALIZE => {
             (settings: PzSettings, approvers: Map[String]Map[ByteArray]Map[ByteArray][]Int) = checkInputsAndLoadSettings(ctx);
             (owner_token: TxOutput, reference_token: TxOutput) = getHandleTokens(pz.handle, ctx, true);
+            new_datum = Datum::from_data(reference_token.datum.get_inline_data());
             assert(isValidContract(ctx.get_current_validator_hash(), settings) 
                 && feesArePaid(ctx, settings, pz.handle) 
                 && cborHashesToCid(pz.designer, reference_token)
-                && immutablesAreUnchanged(datum, Datum::from_data(reference_token.datum.get_inline_data()))
-                && pzDatumIsValid(owner_token, reference_token, pz.designer, settings, approvers, ctx)
+                && immutablesAreUnchanged(datum, new_datum)
                 , "Contract failed validation");
 
-            (_, bg_datum:Option[OutputDatum], _, _) = getAndValidateDesignerAssets(pz.designer, owner_token.address.credential, approvers, ctx, true);
-            assert(designerSettingsAreValid(pz.designer, bg_datum, owner_token.address.credential, ctx) && checkBrightness(), "Personalization settings checks failed");
+            (_, bg_datum:OutputDatum, _, _) = getAndValidateDesignerAssets(pz.designer, owner_token.address.credential, approvers, ctx, true);
+            assert(pzDatumIsValid(owner_token, reference_token, settings, approvers, ctx)
+                && designerSettingsAreValid(new_datum.extra, pz.designer, bg_datum, owner_token.address.credential, ctx) && checkBrightness(), "Personalization settings checks failed");
             true
         },
         migrate: MIGRATE => {
@@ -465,14 +468,15 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
             assert(isValidContract(ctx.get_current_validator_hash(), settings) 
                 && cborHashesToCid(reset.designer, reference_token)
                 && immutablesAreUnchanged(datum, Datum::from_data(reference_token.datum.get_inline_data()))
-                && pzDatumIsValid(owner_token, reference_token,reset.designer, settings, approvers, ctx)
                 , "Contract failed validation");
             
-            (_, bg_datum:Option[OutputDatum], _, designer_assets_valid:Bool) = getAndValidateDesignerAssets(reset.designer, owner_token.address.credential, approvers, ctx, false);
-            require_pfp_valid: Bool = checkRequiredPfPs(reset.designer.get_safe("pfp_asset"), bg_datum, owner_token.address.credential, ctx, false);
-            signed_by_provider: Bool = ctx.tx.signatories.any((signer: PubKeyHash) -> Bool { settings.pz_providers.any((cred: ByteArray, _) -> Bool {signer == PubKeyHash::new(cred)})});
+            (_, bg_datum:OutputDatum, _, designer_assets_valid:Bool) = getAndValidateDesignerAssets(reset.designer, owner_token.address.credential, approvers, ctx, false);
+            assert(pzDatumIsValid(owner_token, reference_token, settings, approvers, ctx), "Personalization settings checks failed");
+
             new_datum = Datum::from_data(reference_token.datum.get_inline_data());
             pz_data: Map[String]Data = new_datum.extra;
+            require_pfp_valid: Bool = checkRequiredPfPs(pz_data.get_safe("pfp_asset"), bg_datum, owner_token.address.credential, ctx, false);
+            signed_by_provider: Bool = ctx.tx.signatories.any((signer: PubKeyHash) -> Bool { settings.pz_providers.any((cred: ByteArray, _) -> Bool {signer == PubKeyHash::new(cred)})});
             prev_datum_extra: Map[String]Data = datum.extra;
             address_changed_with_socials: Bool = ((prev_datum_extra.get("last_update_address") != pz_data.get("last_update_address")) && String::from_data(prev_datum_extra.get("socials")) != "");
 
@@ -482,6 +486,8 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                 pz_datum_is_reset: Bool = (
                     pz_data.get("image") == pz_data.get("standard_image")
                     && pz_data.get("image_hash") == pz_data.get("standard_image_hash")
+                    && ByteArray::from_data(pz_data.get("bg_asset")) == #
+                    && ByteArray::from_data(pz_data.get("pfp_asset")) == #
                     && String::from_data(pz_data.get("pfp_image")) == ""
                     && String::from_data(pz_data.get("bg_image")) == "");
 
@@ -490,8 +496,6 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                     && ByteArray::from_data(reset.designer.get("font_color")) == #ffffff
                     && ByteArray::from_data(reset.designer.get("font_shadow_color")) == #
                     && []ByteArray::from_data(reset.designer.get("text_ribbon_colors")) == []ByteArray{}
-                    && ByteArray::from_data(reset.designer.get("bg_asset")) == #
-                    && ByteArray::from_data(reset.designer.get("pfp_asset")) == #
                     && ByteArray::from_data(reset.designer.get("bg_color")) == #
                     && ByteArray::from_data(reset.designer.get("bg_border_color")) == #
                     && String::from_data(reset.designer.get("qr_link")) == ""

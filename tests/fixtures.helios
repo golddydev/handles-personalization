@@ -1,96 +1,23 @@
-// STRINGS
-const handle = "xar12345"
-// REDEEMERS
-const update_nft_redeemer_good = Redeemer::PERSONALIZE { handle: handle, designer: Map[String]Data{
-    "bg_asset": OutputDatum::new_inline(#f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9a6267).data,
-    "pfp_asset": OutputDatum::new_inline(#f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9a706670).data
-} }
-//const good_admin_redeemer = Redeemer::MIGRATE
-
-// DATUMS
-const good_datum = Datum { 
-    nft: Map[String]Data {
-        "name": OutputDatum::new_inline(handle).data,
-        "image": OutputDatum::new_inline("ipfs://image_cid").data,
-        "mediaType": OutputDatum::new_inline("image/jpeg").data,
-        "og": OutputDatum::new_inline(0).data,
-        "og_number": OutputDatum::new_inline(1).data,
-        "rarity": OutputDatum::new_inline("basic").data,
-        "length": OutputDatum::new_inline(8).data,
-        "characters": OutputDatum::new_inline("characters,numbers").data,
-        "numeric_modifiers": OutputDatum::new_inline("").data,
-        "version": OutputDatum::new_inline(1).data
-    }, 
-    version: 1, 
-    extra: Map[String]Data {
-        "standard_image": OutputDatum::new_inline("ipfs://cid").data,
-        "bg_image": OutputDatum::new_inline("ipfs://cid").data,
-        "pfp_image": OutputDatum::new_inline("ipfs://cid").data,
-        "designer": OutputDatum::new_inline("ipfs://zdj7WcVrQQWFxq6iPHJfPUrRA2EV6kPA7oyHLPgM5mxn5hXcw").data,
-        "pfp_asset": OutputDatum::new_inline(#).data,
-        "bg_asset": OutputDatum::new_inline(#).data,
-        "portal": OutputDatum::new_inline("ipfs://cid").data,
-        "socials": OutputDatum::new_inline("ipfs://cid").data,
-        "vendor": OutputDatum::new_inline("ipfs://cid").data,
-        "default": OutputDatum::new_inline(1).data,
-        "last_update_address": OutputDatum::new_inline("stake1...").data,
-        "validated_by": OutputDatum::new_inline(#).data,
-        "agreed_terms": OutputDatum::new_inline("https://tou").data,
-        "trial": OutputDatum::new_inline(0).data,
-        "nsfw": OutputDatum::new_inline(0).data,
-        "migrate_sig_required": OutputDatum::new_inline(0).data
-    }
-}
-
-// HASHES
-const admin_bytes = #01234567890123456789012345678901234567890123456789000007
-const script_creds_bytes = #01234567890123456789012345678901234567890123456789000001
-const owner_bytes = #9876543210012345678901234567890123456789012345678901234567891235
-const script_hash: ValidatorHash = ValidatorHash::new(script_creds_bytes)
-const treasury_bytes = #01234567890123456789012345678901234567890123456789000002
-const ada_handles_bytes = #01234567890123456789012345678901234567890123456789000003
-const pz_provider_bytes = #01234567890123456789012345678901234567890123456789000004
-
-// TRANSACTION HASHES
-const script_tx_hash: TxId = TxId::new(#0123456789012345678901234567890123456789012345678901234567891234)
-const owner_tx_hash: TxId = TxId::new(#0123456789012345678901234567890123456789012345678901234567891235)
-const handles_tx_hash: TxId = TxId::new(#0123456789012345678901234567890123456789012345678901234567891236)
-const tx_output_id: TxId = TxId::new(#0123456789012345678901234567890123456789012345678901234567891234)
-
-// SIGNATURE HASHES
-const owner_pubkey_hash: PubKeyHash = PubKeyHash::new(#9876543210012345678901234567890123456789012345678901234567891235)
-
 // SETTINGS
-const pz_settings = PzSettings {
-    treasury_fee: 1000000,
-    treasury_cred: treasury_bytes,
-    pz_min_fee: 4000000,
-    pz_providers: Map[ByteArray]ByteArray{ada_handles_bytes: ada_handles_bytes, pz_provider_bytes: pz_provider_bytes},
-    valid_contracts: []ByteArray{script_creds_bytes},
-    admin_creds: []ByteArray{admin_bytes},
-    settings_cred: ada_handles_bytes
-}
-const pz_settings_new_contract = PzSettings {
-    treasury_fee: 1000000,
-    treasury_cred: treasury_bytes,
-    pz_min_fee: 4000000,
-    pz_providers: Map[ByteArray]ByteArray{ada_handles_bytes: ada_handles_bytes, pz_provider_bytes: pz_provider_bytes},
-    valid_contracts: []ByteArray{admin_bytes},
-    admin_creds: []ByteArray{},
-    settings_cred: ada_handles_bytes
-}
+// const pz_settings = PzSettings {
+//     treasury_fee: 1000000,
+//     treasury_cred: treasury_bytes,
+//     pz_min_fee: 4000000,
+//     pz_providers: Map[ByteArray]ByteArray{ada_handles_bytes: ada_handles_bytes, pz_provider_bytes: pz_provider_bytes},
+//     valid_contracts: []ByteArray{script_creds_bytes},
+//     admin_creds: []ByteArray{admin_bytes},
+//     settings_cred: ada_handles_bytes
+// }
 
-const bg_policy_ids = Map[ByteArray]Map[ByteArray]Int {
-    #f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9a000de1406769: Map[ByteArray]Int {
-        #6769: 100
-    }
-}
-
-const pfp_policy_ids = Map[ByteArray]Map[ByteArray]Int {
-    #f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9a000de1406769: Map[ByteArray]Int {
-        #6769: 100
-    }
-}
+// const pz_settings_new_contract = PzSettings {
+//     treasury_fee: 1000000,
+//     treasury_cred: treasury_bytes,
+//     pz_min_fee: 4000000,
+//     pz_providers: Map[ByteArray]ByteArray{ada_handles_bytes: ada_handles_bytes, pz_provider_bytes: pz_provider_bytes},
+//     valid_contracts: []ByteArray{admin_bytes},
+//     admin_creds: []ByteArray{},
+//     settings_cred: ada_handles_bytes
+// }
 
 // // INPUTS
 // const good_ref_token_input: TxInput = TxInput::new(TxOutputId::new(script_tx_hash, 0), 
@@ -249,42 +176,6 @@ const pfp_policy_ids = Map[ByteArray]Map[ByteArray]Int {
 //             Address::new(Credential::new_validator(ValidatorHash::new(owner_bytes)), Option[StakingCredential]::None)
 //             , Value::lovelace(10000000) + Value::new(AssetClass::new(HANDLE_POLICY, LBL_100 + (handle.encode_utf8())), 1)
 //             , OutputDatum::new_none())
-
-// // CONTEXTS
-
-// // ScriptContext wraps a Tx object:
-// // Tx::new(
-// //     inputs:      []TxInput,
-// //     ref_inputs:  []TxInput,
-// //     outputs:     []TxOutput,
-// //     fee:         Value,
-// //     minted:      Value,
-// //     dcerts:      []DCert,
-// //     withdrawals: Map[StakingCredential]Int,
-// //     time_range:  TimeRange,
-// //     signatories: []PubKeyHash,
-// //     redeemers:   Map[ScriptPurpose]AnyType,
-// //     datums:      Map[DatumHash]AnyType
-// // ) -> Tx
-
-// func buildScriptContext(inputs: []TxInput, ref_inputs: []TxInput, outputs: []TxOutput, signers: []PubKeyHash = []PubKeyHash{owner_pubkey_hash}) -> ScriptContext {
-//     ScriptContext::new_spending(
-//         Tx::new(
-//             inputs,
-//             ref_inputs,
-//             outputs,
-//             Value::lovelace(160000),
-//             Value::ZERO,
-//             []DCert{},
-//             Map[StakingCredential]Int{},
-//             TimeRange::from(Time::new(1001)),
-//             signers,
-//             Map[ScriptPurpose]Data{},
-//             Map[DatumHash]Data{}
-//         ),
-//         TxOutputId::new(tx_output_id, 0)
-//     )
-// }
 // const good_default: ScriptContext = buildScriptContext(
 //     []TxInput{good_ref_token_input},
 //     []TxInput{good_ref_input_bg, good_ref_input_pfp, good_ref_input_pz, good_owner_input},
