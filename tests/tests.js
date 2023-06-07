@@ -7,9 +7,8 @@ contract = contract.replace(/ctx.get_current_validator_hash\(\)/g, 'ValidatorHas
 
 tester.setup();
 Promise.all([
-
-    // SHOULD APPROVE
-    tester.testCase(true, "PERSONALIZE", "happy path no defaults", () => {
+    // PERSONALIZE ENDPOINT - SHOULD APPROVE
+    tester.testCase(true, "PERSONALIZE", "happy path with defaults", () => {
         const redeemer = new PzRedeemer();
         const program = tester.createProgram(contract, new Datum().render(), redeemer.render(), new ScriptContext(redeemer.calculateCid()).render());
         return {
@@ -17,22 +16,31 @@ Promise.all([
             params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p))
         }
     }),
-    tester.testCase(true, "PERSONALIZE", "partner pfp/bg lists", () => {
-        const redeemer = new PzRedeemer();
-        const context = new ScriptContext(redeemer.calculateCid());
-        context.outputs[2].asset = '"partner@bg_policy_ids"';
-        const program = tester.createProgram(contract, new Datum().render(), redeemer.render(), context.render());
-        return {
-            contract: program.compile(),
-            params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p))
-        }
-    }),
+    // tester.testCase(true, "PERSONALIZE", "happy path no defaults", () => {
+    //     const redeemer = new PzRedeemer();
+    //     const context = new ScriptContext(redeemer.calculateCid());
+    //     // remove bg_defaults 
+    //     const bg_ref = context.referenceInputs.find(input => {input.output.asset == 'bg' && input.output.label == 'LBL_100'});
+    //     context.referenceInputs.splice(context.referenceInputs.indexOf(bg_ref), 1);
+    //     context.referenceInputs.find(input => {input.output.asset == 'bg' && input.output.label == 'LBL_100'}).output.label = '';
+    //     const program = tester.createProgram(contract, new Datum().render(), redeemer.render(), context.render());
+    //     return {
+    //         contract: program.compile(),
+    //         params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p))
+    //     }
+    // }),
+    // tester.testCase(true, "PERSONALIZE", "partner pfp/bg lists", () => {
+    //     const redeemer = new PzRedeemer();
+    //     const context = new ScriptContext(redeemer.calculateCid());
+    //     context.outputs[2].asset = '"partner@bg_policy_ids"';
+    //     const program = tester.createProgram(contract, new Datum().render(), redeemer.render(), context.render());
+    //     return {
+    //         contract: program.compile(),
+    //         params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p))
+    //     }
+    // }),
 
-    // tester.testCase(true, "MIGRATE", "happy path", ["good_datum", "good_admin_redeemer", "good_admin_ctx"]),
-    // tester.testCase(true, "RESET_IMAGE", "happy path", ["good_datum", "good_admin_redeemer", "good_admin_ctx"]),
-    // MULTIPLE HAPPY PATHS NOW - NEED MORE TESTS
-    
-    // // SHOULD DENY
+    // PERSONALIZE ENDPOINT - SHOULD DENY
     // tester.testCase(false, "PERSONALIZE", "bad user token name", ["good_datum", "pz_redeemer_good", "wrong_handle_name"], "Handle reference input not present"),
     // tester.testCase(false, "PERSONALIZE", "bad user token label", ["good_datum", "pz_redeemer_good", "wrong_handle_label"], "Handle reference input not present"),
     // tester.testCase(false, "PERSONALIZE", "bad user token policy", ["good_datum", "pz_redeemer_good", "not_a_real_handle"], "Handle reference input not present"),
@@ -54,6 +62,11 @@ Promise.all([
     // tester.testCase(false, "PERSONALIZE", "pz settings wrong address", ["good_datum", "pz_redeemer_good", "pz_settings_wrong_address"], "pz_settings reference input not from ADA Handle"),
     // tester.testCase(false, "PERSONALIZE", "wrong contract address", ["good_datum", "pz_redeemer_good", "wrong_contract_address"], "Contract not found in valid contracts list"),
     // tester.testCase(false, "PERSONALIZE", "missing reference token in outputs", ["good_datum", "pz_redeemer_good", "missing_reference_token"], "Reference Token not found in outputs"),
+
+    // tester.testCase(true, "MIGRATE", "happy path", ["good_datum", "good_admin_redeemer", "good_admin_ctx"]),
+    // tester.testCase(true, "RESET_IMAGE", "happy path", ["good_datum", "good_admin_redeemer", "good_admin_ctx"]),
+    // MULTIPLE HAPPY PATHS NOW - NEED MORE TESTS
+    
 
     // tester.testCase(false, "MIGRATE", "wrong admin signer", ["good_datum", "good_admin_redeemer", "wrong_admin_ctx"], "Required admin signer(s) not present"),
     // tester.testCase(false, "MIGRATE", "no admin signers", ["good_datum", "good_admin_redeemer", "no_admin_signers_ctx"], "Required admin signer(s) not present")

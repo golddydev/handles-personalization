@@ -36,37 +36,51 @@ const LBL_222: ByteArray = #000de140 // (222)bigirishlion
 const LBL_100: ByteArray = #000643b0 // (100)bigirishlion
 const PZ_HANDLE: AssetClass = AssetClass::new(HANDLE_POLICY, LBL_222 + ("pz_settings".encode_utf8()))
 
-func policyAndAssetSearch(output: TxOutput, policy: MintingPolicyHash, name: ByteArray, amount: Int, starts_with: Bool) -> Bool {
-    if (starts_with) {
-        output.value.to_map().any((key: MintingPolicyHash, value: Map[ByteArray]Int) -> Bool {
-            key == policy && value.any((k: ByteArray, v: Int) -> Bool { k.starts_with(name) && v >= amount })
-        })
-    }
-    else {
-        output.value.contains(Value::new(AssetClass::new(policy, name), amount))
-    }
+func policyAndAssetSearch(output: TxOutput, policy: MintingPolicyHash, name: ByteArray, amount: Int, starts_with: Bool) -> Option[AssetClass] {
+    output.value.to_map().fold_lazy((key: MintingPolicyHash, value: Map[ByteArray]Int, next: () -> Option[AssetClass]) -> {
+        asset_name: Option[ByteArray] = value.find_key_safe((k: ByteArray) -> Bool { if (starts_with) { k.starts_with(name) } else { k == name } });
+        if (policy == key && asset_name != Option[ByteArray]::None && value.get(asset_name.unwrap()) >= amount) {
+            Option[AssetClass]::Some{AssetClass::new(key, asset_name.unwrap())}
+        } else { next() }
+    }, Option[AssetClass]::None)
 }
 
-func findAsReferenceOrOutput(policy: MintingPolicyHash, name: ByteArray, amount: Int, ctx: ScriptContext, starts_with: Bool, check_sig: Bool) -> Option[TxOutput] {
-    ctx.tx.ref_inputs.find_safe((input: TxInput) -> Bool { 
-        policyAndAssetSearch(input.output, policy, name, amount, starts_with) && (
-            if (check_sig) {
-                ctx.tx.signatories.any((signer: PubKeyHash) -> Bool {
-                    input.output.address.credential == Credential::new_pubkey(signer)})
+func findAsReferenceOrOutput(policy: MintingPolicyHash, name: ByteArray, amount: Int, ctx: ScriptContext, starts_with: Bool, check_sig: Bool) -> (Option[TxOutput], Option[AssetClass]) {
+    (tx: Option[TxOutput], asset: Option[AssetClass]) = ctx.tx.ref_inputs.fold_lazy(
+        (input: TxInput, next: () -> () -> {(Option[TxOutput], Option[AssetClass])}) -> {
+            a: Option[AssetClass] = policyAndAssetSearch(input.output, policy, name, amount, starts_with);
+            b: Bool = if (check_sig) {
+            ctx.tx.signatories.any((signer: PubKeyHash) -> {
+                input.output.address.credential == Credential::new_pubkey(signer)
+            })
+            } else {true};
+
+            if (a != Option[AssetClass]::None && b) {
+                () -> {(Option[TxOutput]::Some{input.output}, a)}
+            } else { 
+            next() 
             }
-            else {true}
-        )
-    }).switch {
-        in: Some => Option[TxOutput]::Some{in.some.output}, 
-        else => ctx.tx.outputs.find_safe((output: TxOutput) -> Bool { 
-            policyAndAssetSearch(output, policy, name, amount, starts_with) 
-        })
-    }
+        }, 
+        () -> {(Option[TxOutput]::None, Option[AssetClass]::None)}
+    )();
+    (tx, asset)
+    // tx.switch {
+    //     Some => (tx, asset), 
+    //     else => {
+    //         ctx.tx.outputs.fold_lazy(
+    //             (output: TxOutput, next: () -> () -> { (Option[TxOutput], Option[AssetClass]) }) -> {
+    //                 a: Option[AssetClass] = policyAndAssetSearch(output, policy, name, amount, starts_with);
+    //                 if (a != Option[AssetClass]::None) {
+    //                     () -> {(Option[TxOutput]::Some{output}, a)}
+    //                 } else { next() }
+    //         }, () -> {(Option[TxOutput]::None, Option[AssetClass]::None)})()
+    //     }
+    // }
 }
 
 func getHandleTokens(handle: String, ctx: ScriptContext, check_sig: Bool) -> (TxOutput, TxOutput) {
-    reference_token: Option[TxOutput] = findAsReferenceOrOutput(HANDLE_POLICY, LBL_100 + (handle.encode_utf8()), 1, ctx, false, false);
-    owner_token: Option[TxOutput] = findAsReferenceOrOutput(HANDLE_POLICY, LBL_222 + (handle.encode_utf8()), 1, ctx, false, check_sig);
+    (reference_token: Option[TxOutput], _) = findAsReferenceOrOutput(HANDLE_POLICY, LBL_100 + (handle.encode_utf8()), 1, ctx, false, false);
+    (owner_token: Option[TxOutput], _) = findAsReferenceOrOutput(HANDLE_POLICY, LBL_222 + (handle.encode_utf8()), 1, ctx, false, check_sig);
     assert(owner_token != Option[TxOutput]::None, "Handle input not present");
     assert(reference_token != Option[TxOutput]::None, "Reference Token input not present");
     assert(reference_token.unwrap().address.credential == Credential::new_validator(ctx.get_current_validator_hash()), "Reference Token not returned to contract");
@@ -161,21 +175,23 @@ func getAssetDatum(asset: AssetClass, ctx: ScriptContext) -> OutputDatum {
     output: Option[TxOutput] = (
         if (asset.token_name.starts_with(LBL_222) || asset.token_name.starts_with(LBL_444)) {
             real_name: ByteArray = asset.token_name.slice(4, asset.token_name.length);
-            findAsReferenceOrOutput(asset.mph, LBL_100 + real_name, 1, ctx, false, false)
+            (tx: Option[TxOutput], _) = findAsReferenceOrOutput(asset.mph, LBL_100 + real_name, 1, ctx, false, false);
+            tx
         } 
         else {
-            findAsReferenceOrOutput(asset.mph, asset.token_name, 1, ctx, false, false)
+            (tx: Option[TxOutput], _) = findAsReferenceOrOutput(asset.mph, asset.token_name, 1, ctx, false, false);
+            tx
     });
     assert(output != Option[TxOutput]::None, "Asset not found in inputs");
     output.unwrap().datum
 }
 
-func assetIsValid(asset_type:String, designer: Map[String]Data, approvers: Map[String]Map[ByteArray]Map[ByteArray][]Int, ctx: ScriptContext) -> (Bool, Option[Credential], OutputDatum) {
-    if (designer.find_key_safe((key: String) -> { key == asset_type + "_asset" }) != Option[String]::None) {
-        asset: AssetClass = parseAsset(ByteArray::from_data(designer.get(asset_type + "_asset")));
+func assetIsValid(asset_type:String, pz_data: Map[String]Data, approvers: Map[String]Map[ByteArray]Map[ByteArray][]Int, ctx: ScriptContext) -> (Bool, Option[Credential], OutputDatum) {
+    if (pz_data.find_key_safe((key: String) -> { key == asset_type + "_asset" }) != Option[String]::None) {
+        asset: AssetClass = parseAsset(ByteArray::from_data(pz_data.get(asset_type + "_asset")));
 
         // Is the asset passed in as an input/reference?
-        asset_output: Option[TxOutput] = findAsReferenceOrOutput(asset.mph, asset.token_name, 1, ctx, false, false);
+        (asset_output: Option[TxOutput], _) = findAsReferenceOrOutput(asset.mph, asset.token_name, 1, ctx, false, false);
         assert(asset_output != Option[TxOutput]::None, "Required " + asset_type + " input/reference missing");
 
         // Get datum if CIP-68
@@ -194,14 +210,14 @@ func assetIsValid(asset_type:String, designer: Map[String]Data, approvers: Map[S
     }
 
 }
-func getAndValidateDesignerAssets(designer: Map[String]Data, owner_cred: Credential, approvers: Map[String]Map[ByteArray]Map[ByteArray][]Int, ctx: ScriptContext, throw_errors:Bool) -> (OutputDatum, OutputDatum, Credential, Bool) {
+func getAndValidateDesignerAssets(pz_data: Map[String]Data, owner_cred: Credential, approvers: Map[String]Map[ByteArray]Map[ByteArray][]Int, ctx: ScriptContext, throw_errors:Bool) -> (OutputDatum, OutputDatum, Credential, Bool) {
     // handle, pfp, and bg can be ref_input or output
     // handle determines the address creds, all others must match 
     // We know we have a signature from the owner.
 
-    // print("REDEEMER: " + designer.serialize().show());
-    (pfp_valid: Bool, pfp_cred: Option[Credential], pfp_datum_opt: OutputDatum) = assetIsValid("pfp", designer, approvers, ctx);
-    (bg_valid: Bool, bg_cred: Option[Credential], bg_datum_opt: OutputDatum) = assetIsValid("bg", designer, approvers, ctx);
+    // print("REDEEMER: " + pz_data.serialize().show());
+    (pfp_valid: Bool, pfp_cred: Option[Credential], pfp_datum_opt: OutputDatum) = assetIsValid("pfp", pz_data, approvers, ctx);
+    (bg_valid: Bool, bg_cred: Option[Credential], bg_datum_opt: OutputDatum) = assetIsValid("bg", pz_data, approvers, ctx);
     pfp_cred_valid: Bool = pfp_cred == Option[Credential]::None || pfp_cred.unwrap() == owner_cred;
     bg_cred_valid: Bool = bg_cred == Option[Credential]::None || bg_cred.unwrap() == owner_cred;
     if (throw_errors) {
@@ -217,15 +233,19 @@ func getAndValidateDesignerAssets(designer: Map[String]Data, owner_cred: Credent
 
 func checkRequiredPfPs(pfp_asset: Option[Data], bg_datum_opt:OutputDatum, owner_cred:Credential, ctx: ScriptContext, throw_errors: Bool) -> Bool {
     if (bg_datum_opt != OutputDatum::new_none()) {
-        bg_datum = Map[String]Data::from_data(bg_datum_opt.get_inline_data());
-        require_pfp_collections_opt: Option[Data] = bg_datum.get_safe("require_pfp_collections");
-        require_pfp_attributes_opt: Option[Data] = bg_datum.get_safe("require_pfp_attributes");
-        require_pfp_displayed_opt: Option[Data] = bg_datum.get_safe("require_pfp_displayed");
+        bg_datum = Datum::from_data(bg_datum_opt.get_inline_data());
+        defaults: Map[String]Data = bg_datum.extra;
+        require_pfp_collections_opt: Option[Data] = defaults.get_safe("require_pfp_collections");
+        require_pfp_attributes_opt: Option[Data] = defaults.get_safe("require_pfp_attributes");
+        require_pfp_displayed_opt: Option[Data] = defaults.get_safe("require_pfp_displayed");
         required_pfp_present: Bool = (require_pfp_collections_opt == Option[Data]::None || []ByteArray::from_data(require_pfp_collections_opt.unwrap()).any((bytes: ByteArray) -> Bool {
-            asset: AssetClass = parseAsset(bytes);
-            output: Option[TxOutput] = findAsReferenceOrOutput(asset.mph, asset.token_name, 1, ctx, true, false);
+            policy_id: ByteArray = asset_bytes.slice(0, 28);
+            asset_name: ByteArray = asset_bytes.slice(28, asset_bytes.length);
+            (output: Option[TxOutput], asset_opt: Option[AssetClass]) = findAsReferenceOrOutput(policy_id, asset_name, 1, ctx, true, false);
+            asset = asset_opt.unwrap();
             output != Option[TxOutput]::None && output.unwrap().address.credential == owner_cred
                 && (
+
                     if (asset.token_name.starts_with(LBL_222) || asset.token_name.starts_with(LBL_444)) {
                         required_attributes_present: Bool = (require_pfp_attributes_opt == Option[Data]::None || []ByteArray::from_data(require_pfp_attributes_opt.unwrap()).all((attr_bytes: ByteArray) -> Bool {
                             attr: String = attr_bytes.decode_utf8();
@@ -272,81 +292,82 @@ func checkRequiredPfPs(pfp_asset: Option[Data], bg_datum_opt:OutputDatum, owner_
 
 func designerSettingsAreValid(pz_data:Map[String]Data, designer: Map[String]Data, bg_datum_opt:OutputDatum, owner_cred:Credential, ctx: ScriptContext) -> Bool {
     if (bg_datum_opt != OutputDatum::new_none()) {
-        bg_datum = Map[String]Data::from_data(bg_datum_opt.get_inline_data());
-        force: Option[Data] = bg_datum.get_safe("force_creator_settings");
+        bg_datum = Datum::from_data(bg_datum_opt.get_inline_data());
+        defaults: Map[String]Data = bg_datum.extra;
+        force: Option[Data] = defaults.get_safe("force_creator_settings");
         areRequiredPfpsPresent: Bool = checkRequiredPfPs(pz_data.get_safe("pfp_asset"), bg_datum_opt, owner_cred, ctx, true);
         if (force != Option[Data]::None && Int::from_data(force.unwrap()).to_bool() == true) {
-            bg_border_colors: Option[Data] = bg_datum.get_safe("bg_border_colors");
+            bg_border_colors: Option[Data] = defaults.get_safe("bg_border_colors");
             bg_border_color: ByteArray = ByteArray::from_data(designer.get("bg_border_color"));
             assert(bg_border_colors == Option[Data]::None || []ByteArray::from_data(bg_border_colors.unwrap()).find_safe((color:ByteArray) -> Bool { 
                 color == bg_border_color
             }) != Option[ByteArray]::None, "bg_border_color is not set correctly");
             
-            pfp_border_colors: Option[Data] = bg_datum.get_safe("pfp_border_colors");
+            pfp_border_colors: Option[Data] = defaults.get_safe("pfp_border_colors");
             pfp_border_color: ByteArray = ByteArray::from_data(designer.get("pfp_border_color"));
             assert(pfp_border_colors == Option[Data]::None || []ByteArray::from_data(pfp_border_colors.unwrap()).find_safe((color:ByteArray) -> Bool {
                  color == pfp_border_color 
             }) != Option[ByteArray]::None, "pfp_border_color is not set correctly");
             
-            text_ribbon_gradient_opt: Option[Data] = bg_datum.get_safe("text_ribbon_gradient");
+            text_ribbon_gradient_opt: Option[Data] = defaults.get_safe("text_ribbon_gradient");
             text_ribbon_gradient_x: String = text_ribbon_gradient_opt.switch{None => {""}, Some => { String::from_data(text_ribbon_gradient_opt.unwrap()) }};
             text_ribbon_gradient: String = String::from_data(designer.get("text_ribbon_gradient"));
             assert(text_ribbon_gradient_x == text_ribbon_gradient, "text_ribbon_gradient is not set correctly");
             
-            text_ribbon_colors_opt: Option[Data] = bg_datum.get_safe("text_ribbon_colors");
+            text_ribbon_colors_opt: Option[Data] = defaults.get_safe("text_ribbon_colors");
             text_ribbon_colors_x: []ByteArray = text_ribbon_colors_opt.switch{None => {[]ByteArray{}}, Some => {[]ByteArray::from_data(text_ribbon_colors_opt.unwrap())}};
             text_ribbon_colors: []ByteArray = []ByteArray::from_data(designer.get("text_ribbon_colors"));
             assert(((text_ribbon_gradient_x == "radial" || text_ribbon_gradient_x.starts_with("linear")) 
                         && text_ribbon_colors_x == text_ribbon_colors) 
                     || text_ribbon_colors_x.find_safe((color:ByteArray) -> Bool {color == text_ribbon_colors.get_singleton()}) != Option[ByteArray]::None, "text_ribbon_colors is not set correctly");
             
-            font_color_opt: Option[Data] = bg_datum.get_safe("font_colors");
+            font_color_opt: Option[Data] = defaults.get_safe("font_colors");
             font_color_x: ByteArray = font_color_opt.switch{None => {#ffffff}, Some => {ByteArray::from_data(font_color_opt.unwrap())}};
             font_color: ByteArray = ByteArray::from_data(designer.get("font_color"));
             assert(font_color_x == font_color, "font_color is not set correctly");
 
-            font_shadow_colors: Option[Data] = bg_datum.get_safe("font_shadow_colors");
+            font_shadow_colors: Option[Data] = defaults.get_safe("font_shadow_colors");
             font_shadow_color: ByteArray = ByteArray::from_data(designer.get("font_shadow_color"));
             assert(font_shadow_colors == Option[Data]::None || []ByteArray::from_data(font_shadow_colors.unwrap()).find_safe((color:ByteArray) -> Bool {
                 color == font_shadow_color
             }) != Option[ByteArray]::None, "font_shadow_color is not set correctly");
 
-            font_shadow_size_opt: Option[Data] = bg_datum.get_safe("font_shadow_size");
+            font_shadow_size_opt: Option[Data] = defaults.get_safe("font_shadow_size");
             font_shadow_size_x: []Int = font_shadow_size_opt.switch{None => {[]Int{}}, Some => {[]Int::from_data(font_shadow_size_opt.unwrap())}};
             font_shadow_size: []Int = []Int::from_data(designer.get("font_shadow_size"));
             assert(font_shadow_size_opt == Option[Data]::None || font_shadow_size_x == font_shadow_size, "font_shadow_size is not set correctly");
 
-            font_opt: Option[Data] = bg_datum.get_safe("font");
+            font_opt: Option[Data] = defaults.get_safe("font");
             font_x: String = font_opt.switch{None => {""}, Some => {String::from_data(font_opt.unwrap())}};
             font: String = String::from_data(designer.get("font"));
             assert(font_x == font, "font is not set correctly");
 
-            qr_bg_color_opt: Option[Data] = bg_datum.get_safe("qr_bg_color");
+            qr_bg_color_opt: Option[Data] = defaults.get_safe("qr_bg_color");
             qr_bg_color_x: ByteArray = qr_bg_color_opt.switch{None => {#}, Some => {ByteArray::from_data(qr_bg_color_opt.unwrap())}};
             qr_bg_color: ByteArray = ByteArray::from_data(designer.get("qr_bg_color"));
             assert(qr_bg_color_opt == Option[Data]::None || qr_bg_color_x == qr_bg_color, "qr_bg_color is not set correctly");
 
-            qr_inner_eye_opt: Option[Data] = bg_datum.get_safe("qr_inner_eye");
+            qr_inner_eye_opt: Option[Data] = defaults.get_safe("qr_inner_eye");
             qr_inner_eye_x: String = qr_inner_eye_opt.switch{None => {""}, Some => {String::from_data(qr_inner_eye_opt.unwrap())}};
             qr_inner_eye: String = String::from_data(designer.get("qr_inner_eye"));
             assert(qr_inner_eye_opt == Option[Data]::None && qr_inner_eye.starts_with("square,") || qr_inner_eye_x == qr_inner_eye, "qr_inner_eye is not set correctly");
 
-            qr_outer_eye_opt: Option[Data] = bg_datum.get_safe("qr_outer_eye");
+            qr_outer_eye_opt: Option[Data] = defaults.get_safe("qr_outer_eye");
             qr_outer_eye_x: String = qr_outer_eye_opt.switch{None => {""}, Some => {String::from_data(qr_outer_eye_opt.unwrap())}};
             qr_outer_eye: String = String::from_data(designer.get("qr_outer_eye"));
             assert(qr_outer_eye_opt == Option[Data]::None && qr_outer_eye.starts_with("square,") || qr_outer_eye_x == qr_outer_eye, "qr_outer_eye is not set correctly");
 
-            qr_dot_opt: Option[Data] = bg_datum.get_safe("qr_dot");
+            qr_dot_opt: Option[Data] = defaults.get_safe("qr_dot");
             qr_dot_x: String = qr_dot_opt.switch{None => {""}, Some => {String::from_data(qr_dot_opt.unwrap())}};
             qr_dot: String = String::from_data(designer.get("qr_dot"));
             assert(qr_dot_opt == Option[Data]::None && qr_dot.starts_with("square,") || qr_dot_x == qr_dot, "qr_dot is not set correctly");
 
-            pfp_zoom_opt: Option[Data] = bg_datum.get_safe("pfp_zoom");
+            pfp_zoom_opt: Option[Data] = defaults.get_safe("pfp_zoom");
             pfp_zoom_x: Int = pfp_zoom_opt.switch{None => {100}, Some => {Int::from_data(pfp_zoom_opt.unwrap())}};
             pfp_zoom: Int = Int::from_data(designer.get("pfp_zoom"));
             assert(pfp_zoom_x == pfp_zoom, "pfp_zoom is not set correctly");
             
-            pfp_offset_opt: Option[Data] = bg_datum.get_safe("pfp_offset");
+            pfp_offset_opt: Option[Data] = defaults.get_safe("pfp_offset");
             pfp_offset_x: []Int = pfp_offset_opt.switch{None => []Int{0,0}, Some => {[]Int::from_data(pfp_offset_opt.unwrap())}};
             pfp_offset: []Int = []Int::from_data(designer.get("pfp_offset"));
             assert(pfp_offset_x == pfp_offset, "pfp_offset is not set correctly");
@@ -449,14 +470,14 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                 && immutablesAreUnchanged(datum, new_datum)
                 , "Contract failed validation");
 
-            (_, bg_datum:OutputDatum, _, _) = getAndValidateDesignerAssets(pz.designer, owner_token.address.credential, approvers, ctx, true);
+            (_, bg_datum:OutputDatum, _, _) = getAndValidateDesignerAssets(new_datum.extra, owner_token.address.credential, approvers, ctx, true);
             assert(pzDatumIsValid(owner_token, reference_token, settings, approvers, ctx)
                 && designerSettingsAreValid(new_datum.extra, pz.designer, bg_datum, owner_token.address.credential, ctx) && checkBrightness(), "Personalization settings checks failed");
             true
         },
         migrate: MIGRATE => {
             settings: PzSettings = loadPzSettings(ctx);
-            reference_token: Option[TxOutput] = findAsReferenceOrOutput(HANDLE_POLICY, LBL_100 + (migrate.handle.encode_utf8()), 1, ctx, false, false);
+            (reference_token: Option[TxOutput], _) = findAsReferenceOrOutput(HANDLE_POLICY, LBL_100 + (migrate.handle.encode_utf8()), 1, ctx, false, false);
             assert(datum == Datum::from_data(reference_token.unwrap().datum.get_inline_data())
                 && isValidContract(reference_token.unwrap().address.credential.switch{v: Validator => v.hash, else => error("Not a valid migration")}, settings) 
                 && migrationSignersAreValid(ctx, settings), "Not a valid migration");
@@ -517,3 +538,4 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
 // TODO: required_pfp count (SundaeSwap use case)
 // TODO: Accessories/Premium elements (special ribbons, borders, holiday accouterments, etc.)
 // TODO: Badges - can display up to X in a certain position
+// TODO: Support either pubkeys or validatorkeys for bg_100, pfp_100, or provider tokens

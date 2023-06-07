@@ -30,8 +30,12 @@ export class ScriptContext {
     constructor(designerCid=null) {
       this.inputs = [new TxInput(`${script_tx_hash}`, new TxOutput(`${script_creds_bytes}`))];
   
-      const goodBgInput = new TxInput(`${handles_tx_hash}`, new TxOutput(`${owner_bytes}`, '', '"bg"'));
+      const goodBgInput = new TxInput(`${handles_tx_hash}`, new TxOutput(`${owner_bytes}`, 'LBL_444', '"bg"'));
       goodBgInput.output.hashType = 'pubkey';
+      const goodBgInputRef = new TxInput(`${handles_tx_hash}`, new TxOutput(`${owner_bytes}`, 'LBL_100', '"bg"'));
+      goodBgInputRef.output.hashType = 'pubkey';
+      goodBgInputRef.output.datumType = 'inline';
+      goodBgInputRef.output.datum = new BackgroundDefaults().render();
       const goodPfpInput = new TxInput(`${handles_tx_hash}`, new TxOutput(`${owner_bytes}`, '', '"pfp"'));
       goodPfpInput.output.hashType = 'pubkey';
       const goodBgListInput = new TxInput(`${handles_tx_hash}`, new TxOutput(`${ada_handles_bytes}`, 'LBL_222', '"bg_policy_ids"'));
@@ -47,7 +51,7 @@ export class ScriptContext {
       goodPzInput.output.datum = new PzSettings().render();
       const goodOwnerInput = new TxInput(`${owner_tx_hash}`, new TxOutput(`${owner_bytes}`, 'LBL_222', `"${handle}"`));
       goodOwnerInput.output.hashType = 'pubkey';
-      this.referenceInputs = [goodBgInput, goodPfpInput, goodBgListInput, goodPfpListInput, goodPzInput, goodOwnerInput];
+      this.referenceInputs = [goodBgInput, goodBgInputRef, goodPfpInput, goodBgListInput, goodPfpListInput, goodPzInput, goodOwnerInput];
   
       const goodRefTokenOutput = new TxOutput(`${script_creds_bytes}`);
       goodRefTokenOutput.datumType = 'inline';
@@ -111,7 +115,6 @@ export class ScriptContext {
     render() {
       return `TxInput::new(TxOutputId::new(${this.hash}, 0), ${this.output.render()})`
     }
-  
   }
   
   export class TxOutput {
@@ -164,8 +167,6 @@ export class ScriptContext {
   export class PzRedeemer {
     handle = `"${handle}"`;
     designer = {
-      bg_asset: 'OutputDatum::new_inline(#f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9a6267).data',
-      pfp_asset: 'OutputDatum::new_inline(#f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9a706670).data',
       pfp_border_color: 'OutputDatum::new_inline(#).data',
       qr_inner_eye: 'OutputDatum::new_inline("square,#0a1fd3").data',
       qr_outer_eye: 'OutputDatum::new_inline("square,#0a1fd3").data',
@@ -203,7 +204,7 @@ export class ScriptContext {
                 true
             }
 
-            const DATUM = Datum { designer: ${designer} }`
+            const DATUM: Datum = Datum { designer: ${designer} }`
         const program = helios.Program.new(src);
         // console.log(src);
         const myDatum = program.evalParam("DATUM");
@@ -246,10 +247,10 @@ export class ScriptContext {
     version = 1;
     extra = {
       standard_image: 'OutputDatum::new_inline("ipfs://cid").data',
-      bg_image: 'OutputDatum::new_inline("ipfs://cid").data',
+      bg_image: 'OutputDatum::new_inline("ipfs://image_cid").data',
       pfp_image: 'OutputDatum::new_inline("ipfs://cid").data',
       designer: 'OutputDatum::new_inline("ipfs://cid").data',
-      bg_asset: 'OutputDatum::new_inline(#f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9a6267).data',
+      bg_asset: 'OutputDatum::new_inline(#f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9a001bc2806267).data',
       pfp_asset: 'OutputDatum::new_inline(#f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9a706670).data',
       portal: 'OutputDatum::new_inline("ipfs://cid").data',
       socials: 'OutputDatum::new_inline("ipfs://cid").data',
@@ -267,10 +268,6 @@ export class ScriptContext {
         if (designerCid) {
             this.extra.designer = `OutputDatum::new_inline("ipfs://${designerCid}").data`;
         }
-    }
-  
-    calculateCid() {
-        
     }
   
     render() {
@@ -315,13 +312,12 @@ export class ScriptContext {
             settings_cred: ${this.settings_cred}
         }`
     }
-  
   }
   
   export class ApprovedPolicyIds {
     map = {
       "#f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9a": {
-        "#6267": [0,0,0]
+        "#001bc2806267": [0,0,0]
       }
     }
     constructor() {}
@@ -339,5 +335,65 @@ export class ScriptContext {
       ids += '}\n'
       return ids;
     }
+  }
+
+  export class BackgroundDefaults {
+    nft = {
+      name: `OutputDatum::new_inline("${handle}").data`,
+      image: 'OutputDatum::new_inline("ipfs://image_cid").data',
+      mediaType: 'OutputDatum::new_inline("image/jpeg").data',
+      og: 'OutputDatum::new_inline(0).data',
+      og_number: 'OutputDatum::new_inline(1).data',
+      rarity: 'OutputDatum::new_inline("basic").data',
+      length: 'OutputDatum::new_inline(8).data',
+      characters: 'OutputDatum::new_inline("characters,numbers").data',
+      numeric_modifiers: 'OutputDatum::new_inline("").data',
+      version: 'OutputDatum::new_inline(1).data'
+    };
+    version = 1;
+    extra = {
+      qr_inner_eye: 'OutputDatum::new_inline("square,#0a1fd3").data',
+      qr_outer_eye: 'OutputDatum::new_inline("square,#0a1fd3").data',
+      qr_dot: 'OutputDatum::new_inline("square,#0a1fd3").data',
+      qr_bg_color: 'OutputDatum::new_inline(#).data',
+      pfp_zoom: 'OutputDatum::new_inline(100).data',
+      pfp_offset: 'OutputDatum::new_inline([]Int{0, 0}).data',
+      font: 'OutputDatum::new_inline("").data',
+      font_color: 'OutputDatum::new_inline(#ffffff).data',
+      font_shadow_size: 'OutputDatum::new_inline([]Int{12, 18, 8}).data',
+      text_ribbon_colors: 'OutputDatum::new_inline([]ByteArray{}).data',
+      text_ribbon_gradient: 'OutputDatum::new_inline("").data',
+      bg_border_colors: 'OutputDatum::new_inline([]ByteArray{#0a1fd3, #22d1af, #31bc23}).data',
+      pfp_border_colors: 'OutputDatum::new_inline([]ByteArray{#0a1fd3, #22d1af, #31bc23}).data',
+      font_shadow_colors: 'OutputDatum::new_inline([]ByteArray{#0a1fd3, #22d1af, #31bc23}).data',
+      require_pfp_collections: 'OutputDatum::new_inline([]ByteArray{#f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9a}).data',
+      require_pfp_attributes: 'OutputDatum::new_inline([]String{}).data',
+      require_pfp_displayed: 'OutputDatum::new_inline(0).data',
+      price: 'OutputDatum::new_inline(125).data',
+      force_creator_settings: 'OutputDatum::new_inline(1).data',
+      custom_dollar_symbol: 'OutputDatum::new_inline(0).data'
+    }
+
+    constructor() {}
+    
   
+    render() {
+      let datum = `Datum {\n`;
+      datum += 'nft: Map[String]Data {\n';
+  
+      Object.keys(this.nft).forEach((key) => {
+        datum += `  "${key}": ${this.nft[key]},\n`
+      })
+      datum = datum.replace(/,\n$/g, '\n');
+      datum += '},\n'
+      datum +=  'version: 1,\n'
+      datum += 'extra: Map[String]Data {\n';
+  
+      Object.keys(this.extra).forEach((key) => {
+        datum += `  "${key}": ${this.extra[key]},\n`
+      })
+      datum = datum.replace(/,\n$/g, '\n');
+      datum += '}}\n'
+      return datum;
+    }
   }

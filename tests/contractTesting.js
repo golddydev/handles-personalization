@@ -79,6 +79,6 @@ export function createProgram(contract, datum, redeemer, context) {
     const datum = ${datum}\n
     const redeemer = ${redeemer}\n
     const context = ${context}\n`;
-  //fs.writeFileSync('testingCode.helios', testingCode);
+  fs.writeFileSync('testingCode.helios', testingCode);
   return helios.Program.new(testingCode);
 }

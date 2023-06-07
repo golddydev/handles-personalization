@@ -1,24 +1,3 @@
-// SETTINGS
-// const pz_settings = PzSettings {
-//     treasury_fee: 1000000,
-//     treasury_cred: treasury_bytes,
-//     pz_min_fee: 4000000,
-//     pz_providers: Map[ByteArray]ByteArray{ada_handles_bytes: ada_handles_bytes, pz_provider_bytes: pz_provider_bytes},
-//     valid_contracts: []ByteArray{script_creds_bytes},
-//     admin_creds: []ByteArray{admin_bytes},
-//     settings_cred: ada_handles_bytes
-// }
-
-// const pz_settings_new_contract = PzSettings {
-//     treasury_fee: 1000000,
-//     treasury_cred: treasury_bytes,
-//     pz_min_fee: 4000000,
-//     pz_providers: Map[ByteArray]ByteArray{ada_handles_bytes: ada_handles_bytes, pz_provider_bytes: pz_provider_bytes},
-//     valid_contracts: []ByteArray{admin_bytes},
-//     admin_creds: []ByteArray{},
-//     settings_cred: ada_handles_bytes
-// }
-
 // // INPUTS
 // const good_ref_token_input: TxInput = TxInput::new(TxOutputId::new(script_tx_hash, 0), 
 //     TxOutput::new(
