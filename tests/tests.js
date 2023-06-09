@@ -1,14 +1,16 @@
 import fs from "fs";
 import * as tester from './contractTesting.js'
-import { Datum, PzRedeemer, ScriptContext } from './testClasses.js'
+import { BackgroundDefaults, Datum, PzRedeemer, ScriptContext, handle } from './testClasses.js'
 
 let contract = fs.readFileSync("../contract.helios").toString();
 contract = contract.replace(/ctx.get_current_validator_hash\(\)/g, 'ValidatorHash::new(#01234567890123456789012345678901234567890123456789000001)');
 
-tester.setup();
+tester.init('PERSONALIZE');
+
+// Default happy path is all reference inputs, bg/pfp are CIP-68, all defaults are set and forced. Tests begin to vary from that default
 Promise.all([
     // PERSONALIZE ENDPOINT - SHOULD APPROVE
-    tester.testCase(true, "PERSONALIZE", "happy path with defaults", () => {
+    tester.testCase(true, "PERSONALIZE", "happy path", () => {
         const redeemer = new PzRedeemer();
         const program = tester.createProgram(contract, new Datum().render(), redeemer.render(), new ScriptContext(redeemer.calculateCid()).render());
         return {
@@ -16,29 +18,29 @@ Promise.all([
             params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p))
         }
     }),
-    // tester.testCase(true, "PERSONALIZE", "happy path no defaults", () => {
-    //     const redeemer = new PzRedeemer();
-    //     const context = new ScriptContext(redeemer.calculateCid());
-    //     // remove bg_defaults 
-    //     const bg_ref = context.referenceInputs.find(input => {input.output.asset == 'bg' && input.output.label == 'LBL_100'});
-    //     context.referenceInputs.splice(context.referenceInputs.indexOf(bg_ref), 1);
-    //     context.referenceInputs.find(input => {input.output.asset == 'bg' && input.output.label == 'LBL_100'}).output.label = '';
-    //     const program = tester.createProgram(contract, new Datum().render(), redeemer.render(), context.render());
-    //     return {
-    //         contract: program.compile(),
-    //         params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p))
-    //     }
-    // }),
-    // tester.testCase(true, "PERSONALIZE", "partner pfp/bg lists", () => {
-    //     const redeemer = new PzRedeemer();
-    //     const context = new ScriptContext(redeemer.calculateCid());
-    //     context.outputs[2].asset = '"partner@bg_policy_ids"';
-    //     const program = tester.createProgram(contract, new Datum().render(), redeemer.render(), context.render());
-    //     return {
-    //         contract: program.compile(),
-    //         params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p))
-    //     }
-    // }),
+    tester.testCase(true, "PERSONALIZE", "happy path no defaults", () => {
+        const redeemer = new PzRedeemer();
+        const context = new ScriptContext(redeemer.calculateCid());
+        const bg_ref = context.referenceInputs.find(input => input.output.asset == '"bg"' && input.output.label == 'LBL_100');
+        const defaults = new BackgroundDefaults();
+        defaults.extra = {};
+        bg_ref.output.datum = defaults.render();
+        const program = tester.createProgram(contract, new Datum().render(), redeemer.render(), context.render());
+        return {
+            contract: program.compile(),
+            params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p))
+        }
+    }),
+    tester.testCase(true, "PERSONALIZE", "partner pfp/bg lists", () => {
+        const redeemer = new PzRedeemer();
+        const context = new ScriptContext(redeemer.calculateCid());
+        context.outputs[2].asset = '"partner@bg_policy_ids"';
+        const program = tester.createProgram(contract, new Datum().render(), redeemer.render(), context.render());
+        return {
+            contract: program.compile(),
+            params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p))
+        }
+    }),
 
     // PERSONALIZE ENDPOINT - SHOULD DENY
     // tester.testCase(false, "PERSONALIZE", "bad user token name", ["good_datum", "pz_redeemer_good", "wrong_handle_name"], "Handle reference input not present"),

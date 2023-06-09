@@ -5,23 +5,31 @@ import fs from "fs";
 let testCount;
 let successCount;
 let failCount;
+let group;
+let test;
 
-export function setup() {
+export function init(groupName=null, testName=null) {
   testCount = 0;
   successCount = 0;
   failCount = 0;
+  group = groupName;
+  test = testName;
 }
 
 // evalParam(p) and runWithPrint(p[]). Look for unit "()" response
 export async function testCase(shouldApprove, testGroup, testName, setup, message=null) {
-  testCount++;
-  const {contract, params} = setup();
-  await contract.runWithPrint(params).then((res) => {
-    logTest(shouldApprove, testGroup, testName, message, res);
-  })
-  .catch((err) => {
-    logTest(shouldApprove, testGroup, testName, message, err);
-  });
+  if (group == null || group == testGroup) {
+    if (test == null || test == testName) {
+      testCount++;
+      const {contract, params} = setup();
+      await contract.runWithPrint(params).then((res) => {
+        logTest(shouldApprove, testGroup, testName, message, res);
+      })
+      .catch((err) => {
+        logTest(shouldApprove, testGroup, testName, message, err);
+      });
+    }
+  }
 }
 
 function logTest(shouldApprove, testGroup, testName, message=null, res) {
@@ -45,19 +53,19 @@ function logTest(shouldApprove, testGroup, testName, message=null, res) {
     console.log(`   ${Color.FgYellow}MESSAGE:${Color.Reset}`);
     if (Array.isArray(res))
       console.log(res[0]);
-      console.log(`\n`)
-      console.log(`   ${Color.FgYellow}EXPECTED:\n   ${Color.FgBlue}${message ? messsage : "success"}${Color.Reset}`);
-      if (res.length > 1) {
-        // Helios error() is always the last in the output/print statements res[1].length-1]
-        console.log(`   ${Color.FgYellow}RECEIVED:\n   ${Color.FgRed}${res[1][res[1].length-1]}${Color.Reset}`);
-      }
+    console.log(`\n`)
+    console.log(`   ${Color.FgYellow}EXPECTED:\n   ${Color.FgBlue}${message ? messsage : "success"}${Color.Reset}`);
+    if (res.length > 1) {
+      // Helios error() is always the last in the output/print statements res[1].length-1]
+      console.log(`   ${Color.FgYellow}RECEIVED:\n   ${Color.FgRed}${res[1][res[1].length-1]}${Color.Reset}`);
+    }
     else {
       console.log(res);
     }
   }
   
   if (!assertion || hasPrintStatements)
-    console.log(`${textColor}------------------------------${Color.Reset}`)
+  console.log(`${textColor}------------------------------${Color.Reset}`)
 }
 
 export function displayStats() {
@@ -74,11 +82,11 @@ export function getTotals() {
 }
 
 export function createProgram(contract, datum, redeemer, context) {
-  const testingCode = `
-    ${contract}\n
-    const datum = ${datum}\n
-    const redeemer = ${redeemer}\n
-    const context = ${context}\n`;
-  fs.writeFileSync('testingCode.helios', testingCode);
+  const testingCode = `${contract}\n
+    const datum: Datum = ${datum}\n
+    const redeemer: ${redeemer.split(' ')[0]} = ${redeemer}\n
+    const context: ScriptContext = ${context}\n`;
+  if (test != null)
+    fs.writeFileSync('testingCode.helios', testingCode);
   return helios.Program.new(testingCode);
 }

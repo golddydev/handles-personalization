@@ -47,7 +47,7 @@ func policyAndAssetSearch(output: TxOutput, policy: MintingPolicyHash, name: Byt
 
 func findAsReferenceOrOutput(policy: MintingPolicyHash, name: ByteArray, amount: Int, ctx: ScriptContext, starts_with: Bool, check_sig: Bool) -> (Option[TxOutput], Option[AssetClass]) {
     (tx: Option[TxOutput], asset: Option[AssetClass]) = ctx.tx.ref_inputs.fold_lazy(
-        (input: TxInput, next: () -> () -> {(Option[TxOutput], Option[AssetClass])}) -> {
+        (input: TxInput, next: () -> () -> (Option[TxOutput], Option[AssetClass])) -> {
             a: Option[AssetClass] = policyAndAssetSearch(input.output, policy, name, amount, starts_with);
             b: Bool = if (check_sig) {
             ctx.tx.signatories.any((signer: PubKeyHash) -> {
@@ -63,19 +63,18 @@ func findAsReferenceOrOutput(policy: MintingPolicyHash, name: ByteArray, amount:
         }, 
         () -> {(Option[TxOutput]::None, Option[AssetClass]::None)}
     )();
-    (tx, asset)
-    // tx.switch {
-    //     Some => (tx, asset), 
-    //     else => {
-    //         ctx.tx.outputs.fold_lazy(
-    //             (output: TxOutput, next: () -> () -> { (Option[TxOutput], Option[AssetClass]) }) -> {
-    //                 a: Option[AssetClass] = policyAndAssetSearch(output, policy, name, amount, starts_with);
-    //                 if (a != Option[AssetClass]::None) {
-    //                     () -> {(Option[TxOutput]::Some{output}, a)}
-    //                 } else { next() }
-    //         }, () -> {(Option[TxOutput]::None, Option[AssetClass]::None)})()
-    //     }
-    // }
+    tx.switch {
+        Some => (tx, asset), 
+        else => {
+            ctx.tx.outputs.fold_lazy(
+                (output: TxOutput, next: () -> () -> (Option[TxOutput], Option[AssetClass])) -> {
+                    a: Option[AssetClass] = policyAndAssetSearch(output, policy, name, amount, starts_with);
+                    if (a != Option[AssetClass]::None) {
+                        () -> {(Option[TxOutput]::Some{output}, a)}
+                    } else { next() }
+            }, () -> {(Option[TxOutput]::None, Option[AssetClass]::None)})()
+        }
+    }
 }
 
 func getHandleTokens(handle: String, ctx: ScriptContext, check_sig: Bool) -> (TxOutput, TxOutput) {
@@ -238,14 +237,13 @@ func checkRequiredPfPs(pfp_asset: Option[Data], bg_datum_opt:OutputDatum, owner_
         require_pfp_collections_opt: Option[Data] = defaults.get_safe("require_pfp_collections");
         require_pfp_attributes_opt: Option[Data] = defaults.get_safe("require_pfp_attributes");
         require_pfp_displayed_opt: Option[Data] = defaults.get_safe("require_pfp_displayed");
-        required_pfp_present: Bool = (require_pfp_collections_opt == Option[Data]::None || []ByteArray::from_data(require_pfp_collections_opt.unwrap()).any((bytes: ByteArray) -> Bool {
-            policy_id: ByteArray = asset_bytes.slice(0, 28);
+        required_pfp_present: Bool = (require_pfp_collections_opt == Option[Data]::None || []ByteArray::from_data(require_pfp_collections_opt.unwrap()).any((asset_bytes: ByteArray) -> Bool {
+            policy_id: MintingPolicyHash = MintingPolicyHash::new(asset_bytes.slice(0, 28));
             asset_name: ByteArray = asset_bytes.slice(28, asset_bytes.length);
             (output: Option[TxOutput], asset_opt: Option[AssetClass]) = findAsReferenceOrOutput(policy_id, asset_name, 1, ctx, true, false);
-            asset = asset_opt.unwrap();
+            asset: AssetClass = asset_opt.unwrap();
             output != Option[TxOutput]::None && output.unwrap().address.credential == owner_cred
                 && (
-
                     if (asset.token_name.starts_with(LBL_222) || asset.token_name.starts_with(LBL_444)) {
                         required_attributes_present: Bool = (require_pfp_attributes_opt == Option[Data]::None || []ByteArray::from_data(require_pfp_attributes_opt.unwrap()).all((attr_bytes: ByteArray) -> Bool {
                             attr: String = attr_bytes.decode_utf8();
@@ -271,7 +269,8 @@ func checkRequiredPfPs(pfp_asset: Option[Data], bg_datum_opt:OutputDatum, owner_
                     pfp_is_displayed: Bool = (require_pfp_displayed_opt == Option[Data]::None 
                         || Int::from_data(require_pfp_displayed_opt.unwrap()).to_bool() == false
                         || (Int::from_data(require_pfp_displayed_opt.unwrap()).to_bool()
-                            && pfp_asset != Option[Data]::None && bytes.starts_with(ByteArray::from_data(pfp_asset.unwrap()))));
+                            && pfp_asset != Option[Data]::None && ByteArray::from_data(pfp_asset.unwrap()).starts_with(asset_bytes)));
+                    print(pfp_asset.unwrap().serialize().show() + " = " + asset_bytes.show());
                     if (throw_errors) {
                         assert(pfp_is_displayed, "Required PFP isn't displayed in Handle");
                         true
@@ -319,6 +318,7 @@ func designerSettingsAreValid(pz_data:Map[String]Data, designer: Map[String]Data
             text_ribbon_colors: []ByteArray = []ByteArray::from_data(designer.get("text_ribbon_colors"));
             assert(((text_ribbon_gradient_x == "radial" || text_ribbon_gradient_x.starts_with("linear")) 
                         && text_ribbon_colors_x == text_ribbon_colors) 
+                    || text_ribbon_colors_x == text_ribbon_colors
                     || text_ribbon_colors_x.find_safe((color:ByteArray) -> Bool {color == text_ribbon_colors.get_singleton()}) != Option[ByteArray]::None, "text_ribbon_colors is not set correctly");
             
             font_color_opt: Option[Data] = defaults.get_safe("font_colors");

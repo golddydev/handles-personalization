@@ -2,7 +2,7 @@ import * as helios from "@hyperionbt/helios";
 import base58 from "bs58";
 
 // STRINGS
-const handle = 'xar12345'
+export const handle = 'xar12345'
 
 // HASHES
 const admin_bytes = '#01234567890123456789012345678901234567890123456789000007';
@@ -12,6 +12,9 @@ const script_hash = `ValidatorHash::new(${script_creds_bytes})`;
 const treasury_bytes = '#01234567890123456789012345678901234567890123456789000002';
 const ada_handles_bytes = '#01234567890123456789012345678901234567890123456789000003';
 const pz_provider_bytes = '#01234567890123456789012345678901234567890123456789000004';
+const handles_policy = '#f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9a';
+const bg_policy = '#f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9b';
+const pfp_policy = '#f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9c';
 
 // TRANSACTION HASHES
 const script_tx_hash = 'TxId::new(#0123456789012345678901234567890123456789012345678901234567891234)';
@@ -32,26 +35,34 @@ export class ScriptContext {
   
       const goodBgInput = new TxInput(`${handles_tx_hash}`, new TxOutput(`${owner_bytes}`, 'LBL_444', '"bg"'));
       goodBgInput.output.hashType = 'pubkey';
+      goodBgInput.output.policy = `MintingPolicyHash::new(${bg_policy})`;
       const goodBgInputRef = new TxInput(`${handles_tx_hash}`, new TxOutput(`${owner_bytes}`, 'LBL_100', '"bg"'));
       goodBgInputRef.output.hashType = 'pubkey';
       goodBgInputRef.output.datumType = 'inline';
       goodBgInputRef.output.datum = new BackgroundDefaults().render();
-      const goodPfpInput = new TxInput(`${handles_tx_hash}`, new TxOutput(`${owner_bytes}`, '', '"pfp"'));
+      goodBgInputRef.output.policy = `MintingPolicyHash::new(${bg_policy})`;
+      const goodPfpInput = new TxInput(`${handles_tx_hash}`, new TxOutput(`${owner_bytes}`, 'LBL_222', '"pfp"'));
       goodPfpInput.output.hashType = 'pubkey';
+      goodPfpInput.output.policy = `MintingPolicyHash::new(${pfp_policy})`;
+      const goodPfpInputRef = new TxInput(`${handles_tx_hash}`, new TxOutput(`${owner_bytes}`, 'LBL_100', '"pfp"'));
+      goodPfpInputRef.output.hashType = 'pubkey';
+      goodPfpInputRef.output.datumType = 'inline';
+      goodPfpInputRef.output.datum = new Datum().render();
+      goodPfpInputRef.output.policy = `MintingPolicyHash::new(${pfp_policy})`;
       const goodBgListInput = new TxInput(`${handles_tx_hash}`, new TxOutput(`${ada_handles_bytes}`, 'LBL_222', '"bg_policy_ids"'));
       goodBgListInput.output.datumType = 'inline';
       goodBgListInput.output.datum = new ApprovedPolicyIds().render();
       const goodPfpListInput = new TxInput(`${handles_tx_hash}`, new TxOutput(`${ada_handles_bytes}`, 'LBL_222', '"pfp_policy_ids"'));
       goodPfpListInput.output.datumType = 'inline';
       const pfpApproverList = new ApprovedPolicyIds(); 
-      pfpApproverList.map['#f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9a'] = {'#706670': [0,0,0]}
+      pfpApproverList.map[`${pfp_policy}`] = {'#000de140706670': [0,0,0]}
       goodPfpListInput.output.datum = pfpApproverList.render();
       const goodPzInput = new TxInput(`${handles_tx_hash}`, new TxOutput(`${ada_handles_bytes}`, 'LBL_222', '"pz_settings"'));
       goodPzInput.output.datumType = 'inline';
       goodPzInput.output.datum = new PzSettings().render();
       const goodOwnerInput = new TxInput(`${owner_tx_hash}`, new TxOutput(`${owner_bytes}`, 'LBL_222', `"${handle}"`));
       goodOwnerInput.output.hashType = 'pubkey';
-      this.referenceInputs = [goodBgInput, goodBgInputRef, goodPfpInput, goodBgListInput, goodPfpListInput, goodPzInput, goodOwnerInput];
+      this.referenceInputs = [goodBgInput, goodBgInputRef, goodPfpInput, goodPfpInputRef, goodBgListInput, goodPfpListInput, goodPzInput, goodOwnerInput];
   
       const goodRefTokenOutput = new TxOutput(`${script_creds_bytes}`);
       goodRefTokenOutput.datumType = 'inline';
@@ -96,7 +107,8 @@ export class ScriptContext {
             TimeRange::from(Time::new(1001)),
             []PubKeyHash{${renderedSigners}},
             Map[ScriptPurpose]Data{},
-            Map[DatumHash]Data{}
+            Map[DatumHash]Data{},
+            ${script_tx_hash}
           ),
           TxOutputId::new(${script_tx_hash}, 0)
       )`
@@ -113,7 +125,9 @@ export class ScriptContext {
      }
   
     render() {
-      return `TxInput::new(TxOutputId::new(${this.hash}, 0), ${this.output.render()})`
+      return `
+            TxInput::new(
+                  TxOutputId::new(${this.hash}, 0), ${this.output.render()})`
     }
   }
   
@@ -138,15 +152,13 @@ export class ScriptContext {
       if (asset != null) {
         this.asset = asset;
       }
-      if (value == null) {
-        this.value = `+ Value::new(AssetClass::new(${this.policy}, ${this.label}${this.label ? ' + ': ''}(${this.asset}.encode_utf8())), 1)`;
-      }
-      else {
-        this.value = value;
-      }
+      this.value = value;
      }
   
     render() {
+      if (this.asset != null && this.value == null) {
+        this.value = `+ Value::new(AssetClass::new(${this.policy}, ${this.label}${this.label ? ' + ': ''}(${this.asset}.encode_utf8())), 1)`;
+      }
       let hashString = 'validator(Validator';
       if (this.hashType == 'pubkey') {
         hashString = 'pubkey(PubKey';
@@ -156,32 +168,32 @@ export class ScriptContext {
         datumString = `inline(${this.datum})`;
       }
   
-      return `TxOutput::new(
-                Address::new(Credential::new_${hashString}Hash::new(${this.hash})), Option[StakingCredential]::None)
-                , Value::lovelace(${this.lovelace}) ${this.value}
-                , OutputDatum::new_${datumString}
-              )`
+      return `
+                TxOutput::new(
+                  Address::new(Credential::new_${hashString}Hash::new(${this.hash})), Option[StakingCredential]::None),
+                  Value::lovelace(${this.lovelace}) ${this.value},
+                  OutputDatum::new_${datumString})`
     }
   }
   
   export class PzRedeemer {
     handle = `"${handle}"`;
     designer = {
-      pfp_border_color: 'OutputDatum::new_inline(#).data',
+      pfp_border_color: 'OutputDatum::new_inline(#22d1af).data',
       qr_inner_eye: 'OutputDatum::new_inline("square,#0a1fd3").data',
       qr_outer_eye: 'OutputDatum::new_inline("square,#0a1fd3").data',
       qr_dot: 'OutputDatum::new_inline("square,#0a1fd3").data',
-      qr_bg_color: 'OutputDatum::new_inline(#).data',
+      qr_bg_color: 'OutputDatum::new_inline(#0a1fd3).data',
       pfp_zoom: 'OutputDatum::new_inline(100).data',
-      pfp_offset: 'OutputDatum::new_inline([]Int{0, 0}).data',
-      font: 'OutputDatum::new_inline("").data',
+      pfp_offset: 'OutputDatum::new_inline([]Int{1, 2}).data',
+      font: 'OutputDatum::new_inline("the font").data',
       font_color: 'OutputDatum::new_inline(#ffffff).data',
-      font_shadow_size: 'OutputDatum::new_inline([]Int{12, 18, 8}).data',
-      text_ribbon_colors: 'OutputDatum::new_inline([]ByteArray{}).data',
-      text_ribbon_gradient: 'OutputDatum::new_inline("").data',
-      font_shadow_color: 'OutputDatum::new_inline(#).data',
+      font_shadow_size: 'OutputDatum::new_inline([]Int{12, 10, 8}).data',
+      text_ribbon_colors: 'OutputDatum::new_inline([]ByteArray{#0a1fd3, #0a1fd4}).data',
+      text_ribbon_gradient: 'OutputDatum::new_inline("linear-45").data',
+      font_shadow_color: 'OutputDatum::new_inline(#22d1af).data',
       bg_color: 'OutputDatum::new_inline(#).data',
-      bg_border_color: 'OutputDatum::new_inline(#).data',
+      bg_border_color: 'OutputDatum::new_inline(#22d1af).data',
       qr_link: 'OutputDatum::new_inline("").data',
       socials: 'OutputDatum::new_inline([]String{}).data',
       svg_version: 'OutputDatum::new_inline(1).data',
@@ -216,10 +228,10 @@ export class ScriptContext {
     renderDesigner() {
         let designer =  `Map[String]Data {\n`;
         Object.keys(this.designer).forEach((key) => {
-            designer += `   "${key}": ${this.designer[key]},\n`
+            designer += `       "${key}": ${this.designer[key]},\n`
         })
         designer = designer.replace(/,\n$/g, '\n');
-        designer += '}';
+        designer += '   }';
         return designer;
     }
   
@@ -234,7 +246,7 @@ export class ScriptContext {
   export class Datum {
     nft = {
       name: `OutputDatum::new_inline("${handle}").data`,
-      image: 'OutputDatum::new_inline("ipfs://image_cid").data',
+      image: 'OutputDatum::new_inline("ipfs://pfp").data',
       mediaType: 'OutputDatum::new_inline("image/jpeg").data',
       og: 'OutputDatum::new_inline(0).data',
       og_number: 'OutputDatum::new_inline(1).data',
@@ -242,16 +254,17 @@ export class ScriptContext {
       length: 'OutputDatum::new_inline(8).data',
       characters: 'OutputDatum::new_inline("characters,numbers").data',
       numeric_modifiers: 'OutputDatum::new_inline("").data',
-      version: 'OutputDatum::new_inline(1).data'
+      version: 'OutputDatum::new_inline(1).data',
+      attr: 'OutputDatum::new_inline("rtta").data'
     };
     version = 1;
     extra = {
       standard_image: 'OutputDatum::new_inline("ipfs://cid").data',
       bg_image: 'OutputDatum::new_inline("ipfs://image_cid").data',
-      pfp_image: 'OutputDatum::new_inline("ipfs://cid").data',
+      pfp_image: 'OutputDatum::new_inline("ipfs://pfp").data',
       designer: 'OutputDatum::new_inline("ipfs://cid").data',
-      bg_asset: 'OutputDatum::new_inline(#f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9a001bc2806267).data',
-      pfp_asset: 'OutputDatum::new_inline(#f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9a706670).data',
+      bg_asset: `OutputDatum::new_inline(${bg_policy}001bc2806267).data`,
+      pfp_asset: `OutputDatum::new_inline(${pfp_policy}000de140706670).data`,
       portal: 'OutputDatum::new_inline("ipfs://cid").data',
       socials: 'OutputDatum::new_inline("ipfs://cid").data',
       vendor: 'OutputDatum::new_inline("ipfs://cid").data',
@@ -272,21 +285,21 @@ export class ScriptContext {
   
     render() {
       let datum = `Datum {\n`;
-      datum += 'nft: Map[String]Data {\n';
+      datum += '                nft: Map[String]Data {\n';
   
       Object.keys(this.nft).forEach((key) => {
-        datum += `  "${key}": ${this.nft[key]},\n`
+        datum += `                  "${key}": ${this.nft[key]},\n`
       })
       datum = datum.replace(/,\n$/g, '\n');
-      datum += '},\n'
-      datum +=  'version: 1,\n'
-      datum += 'extra: Map[String]Data {\n';
+      datum += '               },\n'
+      datum += '               version: 1,\n'
+      datum += '               extra: Map[String]Data {\n';
   
       Object.keys(this.extra).forEach((key) => {
-        datum += `  "${key}": ${this.extra[key]},\n`
+        datum += `              "${key}": ${this.extra[key]},\n`
       })
       datum = datum.replace(/,\n$/g, '\n');
-      datum += '}}\n'
+      datum += '            }}\n'
       return datum;
     }
   }
@@ -315,12 +328,10 @@ export class ScriptContext {
   }
   
   export class ApprovedPolicyIds {
-    map = {
-      "#f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9a": {
-        "#001bc2806267": [0,0,0]
-      }
+    map = {}
+    constructor() {
+      this.map[bg_policy] = {"#001bc2806267": [0,0,0]};
     }
-    constructor() {}
     render() {
       let ids = 'Map[ByteArray]Map[ByteArray][]Int {\n';
       Object.keys(this.map).forEach((id) => {
@@ -355,20 +366,20 @@ export class ScriptContext {
       qr_inner_eye: 'OutputDatum::new_inline("square,#0a1fd3").data',
       qr_outer_eye: 'OutputDatum::new_inline("square,#0a1fd3").data',
       qr_dot: 'OutputDatum::new_inline("square,#0a1fd3").data',
-      qr_bg_color: 'OutputDatum::new_inline(#).data',
+      qr_bg_color: 'OutputDatum::new_inline(#0a1fd3).data',
       pfp_zoom: 'OutputDatum::new_inline(100).data',
-      pfp_offset: 'OutputDatum::new_inline([]Int{0, 0}).data',
-      font: 'OutputDatum::new_inline("").data',
+      pfp_offset: 'OutputDatum::new_inline([]Int{1, 2}).data',
+      font: 'OutputDatum::new_inline("the font").data',
       font_color: 'OutputDatum::new_inline(#ffffff).data',
-      font_shadow_size: 'OutputDatum::new_inline([]Int{12, 18, 8}).data',
-      text_ribbon_colors: 'OutputDatum::new_inline([]ByteArray{}).data',
-      text_ribbon_gradient: 'OutputDatum::new_inline("").data',
+      font_shadow_size: 'OutputDatum::new_inline([]Int{12, 10, 8}).data',
+      text_ribbon_colors: 'OutputDatum::new_inline([]ByteArray{#0a1fd3, #0a1fd4}).data',
+      text_ribbon_gradient: 'OutputDatum::new_inline("linear-45").data',
       bg_border_colors: 'OutputDatum::new_inline([]ByteArray{#0a1fd3, #22d1af, #31bc23}).data',
       pfp_border_colors: 'OutputDatum::new_inline([]ByteArray{#0a1fd3, #22d1af, #31bc23}).data',
       font_shadow_colors: 'OutputDatum::new_inline([]ByteArray{#0a1fd3, #22d1af, #31bc23}).data',
-      require_pfp_collections: 'OutputDatum::new_inline([]ByteArray{#f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9a}).data',
-      require_pfp_attributes: 'OutputDatum::new_inline([]String{}).data',
-      require_pfp_displayed: 'OutputDatum::new_inline(0).data',
+      require_pfp_collections: `OutputDatum::new_inline([]ByteArray{${pfp_policy}}).data`,
+      require_pfp_attributes: 'OutputDatum::new_inline([]String{"attr:rtta"}).data',
+      require_pfp_displayed: 'OutputDatum::new_inline(1).data',
       price: 'OutputDatum::new_inline(125).data',
       force_creator_settings: 'OutputDatum::new_inline(1).data',
       custom_dollar_symbol: 'OutputDatum::new_inline(0).data'
@@ -379,21 +390,21 @@ export class ScriptContext {
   
     render() {
       let datum = `Datum {\n`;
-      datum += 'nft: Map[String]Data {\n';
+      datum += '          nft: Map[String]Data {\n';
   
       Object.keys(this.nft).forEach((key) => {
-        datum += `  "${key}": ${this.nft[key]},\n`
+        datum += `            "${key}": ${this.nft[key]},\n`
       })
       datum = datum.replace(/,\n$/g, '\n');
-      datum += '},\n'
-      datum +=  'version: 1,\n'
-      datum += 'extra: Map[String]Data {\n';
+      datum += '          },\n'
+      datum += '          version: 1,\n'
+      datum += '          extra: Map[String]Data {\n';
   
       Object.keys(this.extra).forEach((key) => {
-        datum += `  "${key}": ${this.extra[key]},\n`
+        datum += `            "${key}": ${this.extra[key]},\n`
       })
       datum = datum.replace(/,\n$/g, '\n');
-      datum += '}}\n'
+      datum += '          }}\n'
       return datum;
     }
   }
