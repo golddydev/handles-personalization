@@ -1,6 +1,6 @@
 import fs from "fs";
 import * as tester from './contractTesting.js'
-import { BackgroundDefaults, Datum, PzRedeemer, ScriptContext, handle } from './testClasses.js'
+import { BackgroundDefaults, Datum, PzRedeemer, ScriptContext, ApprovedPolicyIds, handle, pz_provider_bytes, pfp_policy } from './testClasses.js'
 
 let contract = fs.readFileSync("../contract.helios").toString();
 contract = contract.replace(/ctx.get_current_validator_hash\(\)/g, 'ValidatorHash::new(#01234567890123456789012345678901234567890123456789000001)');
@@ -10,7 +10,7 @@ tester.init('PERSONALIZE');
 // Default happy path is all reference inputs, bg/pfp are CIP-68, all defaults are set and forced. Tests begin to vary from that default
 Promise.all([
     // PERSONALIZE ENDPOINT - SHOULD APPROVE
-    tester.testCase(true, "PERSONALIZE", "happy path", () => {
+    tester.testCase(true, "PERSONALIZE", "reference inputs, CIP-68, defaults forced", () => {
         const redeemer = new PzRedeemer();
         const program = tester.createProgram(contract, new Datum().render(), redeemer.render(), new ScriptContext(redeemer.calculateCid()).render());
         return {
@@ -18,7 +18,24 @@ Promise.all([
             params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p))
         }
     }),
-    tester.testCase(true, "PERSONALIZE", "happy path no defaults", () => {
+    tester.testCase(true, "PERSONALIZE", "reference inputs, pfp CIP-25, defaults forced", () => {
+        const redeemer = new PzRedeemer();
+        const context = new ScriptContext(redeemer.calculateCid());
+        context.referenceInputs.find(input => input.output.asset == '"pfp"' && input.output.label == 'LBL_222').output.label = '';
+        context.referenceInputs.splice(context.referenceInputs.indexOf(context.referenceInputs.find(input => input.output.asset == '"pfp"' && input.output.label == 'LBL_100')), 1);
+        const datum = new Datum(redeemer.calculateCid());
+        datum.extra.pfp_asset = `OutputDatum::new_inline(${pfp_policy}706670).data`;
+        context.outputs.find(output => output.asset == `"${handle}"` && output.label == 'LBL_100').datum = datum.render();
+        const pfpApproverList = new ApprovedPolicyIds();
+        pfpApproverList.map[`${pfp_policy}`] = {'#706670': [0,0,0]}
+        context.referenceInputs.find(input => input.output.asset == '"pfp_policy_ids"' && input.output.label == 'LBL_222').output.datum = pfpApproverList.render();
+        const program = tester.createProgram(contract, new Datum().render(), redeemer.render(), context.render());
+        return {
+            contract: program.compile(),
+            params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p))
+        }
+    }),
+    tester.testCase(true, "PERSONALIZE", "reference inputs, CIP-68, no defaults", () => {
         const redeemer = new PzRedeemer();
         const context = new ScriptContext(redeemer.calculateCid());
         const bg_ref = context.referenceInputs.find(input => input.output.asset == '"bg"' && input.output.label == 'LBL_100');
@@ -31,10 +48,12 @@ Promise.all([
             params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p))
         }
     }),
-    tester.testCase(true, "PERSONALIZE", "partner pfp/bg lists", () => {
+    tester.testCase(true, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, provider policies", () => {
         const redeemer = new PzRedeemer();
         const context = new ScriptContext(redeemer.calculateCid());
-        context.outputs[2].asset = '"partner@bg_policy_ids"';
+        const bg_policy_input = context.referenceInputs.find(input => input.output.asset == '"bg_policy_ids"');
+        bg_policy_input.output.asset = '"partner@bg_policy_ids"';
+        bg_policy_input.output.hash = `${pz_provider_bytes}`;
         const program = tester.createProgram(contract, new Datum().render(), redeemer.render(), context.render());
         return {
             contract: program.compile(),
@@ -43,9 +62,38 @@ Promise.all([
     }),
 
     // PERSONALIZE ENDPOINT - SHOULD DENY
-    // tester.testCase(false, "PERSONALIZE", "bad user token name", ["good_datum", "pz_redeemer_good", "wrong_handle_name"], "Handle reference input not present"),
-    // tester.testCase(false, "PERSONALIZE", "bad user token label", ["good_datum", "pz_redeemer_good", "wrong_handle_label"], "Handle reference input not present"),
-    // tester.testCase(false, "PERSONALIZE", "bad user token policy", ["good_datum", "pz_redeemer_good", "not_a_real_handle"], "Handle reference input not present"),
+    tester.testCase(false, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, wrong handle name", () => {
+        const redeemer = new PzRedeemer();
+        const context = new ScriptContext(redeemer.calculateCid());
+        context.referenceInputs.find(input => input.output.asset == `"${handle}"` && input.output.label == 'LBL_222').output.asset = '"xar12346"'
+        const program = tester.createProgram(contract, new Datum().render(), redeemer.render(), context.render());
+        return {
+            contract: program.compile(),
+            params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p))
+        }
+    }, "Handle input not present"),
+    tester.testCase(false, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, wrong handle label", () => {
+        const redeemer = new PzRedeemer();
+        const context = new ScriptContext(redeemer.calculateCid());
+        context.referenceInputs.find(input => input.output.asset == `"${handle}"` && input.output.label == 'LBL_222').output.label = '#000653b0'
+        const program = tester.createProgram(contract, new Datum().render(), redeemer.render(), context.render());
+        return {
+            contract: program.compile(),
+            params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p))
+        }
+    }, "Handle input not present"),
+    tester.testCase(false, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, wrong handle policy", () => {
+        const redeemer = new PzRedeemer();
+        const context = new ScriptContext(redeemer.calculateCid());
+        context.referenceInputs.find(input => input.output.asset == `"${handle}"` && input.output.label == 'LBL_222').output.policy = 'MintingPolicyHash::new(#f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9b)'
+        const program = tester.createProgram(contract, new Datum().render(), redeemer.render(), context.render());
+        return {
+            contract: program.compile(),
+            params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p))
+        }
+    }, "Handle input not present"),
+
+    
     // tester.testCase(false, "PERSONALIZE", "bad reference token name", ["good_datum", "pz_redeemer_good", "bad_ref_token_name"], "Reference Token is not in input list"),
     // tester.testCase(false, "PERSONALIZE", "bad reference token label", ["good_datum", "pz_redeemer_good", "bad_ref_token_label"], "Reference Token is not in input list"),
     // tester.testCase(false, "PERSONALIZE", "bad reference token address", ["good_datum", "pz_redeemer_good", "bad_ref_token_creds"], "Reference Token is not in input list"),

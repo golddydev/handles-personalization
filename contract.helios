@@ -12,6 +12,7 @@ enum Redeemer {
         handle: String
         designer: Map[String]Data
     }
+    RETURN_TO_SENDER
 }
 
 struct PzSettings {
@@ -189,6 +190,7 @@ func assetIsValid(asset_type:String, pz_data: Map[String]Data, approvers: Map[St
     if (pz_data.find_key_safe((key: String) -> { key == asset_type + "_asset" }) != Option[String]::None) {
         asset: AssetClass = parseAsset(ByteArray::from_data(pz_data.get(asset_type + "_asset")));
 
+        //print(asset.mph.show() + " " + asset.token_name.show());
         // Is the asset passed in as an input/reference?
         (asset_output: Option[TxOutput], _) = findAsReferenceOrOutput(asset.mph, asset.token_name, 1, ctx, false, false);
         assert(asset_output != Option[TxOutput]::None, "Required " + asset_type + " input/reference missing");
@@ -270,7 +272,7 @@ func checkRequiredPfPs(pfp_asset: Option[Data], bg_datum_opt:OutputDatum, owner_
                         || Int::from_data(require_pfp_displayed_opt.unwrap()).to_bool() == false
                         || (Int::from_data(require_pfp_displayed_opt.unwrap()).to_bool()
                             && pfp_asset != Option[Data]::None && ByteArray::from_data(pfp_asset.unwrap()).starts_with(asset_bytes)));
-                    print(pfp_asset.unwrap().serialize().show() + " = " + asset_bytes.show());
+                    //print(pfp_asset.unwrap().serialize().show() + " = " + asset_bytes.show());
                     if (throw_errors) {
                         assert(pfp_is_displayed, "Required PFP isn't displayed in Handle");
                         true
@@ -527,6 +529,9 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
             else {
                 error("Reset is not valid or not authrized")
             }
+        },
+        RETURN_TO_SENDER => {
+            true
         },
         else => {
             false

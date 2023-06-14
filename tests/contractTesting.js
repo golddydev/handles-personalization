@@ -54,7 +54,7 @@ function logTest(shouldApprove, testGroup, testName, message=null, res) {
     if (Array.isArray(res))
       console.log(res[0]);
     console.log(`\n`)
-    console.log(`   ${Color.FgYellow}EXPECTED:\n   ${Color.FgBlue}${message ? messsage : "success"}${Color.Reset}`);
+    console.log(`   ${Color.FgYellow}EXPECTED:\n   ${Color.FgBlue}${message ? message : "success"}${Color.Reset}`);
     if (res.length > 1) {
       // Helios error() is always the last in the output/print statements res[1].length-1]
       console.log(`   ${Color.FgYellow}RECEIVED:\n   ${Color.FgRed}${res[1][res[1].length-1]}${Color.Reset}`);
