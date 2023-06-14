@@ -25,10 +25,12 @@ struct PzSettings {
     settings_cred: ByteArray
 }
 
-struct Datum {
-    nft: Map[String]Data
-    version: Int
-    extra: Map[String]Data
+enum Datum {
+    CIP68 {
+        nft: Map[String]Data
+        version: Int
+        extra: Map[String]Data
+    }
 }
 
 const HANDLE_POLICY: MintingPolicyHash = MintingPolicyHash::new(#f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9a)
@@ -149,7 +151,7 @@ func isValidContract(hash: ValidatorHash, settings: PzSettings) -> Bool {
 
 func cborHashesToCid(designer: Map[String]Data, reference_token: TxOutput) -> Bool {
     //print("REDEEMER: " + designer.serialize().show());
-    datum = Datum::from_data(reference_token.datum.get_inline_data());
+    datum: Datum::CIP68 = Datum::CIP68::from_data(reference_token.datum.get_inline_data());
     ipfs = ByteArray::from_data(datum.extra.get("designer"));
     cid: String = ipfs.slice(8, ipfs.length).decode_utf8(); // This strips away "ipfs://z" (the z can be removed - see CID multiformats)
     multihash: ByteArray = Int::from_base58(cid).to_big_endian();
@@ -234,7 +236,7 @@ func getAndValidateDesignerAssets(pz_data: Map[String]Data, owner_cred: Credenti
 
 func checkRequiredPfPs(pfp_asset: Option[Data], bg_datum_opt:OutputDatum, owner_cred:Credential, ctx: ScriptContext, throw_errors: Bool) -> Bool {
     if (bg_datum_opt != OutputDatum::new_none()) {
-        bg_datum = Datum::from_data(bg_datum_opt.get_inline_data());
+        bg_datum: Datum::CIP68 = Datum::CIP68::from_data(bg_datum_opt.get_inline_data());
         defaults: Map[String]Data = bg_datum.extra;
         require_pfp_collections_opt: Option[Data] = defaults.get_safe("require_pfp_collections");
         require_pfp_attributes_opt: Option[Data] = defaults.get_safe("require_pfp_attributes");
@@ -249,7 +251,7 @@ func checkRequiredPfPs(pfp_asset: Option[Data], bg_datum_opt:OutputDatum, owner_
                     if (asset.token_name.starts_with(LBL_222) || asset.token_name.starts_with(LBL_444)) {
                         required_attributes_present: Bool = (require_pfp_attributes_opt == Option[Data]::None || []ByteArray::from_data(require_pfp_attributes_opt.unwrap()).all((attr_bytes: ByteArray) -> Bool {
                             attr: String = attr_bytes.decode_utf8();
-                            nft: Map[String]Data = Datum::from_data(getAssetDatum(asset, ctx).get_inline_data()).nft;
+                            nft: Map[String]Data = Datum::CIP68::from_data(getAssetDatum(asset, ctx).get_inline_data()).nft;
                             attributes: Map[String]Data = nft.get_safe("attributes").switch{ att: Some => Map[String]Data::from_data(att.some), else => nft };
                             found_att: Option[String] = attributes.find_key_safe((key: String) -> Bool { attr.starts_with(key + ":") });
                             found_att != Option[String]::None && attr.ends_with(":" + attributes.get(found_att.unwrap()).switch{
@@ -293,7 +295,7 @@ func checkRequiredPfPs(pfp_asset: Option[Data], bg_datum_opt:OutputDatum, owner_
 
 func designerSettingsAreValid(pz_data:Map[String]Data, designer: Map[String]Data, bg_datum_opt:OutputDatum, owner_cred:Credential, ctx: ScriptContext) -> Bool {
     if (bg_datum_opt != OutputDatum::new_none()) {
-        bg_datum = Datum::from_data(bg_datum_opt.get_inline_data());
+        bg_datum: Datum::CIP68 = Datum::CIP68::from_data(bg_datum_opt.get_inline_data());
         defaults: Map[String]Data = bg_datum.extra;
         force: Option[Data] = defaults.get_safe("force_creator_settings");
         areRequiredPfpsPresent: Bool = checkRequiredPfPs(pz_data.get_safe("pfp_asset"), bg_datum_opt, owner_cred, ctx, true);
@@ -387,7 +389,7 @@ func designerSettingsAreValid(pz_data:Map[String]Data, designer: Map[String]Data
     }
 }
 
-func immutablesAreUnchanged(prev_nft: Datum, new_nft: Datum) -> Bool {
+func immutablesAreUnchanged(prev_nft: Datum::CIP68, new_nft: Datum::CIP68) -> Bool {
     prev_nft.extra.get("standard_image") == new_nft.extra.get("standard_image")
     && prev_nft.nft.get("name") == new_nft.nft.get("name")
     && prev_nft.nft.get("mediaType") == new_nft.nft.get("mediaType")
@@ -417,7 +419,7 @@ func pzDatumIsValid(
     approvers: Map[String]Map[ByteArray]Map[ByteArray][]Int, 
     ctx: ScriptContext) -> Bool {
         // check last_update_address == owner_222.address
-        new_datum = Datum::from_data(reference_token.datum.get_inline_data());
+        new_datum: Datum::CIP68 = Datum::CIP68::from_data(reference_token.datum.get_inline_data());
         pz_data: Map[String]Data = new_datum.extra;
         assert(Address::from_data(pz_data.get("last_update_address")) == owner_token.address, "last_update_address does not match Handle address");
         // set provider validated - if provider in signatories ? validated == #provider_sig : validated == #
@@ -449,27 +451,31 @@ func pzDatumIsValid(
 
         assert(bg_asset_opt == Option[Data]::None || (
                 bg_datum: OutputDatum = getAssetDatum(bg_asset, ctx);
-                bg_datum == OutputDatum::new_none() || String::from_data(Datum::from_data(bg_datum.get_inline_data()).nft.get("image")) == String::from_data(pz_data.get("bg_image"))
+                bg_datum == OutputDatum::new_none() || String::from_data(Datum::CIP68::from_data(bg_datum.get_inline_data()).nft.get("image")) == String::from_data(pz_data.get("bg_image"))
             ), "bg_image doesn't match bg_asset datum");
 
         assert(pfp_asset_opt == Option[Data]::None || (
                 pfp_datum: OutputDatum = getAssetDatum(pfp_asset, ctx);
-                pfp_datum == OutputDatum::new_none() || String::from_data(Datum::from_data(pfp_datum.get_inline_data()).nft.get("image")) == String::from_data(pz_data.get("pfp_image"))
+                pfp_datum == OutputDatum::new_none() || String::from_data(Datum::CIP68::from_data(pfp_datum.get_inline_data()).nft.get("image")) == String::from_data(pz_data.get("pfp_image"))
             ), "pfp_image doesn't match pfp_asset datum");
 
         true
 }
 
 func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
+    old_datum: Datum::CIP68 = datum.switch {
+        d: CIP68 => d,
+        else => error("Invalid input datum")
+    };
     redeemer.switch {
         pz: PERSONALIZE => {
             (settings: PzSettings, approvers: Map[String]Map[ByteArray]Map[ByteArray][]Int) = checkInputsAndLoadSettings(ctx);
             (owner_token: TxOutput, reference_token: TxOutput) = getHandleTokens(pz.handle, ctx, true);
-            new_datum = Datum::from_data(reference_token.datum.get_inline_data());
+            new_datum: Datum::CIP68 = Datum::CIP68::from_data(reference_token.datum.get_inline_data());
             assert(isValidContract(ctx.get_current_validator_hash(), settings) 
                 && feesArePaid(ctx, settings, pz.handle) 
                 && cborHashesToCid(pz.designer, reference_token)
-                && immutablesAreUnchanged(datum, new_datum)
+                && immutablesAreUnchanged(old_datum, new_datum)
                 , "Contract failed validation");
 
             (_, bg_datum:OutputDatum, _, _) = getAndValidateDesignerAssets(new_datum.extra, owner_token.address.credential, approvers, ctx, true);
@@ -480,7 +486,7 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
         migrate: MIGRATE => {
             settings: PzSettings = loadPzSettings(ctx);
             (reference_token: Option[TxOutput], _) = findAsReferenceOrOutput(HANDLE_POLICY, LBL_100 + (migrate.handle.encode_utf8()), 1, ctx, false, false);
-            assert(datum == Datum::from_data(reference_token.unwrap().datum.get_inline_data())
+            assert(old_datum == Datum::CIP68::from_data(reference_token.unwrap().datum.get_inline_data())
                 && isValidContract(reference_token.unwrap().address.credential.switch{v: Validator => v.hash, else => error("Not a valid migration")}, settings) 
                 && migrationSignersAreValid(ctx, settings), "Not a valid migration");
             true            
@@ -490,17 +496,17 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
             (owner_token: TxOutput, reference_token: TxOutput) = getHandleTokens(reset.handle, ctx, true);
             assert(isValidContract(ctx.get_current_validator_hash(), settings) 
                 && cborHashesToCid(reset.designer, reference_token)
-                && immutablesAreUnchanged(datum, Datum::from_data(reference_token.datum.get_inline_data()))
+                && immutablesAreUnchanged(old_datum, Datum::CIP68::from_data(reference_token.datum.get_inline_data()))
                 , "Contract failed validation");
             
             (_, bg_datum:OutputDatum, _, designer_assets_valid:Bool) = getAndValidateDesignerAssets(reset.designer, owner_token.address.credential, approvers, ctx, false);
             assert(pzDatumIsValid(owner_token, reference_token, settings, approvers, ctx), "Personalization settings checks failed");
 
-            new_datum = Datum::from_data(reference_token.datum.get_inline_data());
+            new_datum: Datum::CIP68 = Datum::CIP68::from_data(reference_token.datum.get_inline_data());
             pz_data: Map[String]Data = new_datum.extra;
             require_pfp_valid: Bool = checkRequiredPfPs(pz_data.get_safe("pfp_asset"), bg_datum, owner_token.address.credential, ctx, false);
             signed_by_provider: Bool = ctx.tx.signatories.any((signer: PubKeyHash) -> Bool { settings.pz_providers.any((cred: ByteArray, _) -> Bool {signer == PubKeyHash::new(cred)})});
-            prev_datum_extra: Map[String]Data = datum.extra;
+            prev_datum_extra: Map[String]Data = old_datum.extra;
             address_changed_with_socials: Bool = ((prev_datum_extra.get("last_update_address") != pz_data.get("last_update_address")) && String::from_data(prev_datum_extra.get("socials")) != "");
 
             // Only allow reset if designer settings are off or last_update_address doesn't match

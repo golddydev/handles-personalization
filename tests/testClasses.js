@@ -284,7 +284,7 @@ export class ScriptContext {
     }
   
     render() {
-      let datum = `Datum {\n`;
+      let datum = `Datum::CIP68 {\n`;
       datum += '                nft: Map[String]Data {\n';
   
       Object.keys(this.nft).forEach((key) => {
@@ -389,7 +389,7 @@ export class ScriptContext {
     
   
     render() {
-      let datum = `Datum {\n`;
+      let datum = `Datum::CIP68 {\n`;
       datum += '          nft: Map[String]Data {\n';
   
       Object.keys(this.nft).forEach((key) => {

@@ -83,7 +83,7 @@ export function getTotals() {
 
 export function createProgram(contract, datum, redeemer, context) {
   const testingCode = `${contract}\n
-    const datum: Datum = ${datum}\n
+    const datum: Datum::CIP68 = ${datum}\n
     const redeemer: ${redeemer.split(' ')[0]} = ${redeemer}\n
     const context: ScriptContext = ${context}\n`;
   if (test != null)
