@@ -7,7 +7,7 @@ export const handle = 'xar12345'
 // HASHES
 const admin_bytes = '#01234567890123456789012345678901234567890123456789000007';
 const script_creds_bytes = '#01234567890123456789012345678901234567890123456789000001';
-const owner_bytes = '#9876543210012345678901234567890123456789012345678901234567891235';
+const owner_bytes = '#12345678901234567890123456789012345678901234567890123456';
 const script_hash = `ValidatorHash::new(${script_creds_bytes})`;
 const treasury_bytes = '#01234567890123456789012345678901234567890123456789000002';
 const ada_handles_bytes = '#01234567890123456789012345678901234567890123456789000003';
@@ -269,7 +269,7 @@ export class ScriptContext {
       socials: 'OutputDatum::new_inline("ipfs://cid").data',
       vendor: 'OutputDatum::new_inline("ipfs://cid").data',
       default: 'OutputDatum::new_inline(1).data',
-      last_update_address: `OutputDatum::new_inline(Address::new(Credential::new_pubkey(PubKeyHash::new(${owner_bytes})), Option[StakingCredential]::None)).data`,
+      last_update_address: `OutputDatum::new_inline(#60 + ${owner_bytes}).data`,
       validated_by: 'OutputDatum::new_inline(#).data',
       agreed_terms: 'OutputDatum::new_inline("https://tou").data',
       trial: 'OutputDatum::new_inline(0).data',
