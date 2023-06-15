@@ -421,8 +421,9 @@ func pzDatumIsValid(
         // check last_update_address == owner_222.address
         new_datum: Datum::CIP68 = Datum::CIP68::from_data(reference_token.datum.get_inline_data());
         pz_data: Map[String]Data = new_datum.extra;
-        print(Address::from_data(pz_data.get("last_update_address")).serialize().show() + " == " + owner_token.address.serialize().show());
-        assert(Address::from_data(pz_data.get("last_update_address")) == owner_token.address, "last_update_address does not match Handle address");
+        last_address: Address = Address::from_data(pz_data.get("last_update_address"));
+        print(last_address.credential.serialize().show() + " == " + owner_token.address.credential.serialize().show() + " && " + last_address.staking_credential.serialize().show()  + " == " +  owner_token.address.staking_credential.serialize().show());
+        assert(last_address.credential == owner_token.address.credential && last_address.staking_credential == owner_token.address.staking_credential, "last_update_address does not match Handle address");
         // set provider validated - if provider in signatories ? validated == #provider_sig : validated == #
         validated_by = ByteArray::from_data(pz_data.get("validated_by"));
         provider: Option[PubKeyHash] = ctx.tx.signatories.find_safe((signer: PubKeyHash) -> Bool { settings.pz_providers.any((cred: ByteArray, _) -> Bool {signer == PubKeyHash::new(cred) && cred == validated_by})});
