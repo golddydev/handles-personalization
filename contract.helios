@@ -421,6 +421,7 @@ func pzDatumIsValid(
         // check last_update_address == owner_222.address
         new_datum: Datum::CIP68 = Datum::CIP68::from_data(reference_token.datum.get_inline_data());
         pz_data: Map[String]Data = new_datum.extra;
+        print(Address::from_data(pz_data.get("last_update_address")).serialize().show() + " == " + owner_token.address.serialize().show());
         assert(Address::from_data(pz_data.get("last_update_address")) == owner_token.address, "last_update_address does not match Handle address");
         // set provider validated - if provider in signatories ? validated == #provider_sig : validated == #
         validated_by = ByteArray::from_data(pz_data.get("validated_by"));
