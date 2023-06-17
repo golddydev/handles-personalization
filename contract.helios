@@ -49,8 +49,8 @@ func policyAndAssetSearch(output: TxOutput, policy: MintingPolicyHash, name: Byt
 }
 
 func findAsReferenceOrOutput(policy: MintingPolicyHash, name: ByteArray, amount: Int, ctx: ScriptContext, starts_with: Bool, check_sig: Bool) -> (Option[TxOutput], Option[AssetClass]) {
-    (tx: Option[TxOutput], asset: Option[AssetClass]) = ctx.tx.ref_inputs.fold_lazy(
-        (input: TxInput, next: () -> () -> (Option[TxOutput], Option[AssetClass])) -> {
+    (tx: Option[TxOutput], asset: Option[AssetClass]) = ctx.tx.ref_inputs.fold2_lazy(
+        (input: TxInput, next: () -> (Option[TxOutput], Option[AssetClass])) -> {
             a: Option[AssetClass] = policyAndAssetSearch(input.output, policy, name, amount, starts_with);
             b: Bool = if (check_sig) {
             ctx.tx.signatories.any((signer: PubKeyHash) -> {
@@ -59,23 +59,23 @@ func findAsReferenceOrOutput(policy: MintingPolicyHash, name: ByteArray, amount:
             } else {true};
 
             if (a != Option[AssetClass]::None && b) {
-                () -> {(Option[TxOutput]::Some{input.output}, a)}
+                (Option[TxOutput]::Some{input.output}, a)
             } else { 
             next() 
             }
         }, 
-        () -> {(Option[TxOutput]::None, Option[AssetClass]::None)}
-    )();
+        Option[TxOutput]::None, Option[AssetClass]::None
+    );
     tx.switch {
         Some => (tx, asset), 
         else => {
-            ctx.tx.outputs.fold_lazy(
-                (output: TxOutput, next: () -> () -> (Option[TxOutput], Option[AssetClass])) -> {
+            ctx.tx.outputs.fold2_lazy(
+                (output: TxOutput, next: () -> (Option[TxOutput], Option[AssetClass])) -> {
                     a: Option[AssetClass] = policyAndAssetSearch(output, policy, name, amount, starts_with);
                     if (a != Option[AssetClass]::None) {
-                        () -> {(Option[TxOutput]::Some{output}, a)}
+                        (Option[TxOutput]::Some{output}, a)
                     } else { next() }
-            }, () -> {(Option[TxOutput]::None, Option[AssetClass]::None)})()
+            }, Option[TxOutput]::None, Option[AssetClass]::None)
         }
     }
 }
@@ -391,6 +391,7 @@ func designerSettingsAreValid(pz_data:Map[String]Data, designer: Map[String]Data
 
 func immutablesAreUnchanged(prev_nft: Datum::CIP68, new_nft: Datum::CIP68) -> Bool {
     prev_nft.extra.get("standard_image") == new_nft.extra.get("standard_image")
+    && prev_nft.extra.get("standard_image_hash") == new_nft.extra.get("standard_image_hash")
     && prev_nft.nft.get("name") == new_nft.nft.get("name")
     && prev_nft.nft.get("mediaType") == new_nft.nft.get("mediaType")
     && prev_nft.nft.get("og") == new_nft.nft.get("og")
