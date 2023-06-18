@@ -7,7 +7,7 @@ export const handle = 'xar12345'
 // HASHES
 const admin_bytes = '#01234567890123456789012345678901234567890123456789000007';
 const script_creds_bytes = '#01234567890123456789012345678901234567890123456789000001';
-const owner_bytes = '#12345678901234567890123456789012345678901234567890123456';
+export const owner_bytes = '#12345678901234567890123456789012345678901234567890123456';
 const script_hash = `ValidatorHash::new(${script_creds_bytes})`;
 const treasury_bytes = '#01234567890123456789012345678901234567890123456789000002';
 const ada_handles_bytes = '#01234567890123456789012345678901234567890123456789000003';
@@ -28,9 +28,12 @@ export class ScriptContext {
     inputs = [];
     referenceInputs = [];
     outputs = [];
-    signers;
+    signers = [];
   
-    constructor(designerCid=null) {
+    constructor() {
+    }
+
+    initPz(designerCid=null) {
       this.inputs = [new TxInput(`${script_tx_hash}`, new TxOutput(`${script_creds_bytes}`))];
   
       const goodBgInput = new TxInput(`${handles_tx_hash}`, new TxOutput(`${owner_bytes}`, 'LBL_444', '"bg"'));
@@ -70,11 +73,29 @@ export class ScriptContext {
       const goodTreasuryOutput = new TxOutput(`${treasury_bytes}`, null, null, '');
       goodTreasuryOutput.datumType = 'inline';
       goodTreasuryOutput.datum = `"${handle}".encode_utf8()`;
+      goodTreasuryOutput.lovelace = 1500000;
       const goodProviderOutput = new TxOutput(`${pz_provider_bytes}`, null, null, '');
       goodProviderOutput.datumType = 'inline';
       goodProviderOutput.datum = `"${handle}".encode_utf8()`;
+      goodProviderOutput.lovelace = 3500000;
       this.outputs = [goodRefTokenOutput, goodTreasuryOutput, goodProviderOutput];
       this.signers = [owner_bytes];
+      return this;
+    }
+
+    initMigrate() {
+      const goodRefTokenInput = new TxInput(`${script_tx_hash}`, new TxOutput(`${script_creds_bytes}`));
+      this.inputs = [goodRefTokenInput];
+      const goodRefTokenOutput = new TxOutput(`${script_creds_bytes}`);
+      goodRefTokenOutput.datumType = 'inline';
+      goodRefTokenOutput.datum = new Datum().render();
+      this.outputs = [goodRefTokenOutput];
+      const goodPzInput = new TxInput(`${handles_tx_hash}`, new TxOutput(`${ada_handles_bytes}`, 'LBL_222', '"pz_settings"'));
+      goodPzInput.output.datumType = 'inline';
+      goodPzInput.output.datum = new PzSettings().render();
+      this.referenceInputs = [goodPzInput];
+      this.signers = [`${admin_bytes}`];
+      return this;
     }
   
     render() {
@@ -197,8 +218,7 @@ export class ScriptContext {
       qr_link: 'OutputDatum::new_inline("").data',
       socials: 'OutputDatum::new_inline([]String{}).data',
       svg_version: 'OutputDatum::new_inline(1).data',
-      image_hash: 'OutputDatum::new_inline(#).data',
-      standard_image_hash: 'OutputDatum::new_inline(#).data',
+      image_hash: 'OutputDatum::new_inline(#).data'
     };
   
     constructor() {}
@@ -242,6 +262,18 @@ export class ScriptContext {
     }
   
   }
+
+  export class MigrateRedeemer {
+    handle = `"${handle}"`;
+  
+    constructor() {}
+  
+    render() {
+        let redeemer = `Redeemer::MIGRATE { ${this.handle} }`;
+        return redeemer;
+    }
+  
+  }
   
   export class Datum {
     nft = {
@@ -260,6 +292,7 @@ export class ScriptContext {
     version = 1;
     extra = {
       standard_image: 'OutputDatum::new_inline("ipfs://cid").data',
+      standard_image_hash: 'OutputDatum::new_inline(#).data',
       bg_image: 'OutputDatum::new_inline("ipfs://image_cid").data',
       pfp_image: 'OutputDatum::new_inline("ipfs://pfp").data',
       designer: 'OutputDatum::new_inline("ipfs://cid").data',
@@ -305,9 +338,9 @@ export class ScriptContext {
   }
   
   export class PzSettings {
-    treasury_fee = '1000000'
+    treasury_fee = '1500000'
     treasury_cred = `${treasury_bytes}`
-    pz_min_fee = '4000000'
+    pz_min_fee = '3500000'
     pz_providers = `Map[ByteArray]ByteArray{${ada_handles_bytes}: ${ada_handles_bytes}, ${pz_provider_bytes}: ${pz_provider_bytes}}`
     valid_contracts = `[]ByteArray{${script_creds_bytes}}`
     admin_creds = `[]ByteArray{${admin_bytes}}`

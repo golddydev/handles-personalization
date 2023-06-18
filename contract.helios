@@ -102,10 +102,10 @@ func loadPzSettings(ctx: ScriptContext) -> PzSettings {
 
 func getApproverDatum(handle:String, settings: PzSettings, ctx: ScriptContext) -> Map[ByteArray]Map[ByteArray][]Int {
     input: Option[TxInput] = ctx.tx.ref_inputs.find_safe((input: TxInput) -> Bool { 
-        input.output.value.get_safe(AssetClass::new(HANDLE_POLICY, LBL_222 + (handle.encode_utf8()))) == 1 
+        (input.output.value.get_safe(AssetClass::new(HANDLE_POLICY, LBL_222 + (handle.encode_utf8()))) == 1 
         || (input.output.value.contains_policy(HANDLE_POLICY) && input.output.value.get_policy(HANDLE_POLICY).any((asset_name: ByteArray, count: Int) -> Bool {
                 asset_name.ends_with(("@" + handle).encode_utf8()) && count == 1
-            }))
+        })))
         && settings.pz_providers.any((_, cred: ByteArray) -> Bool { input.output.address.credential == Credential::new_validator(ValidatorHash::new(cred)) })
     });
     assert(input != Option[TxInput]::None, handle + " reference input not present or not from valid provider");
@@ -430,7 +430,7 @@ func pzDatumIsValid(
             else {
                 Option[StakingCredential]::None
             };
-        print(Address::new(last_cred, last_stake_cred).serialize().show() + " == " + owner_token.address.serialize().show());
+        //print(Address::new(last_cred, last_stake_cred).serialize().show() + " == " + owner_token.address.serialize().show());
         assert(Address::new(last_cred, last_stake_cred) == owner_token.address, "last_update_address does not match Handle address");
         // set provider validated - if provider in signatories ? validated == #provider_sig : validated == #
         validated_by = ByteArray::from_data(pz_data.get("validated_by"));
@@ -496,7 +496,9 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
         migrate: MIGRATE => {
             settings: PzSettings = loadPzSettings(ctx);
             (reference_token: Option[TxOutput], _) = findAsReferenceOrOutput(HANDLE_POLICY, LBL_100 + (migrate.handle.encode_utf8()), 1, ctx, false, false);
-            assert(old_datum == Datum::CIP68::from_data(reference_token.unwrap().datum.get_inline_data())
+            //print(reference_token.serialize().show());
+            new_datum: Datum::CIP68 = Datum::CIP68::from_data(reference_token.unwrap().datum.get_inline_data());
+            assert(old_datum == new_datum
                 && isValidContract(reference_token.unwrap().address.credential.switch{v: Validator => v.hash, else => error("Not a valid migration")}, settings) 
                 && migrationSignersAreValid(ctx, settings), "Not a valid migration");
             true            
