@@ -34,6 +34,30 @@ export class ScriptContext {
     }
 
     initPz(designerCid=null) {
+      this.addPzInputs();
+      this.addFeeOutputs();
+      const goodRefTokenOutput = new TxOutput(`${script_creds_bytes}`);
+      goodRefTokenOutput.datumType = 'inline';
+      goodRefTokenOutput.datum = new Datum(designerCid).render();
+      this.outputs.push(goodRefTokenOutput);
+      this.signers = [owner_bytes];
+      return this;
+    }
+
+    addFeeOutputs() {
+      const goodTreasuryOutput = new TxOutput(`${treasury_bytes}`, null, null, '');
+      goodTreasuryOutput.datumType = 'inline';
+      goodTreasuryOutput.datum = `"${handle}".encode_utf8()`;
+      goodTreasuryOutput.lovelace = 1500000;
+      const goodProviderOutput = new TxOutput(`${pz_provider_bytes}`, null, null, '');
+      goodProviderOutput.datumType = 'inline';
+      goodProviderOutput.datum = `"${handle}".encode_utf8()`;
+      goodProviderOutput.lovelace = 3500000;
+      this.outputs.push(goodTreasuryOutput);
+      this.outputs.push(goodProviderOutput);
+    }
+
+    addPzInputs() {
       this.inputs = [new TxInput(`${script_tx_hash}`, new TxOutput(`${script_creds_bytes}`))];
   
       const goodBgInput = new TxInput(`${handles_tx_hash}`, new TxOutput(`${owner_bytes}`, 'LBL_444', '"bg"'));
@@ -66,21 +90,6 @@ export class ScriptContext {
       const goodOwnerInput = new TxInput(`${owner_tx_hash}`, new TxOutput(`${owner_bytes}`, 'LBL_222', `"${handle}"`));
       goodOwnerInput.output.hashType = 'pubkey';
       this.referenceInputs = [goodBgInput, goodBgInputRef, goodPfpInput, goodPfpInputRef, goodBgListInput, goodPfpListInput, goodPzInput, goodOwnerInput];
-  
-      const goodRefTokenOutput = new TxOutput(`${script_creds_bytes}`);
-      goodRefTokenOutput.datumType = 'inline';
-      goodRefTokenOutput.datum = new Datum(designerCid).render();
-      const goodTreasuryOutput = new TxOutput(`${treasury_bytes}`, null, null, '');
-      goodTreasuryOutput.datumType = 'inline';
-      goodTreasuryOutput.datum = `"${handle}".encode_utf8()`;
-      goodTreasuryOutput.lovelace = 1500000;
-      const goodProviderOutput = new TxOutput(`${pz_provider_bytes}`, null, null, '');
-      goodProviderOutput.datumType = 'inline';
-      goodProviderOutput.datum = `"${handle}".encode_utf8()`;
-      goodProviderOutput.lovelace = 3500000;
-      this.outputs = [goodRefTokenOutput, goodTreasuryOutput, goodProviderOutput];
-      this.signers = [owner_bytes];
-      return this;
     }
 
     initMigrate() {
@@ -95,6 +104,23 @@ export class ScriptContext {
       goodPzInput.output.datum = new PzSettings().render();
       this.referenceInputs = [goodPzInput];
       this.signers = [`${admin_bytes}`];
+      return this;
+    }
+
+    initReset(designerCid=null) {
+      this.addPzInputs();
+      const goodRefTokenOutput = new TxOutput(`${script_creds_bytes}`);
+      goodRefTokenOutput.datumType = 'inline';
+      const datum = new Datum(designerCid);
+      datum.nft.image = datum.nft.standard_image;
+      datum.nft.image_hash = datum.nft.standard_image_hash;
+      delete datum.extra.bg_asset; 
+      delete datum.extra.pfp_asset;
+      datum.extra.pfp_image = 'OutputDatum::new_inline("").data'
+      datum.extra.bg_image = 'OutputDatum::new_inline("").data'
+      goodRefTokenOutput.datum = datum.render();
+      this.outputs.push(goodRefTokenOutput);
+      this.signers = [];
       return this;
     }
   
@@ -198,6 +224,7 @@ export class ScriptContext {
   }
   
   export class PzRedeemer {
+    variant = '';
     handle = `"${handle}"`;
     designer = {
       pfp_border_color: 'OutputDatum::new_inline(#22d1af).data',
@@ -217,11 +244,25 @@ export class ScriptContext {
       bg_border_color: 'OutputDatum::new_inline(#22d1af).data',
       qr_link: 'OutputDatum::new_inline("").data',
       socials: 'OutputDatum::new_inline([]String{}).data',
-      svg_version: 'OutputDatum::new_inline(1).data',
-      image_hash: 'OutputDatum::new_inline(#).data'
+      svg_version: 'OutputDatum::new_inline(1).data'
     };
   
-    constructor() {}
+    constructor(variant='PERSONALIZE') {
+      this.variant = variant;
+    }
+
+    reset() {
+      this.designer.pfp_border_color = 'OutputDatum::new_inline(#).data';
+      this.designer.font = 'OutputDatum::new_inline("").data';
+      this.designer.font_color = 'OutputDatum::new_inline(#ffffff).data';
+      this.designer.font_shadow_color = 'OutputDatum::new_inline(#).data';
+      this.designer.text_ribbon_colors = 'OutputDatum::new_inline([]ByteArray{}).data';
+      this.designer.bg_color = 'OutputDatum::new_inline(#).data';
+      this.designer.bg_border_color = 'OutputDatum::new_inline(#).data';
+      this.designer.qr_link = 'OutputDatum::new_inline("").data';
+      this.designer.socials = 'OutputDatum::new_inline(Map[String]String{}).data';
+      return this;
+    }
   
     calculateCid() {
         const designer = this.renderDesigner();
@@ -256,7 +297,7 @@ export class ScriptContext {
     }
   
     render() {
-        let redeemer = `Redeemer::PERSONALIZE { handle: ${this.handle}, designer: ${this.renderDesigner()}`;
+        let redeemer = `Redeemer::${this.variant} { handle: ${this.handle}, designer: ${this.renderDesigner()}`;
         redeemer += '}\n';
         return redeemer;
     }
@@ -279,6 +320,9 @@ export class ScriptContext {
     nft = {
       name: `OutputDatum::new_inline("${handle}").data`,
       image: 'OutputDatum::new_inline("ipfs://pfp").data',
+      image_hash: 'OutputDatum::new_inline(#).data',
+      standard_image: 'OutputDatum::new_inline("ipfs://cid").data',
+      standard_image_hash: 'OutputDatum::new_inline(#).data',
       mediaType: 'OutputDatum::new_inline("image/jpeg").data',
       og: 'OutputDatum::new_inline(0).data',
       og_number: 'OutputDatum::new_inline(1).data',
@@ -291,8 +335,6 @@ export class ScriptContext {
     };
     version = 1;
     extra = {
-      standard_image: 'OutputDatum::new_inline("ipfs://cid").data',
-      standard_image_hash: 'OutputDatum::new_inline(#).data',
       bg_image: 'OutputDatum::new_inline("ipfs://image_cid").data',
       pfp_image: 'OutputDatum::new_inline("ipfs://pfp").data',
       designer: 'OutputDatum::new_inline("ipfs://cid").data',

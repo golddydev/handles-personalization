@@ -8,7 +8,7 @@ enum Redeemer {
     MIGRATE { 
         handle: String
     }
-    RESET_IMAGE { 
+    RESET { 
         handle: String
         designer: Map[String]Data
     }
@@ -223,6 +223,7 @@ func getAndValidateDesignerAssets(pz_data: Map[String]Data, owner_cred: Credenti
     (bg_valid: Bool, bg_cred: Option[Credential], bg_datum_opt: OutputDatum) = assetIsValid("bg", pz_data, approvers, ctx);
     pfp_cred_valid: Bool = pfp_cred == Option[Credential]::None || pfp_cred.unwrap() == owner_cred;
     bg_cred_valid: Bool = bg_cred == Option[Credential]::None || bg_cred.unwrap() == owner_cred;
+    // print("pfp_cred_valid == " + pfp_cred_valid.show());
     if (throw_errors) {
         assert(pfp_valid && bg_valid, "Designer assets are not valid");
         assert(pfp_cred_valid, "PFP address not the same as handle");
@@ -390,8 +391,8 @@ func designerSettingsAreValid(pz_data:Map[String]Data, designer: Map[String]Data
 }
 
 func immutablesAreUnchanged(prev_nft: Datum::CIP68, new_nft: Datum::CIP68) -> Bool {
-    prev_nft.extra.get("standard_image") == new_nft.extra.get("standard_image")
-    && prev_nft.extra.get("standard_image_hash") == new_nft.extra.get("standard_image_hash")
+    prev_nft.nft.get("standard_image") == new_nft.nft.get("standard_image")
+    && prev_nft.nft.get("standard_image_hash") == new_nft.nft.get("standard_image_hash")
     && prev_nft.nft.get("name") == new_nft.nft.get("name")
     && prev_nft.nft.get("mediaType") == new_nft.nft.get("mediaType")
     && prev_nft.nft.get("og") == new_nft.nft.get("og")
@@ -503,15 +504,16 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                 && migrationSignersAreValid(ctx, settings), "Not a valid migration");
             true            
         },
-        reset: RESET_IMAGE => {
+        reset: RESET => {
             (settings: PzSettings, approvers: Map[String]Map[ByteArray]Map[ByteArray][]Int) = checkInputsAndLoadSettings(ctx);
-            (owner_token: TxOutput, reference_token: TxOutput) = getHandleTokens(reset.handle, ctx, true);
+            owner_sig_required: Bool = old_datum.extra.get_safe("migrate_sig_required").switch{Some{req} => {Int::from_data(req) != 0}, else => {false}};
+            (owner_token: TxOutput, reference_token: TxOutput) = getHandleTokens(reset.handle, ctx, owner_sig_required);
             assert(isValidContract(ctx.get_current_validator_hash(), settings) 
                 && cborHashesToCid(reset.designer, reference_token)
                 && immutablesAreUnchanged(old_datum, Datum::CIP68::from_data(reference_token.datum.get_inline_data()))
                 , "Contract failed validation");
             
-            (_, bg_datum:OutputDatum, _, designer_assets_valid:Bool) = getAndValidateDesignerAssets(reset.designer, owner_token.address.credential, approvers, ctx, false);
+            (_, bg_datum:OutputDatum, _, designer_assets_valid:Bool) = getAndValidateDesignerAssets(old_datum.extra, owner_token.address.credential, approvers, ctx, false);
             assert(pzDatumIsValid(owner_token, reference_token, settings, approvers, ctx), "Personalization settings checks failed");
 
             new_datum: Datum::CIP68 = Datum::CIP68::from_data(reference_token.datum.get_inline_data());
@@ -521,14 +523,15 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
             prev_datum_extra: Map[String]Data = old_datum.extra;
             address_changed_with_socials: Bool = ((prev_datum_extra.get("last_update_address") != pz_data.get("last_update_address")) && String::from_data(prev_datum_extra.get("socials")) != "");
 
-            // Only allow reset if designer settings are off or last_update_address doesn't match
+            // Only allow reset if designer settings are off or last_update_address doesn't match or signed by a provider
+            // print(designer_assets_valid.show() + ", " + require_pfp_valid.show() + ", " + address_changed_with_socials.show() + ", " + signed_by_provider.show());
             if (designer_assets_valid == false || require_pfp_valid == false || address_changed_with_socials || signed_by_provider) {
 
                 pz_datum_is_reset: Bool = (
-                    pz_data.get("image") == pz_data.get("standard_image")
-                    && pz_data.get("image_hash") == pz_data.get("standard_image_hash")
-                    && ByteArray::from_data(pz_data.get("bg_asset")) == #
-                    && ByteArray::from_data(pz_data.get("pfp_asset")) == #
+                    new_datum.nft.get("image") == new_datum.nft.get("standard_image")
+                    && new_datum.nft.get("image_hash") == new_datum.nft.get("standard_image_hash")
+                    && pz_data.get_safe("pfp_asset") == Option[Data]::None
+                    && pz_data.get_safe("bg_asset") == Option[Data]::None
                     && String::from_data(pz_data.get("pfp_image")) == ""
                     && String::from_data(pz_data.get("bg_image")) == "");
 
@@ -542,10 +545,11 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                     && String::from_data(reset.designer.get("qr_link")) == ""
                     && Map[String]String::from_data(reset.designer.get("socials")) == Map[String]String{});
 
-                pz_datum_is_reset && designer_is_reset
+                assert(pz_datum_is_reset && designer_is_reset, "Personalization properties not properly reset");
+                true
             }
             else {
-                error("Reset is not valid or not authrized")
+                error("Reset is not allowed or not authorized")
             }
         },
         RETURN_TO_SENDER => {
@@ -559,6 +563,4 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
 
 // TODO: Required Fields Present
 // TODO: required_pfp count (SundaeSwap use case)
-// TODO: Accessories/Premium elements (special ribbons, borders, holiday accouterments, etc.)
-// TODO: Badges - can display up to X in a certain position
 // TODO: Support either pubkeys or validatorkeys for bg_100, pfp_100, or provider tokens
