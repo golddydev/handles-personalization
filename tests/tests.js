@@ -184,6 +184,194 @@ Promise.all([
         const program = tester.createProgram(contract, new Datum().render(), pzRedeemer.render(), context.render());
         return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
     }, "Personalization provider not found or fee unpaid"),
+    tester.testCase(false, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, wrong bg_border", () => {
+        const redeemer = new PzRedeemer();
+        redeemer.designer.bg_border_color = 'OutputDatum::new_inline(#dddddd).data';
+        const context = new ScriptContext().initPz(redeemer.calculateCid());
+        const program = tester.createProgram(contract, new Datum().render(), redeemer.render(), context.render());
+        return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
+    }, "bg_border_color is not set correctly"),
+    tester.testCase(false, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, wrong pfp_border", () => {
+        const redeemer = new PzRedeemer();
+        redeemer.designer.pfp_border_color = 'OutputDatum::new_inline(#dddddd).data';
+        const context = new ScriptContext().initPz(redeemer.calculateCid());
+        const program = tester.createProgram(contract, new Datum().render(), redeemer.render(), context.render());
+        return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
+    }, "pfp_border_color is not set correctly"),
+    tester.testCase(false, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, wrong ribbon gradient", () => {
+        const redeemer = new PzRedeemer();
+        redeemer.designer.text_ribbon_gradient = 'OutputDatum::new_inline("radial").data';
+        const context = new ScriptContext().initPz(redeemer.calculateCid());
+        const program = tester.createProgram(contract, new Datum().render(), redeemer.render(), context.render());
+        return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
+    }, "text_ribbon_gradient is not set correctly"),
+    tester.testCase(false, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, wrong gradient colors", () => {
+        const redeemer = new PzRedeemer();
+        redeemer.designer.text_ribbon_colors = 'OutputDatum::new_inline([]ByteArray{#aaaaaa, #bbbbbb}).data';
+        const context = new ScriptContext().initPz(redeemer.calculateCid());
+        const program = tester.createProgram(contract, new Datum().render(), redeemer.render(), context.render());
+        return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
+    }, "text_ribbon_colors is not set correctly"),
+    tester.testCase(false, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, wrong gradient", () => {
+        const redeemer = new PzRedeemer();
+        redeemer.designer.text_ribbon_colors = 'OutputDatum::new_inline([]ByteArray{#aaaaaa}).data';
+        const context = new ScriptContext().initPz(redeemer.calculateCid());
+        const bgDefaults = new BackgroundDefaults();
+        delete bgDefaults.extra.text_ribbon_gradient;
+        context.referenceInputs.find(input => input.output.asset == '"bg"' && input.output.label == 'LBL_100').output.datum = bgDefaults.render();
+        const program = tester.createProgram(contract, new Datum().render(), redeemer.render(), context.render());
+        return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
+    }, "text_ribbon_gradient is not set correctly"),
+    tester.testCase(false, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, wrong ribbon colors", () => {
+        const redeemer = new PzRedeemer();
+        redeemer.designer.text_ribbon_colors = 'OutputDatum::new_inline([]ByteArray{#aaaaaa}).data';
+        redeemer.designer.text_ribbon_gradient = 'OutputDatum::new_inline("").data';
+        const context = new ScriptContext().initPz(redeemer.calculateCid());
+        const bgDefaults = new BackgroundDefaults();
+        delete bgDefaults.extra.text_ribbon_gradient;
+        context.referenceInputs.find(input => input.output.asset == '"bg"' && input.output.label == 'LBL_100').output.datum = bgDefaults.render();
+        const program = tester.createProgram(contract, new Datum().render(), redeemer.render(), context.render());
+        return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
+    }, "text_ribbon_colors is not set correctly"),
+    tester.testCase(false, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, wrong font color", () => {
+        const redeemer = new PzRedeemer();
+        redeemer.designer.font_color = 'OutputDatum::new_inline(#aaaaaa).data';
+        const context = new ScriptContext().initPz(redeemer.calculateCid());
+        const program = tester.createProgram(contract, new Datum().render(), redeemer.render(), context.render());
+        return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
+    }, "font_color is not set correctly"),
+    tester.testCase(false, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, wrong default font color", () => {
+        const redeemer = new PzRedeemer();
+        redeemer.designer.font_color = 'OutputDatum::new_inline(#aaaaaa).data';
+        const context = new ScriptContext().initPz(redeemer.calculateCid());
+        const bgDefaults = new BackgroundDefaults();
+        delete bgDefaults.extra.font_color;
+        context.referenceInputs.find(input => input.output.asset == '"bg"' && input.output.label == 'LBL_100').output.datum = bgDefaults.render();
+        const program = tester.createProgram(contract, new Datum().render(), redeemer.render(), context.render());
+        return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
+    }, "font_color is not set correctly"),
+    tester.testCase(false, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, wrong default font", () => {
+        const redeemer = new PzRedeemer();
+        redeemer.designer.font = 'OutputDatum::new_inline("this_really_cool_font").data';
+        const context = new ScriptContext().initPz(redeemer.calculateCid());
+        const bgDefaults = new BackgroundDefaults();
+        delete bgDefaults.extra.font;
+        context.referenceInputs.find(input => input.output.asset == '"bg"' && input.output.label == 'LBL_100').output.datum = bgDefaults.render();
+        const program = tester.createProgram(contract, new Datum().render(), redeemer.render(), context.render());
+        return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
+    }, "font is not set correctly"),
+    tester.testCase(false, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, wrong font color", () => {
+        const redeemer = new PzRedeemer();
+        redeemer.designer.font = 'OutputDatum::new_inline("this_really_cool_font").data';
+        const context = new ScriptContext().initPz(redeemer.calculateCid());
+        const program = tester.createProgram(contract, new Datum().render(), redeemer.render(), context.render());
+        return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
+    }, "font is not set correctly"),
+    tester.testCase(false, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, wrong font shadow color", () => {
+        const redeemer = new PzRedeemer();
+        redeemer.designer.font_shadow_color = 'OutputDatum::new_inline(#dddddd).data';
+        const context = new ScriptContext().initPz(redeemer.calculateCid());
+        const program = tester.createProgram(contract, new Datum().render(), redeemer.render(), context.render());
+        return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
+    }, "font_shadow_color is not set correctly"),
+    tester.testCase(true, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, no default shadow color", () => {
+        const redeemer = new PzRedeemer();
+        redeemer.designer.font_shadow_color = 'OutputDatum::new_inline(#dddddd).data';
+        const context = new ScriptContext().initPz(redeemer.calculateCid());
+        const bgDefaults = new BackgroundDefaults();
+        delete bgDefaults.extra.font_shadow_colors;
+        context.referenceInputs.find(input => input.output.asset == '"bg"' && input.output.label == 'LBL_100').output.datum = bgDefaults.render();
+        const program = tester.createProgram(contract, new Datum().render(), redeemer.render(), context.render());
+        return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
+    }),
+    tester.testCase(true, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, no default pfp border", () => {
+        const redeemer = new PzRedeemer();
+        redeemer.designer.pfp_border_color = 'OutputDatum::new_inline(#dddddd).data';
+        const context = new ScriptContext().initPz(redeemer.calculateCid());
+        const bgDefaults = new BackgroundDefaults();
+        delete bgDefaults.extra.pfp_border_colors;
+        context.referenceInputs.find(input => input.output.asset == '"bg"' && input.output.label == 'LBL_100').output.datum = bgDefaults.render();
+        const program = tester.createProgram(contract, new Datum().render(), redeemer.render(), context.render());
+        return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
+    }),
+    tester.testCase(true, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, no default bg border", () => {
+        const redeemer = new PzRedeemer();
+        redeemer.designer.bg_border_color = 'OutputDatum::new_inline(#dddddd).data';
+        const context = new ScriptContext().initPz(redeemer.calculateCid());
+        const bgDefaults = new BackgroundDefaults();
+        delete bgDefaults.extra.bg_border_colors;
+        context.referenceInputs.find(input => input.output.asset == '"bg"' && input.output.label == 'LBL_100').output.datum = bgDefaults.render();
+        const program = tester.createProgram(contract, new Datum().render(), redeemer.render(), context.render());
+        return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
+    }),
+    tester.testCase(false, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, wrong shadow size", () => {
+        const redeemer = new PzRedeemer();
+        redeemer.designer.font_shadow_size = 'OutputDatum::new_inline([]Int{1,1,1}).data';
+        const context = new ScriptContext().initPz(redeemer.calculateCid());
+        const program = tester.createProgram(contract, new Datum().render(), redeemer.render(), context.render());
+        return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
+    }, "font_shadow_size is not set correctly"),
+    tester.testCase(true, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, no default shadow size", () => {
+        const redeemer = new PzRedeemer();
+        redeemer.designer.font_shadow_size = 'OutputDatum::new_inline([]Int{1,1,1}).data';
+        const context = new ScriptContext().initPz(redeemer.calculateCid());
+        const bgDefaults = new BackgroundDefaults();
+        delete bgDefaults.extra.font_shadow_size;
+        context.referenceInputs.find(input => input.output.asset == '"bg"' && input.output.label == 'LBL_100').output.datum = bgDefaults.render();
+        const program = tester.createProgram(contract, new Datum().render(), redeemer.render(), context.render());
+        return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
+    }),
+    tester.testCase(false, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, wrong pfp zoom", () => {
+        const redeemer = new PzRedeemer();
+        redeemer.designer.pfp_zoom = 'OutputDatum::new_inline(145).data';
+        const context = new ScriptContext().initPz(redeemer.calculateCid());
+        const program = tester.createProgram(contract, new Datum().render(), redeemer.render(), context.render());
+        return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
+    }, "pfp_zoom is not set correctly"),
+    tester.testCase(true, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, no default zoom", () => {
+        const redeemer = new PzRedeemer();
+        redeemer.designer.pfp_zoom = 'OutputDatum::new_inline(145).data';
+        const context = new ScriptContext().initPz(redeemer.calculateCid());
+        const bgDefaults = new BackgroundDefaults();
+        delete bgDefaults.extra.pfp_zoom;
+        context.referenceInputs.find(input => input.output.asset == '"bg"' && input.output.label == 'LBL_100').output.datum = bgDefaults.render();
+        const program = tester.createProgram(contract, new Datum().render(), redeemer.render(), context.render());
+        return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
+    }),
+    tester.testCase(false, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, wrong pfp offset", () => {
+        const redeemer = new PzRedeemer();
+        redeemer.designer.pfp_offset = 'OutputDatum::new_inline([]Int{1,1}).data';
+        const context = new ScriptContext().initPz(redeemer.calculateCid());
+        const program = tester.createProgram(contract, new Datum().render(), redeemer.render(), context.render());
+        return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
+    }, "pfp_offset is not set correctly"),
+    tester.testCase(true, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, no default offset", () => {
+        const redeemer = new PzRedeemer();
+        redeemer.designer.pfp_offset = 'OutputDatum::new_inline([]Int{1,1}).data';
+        const context = new ScriptContext().initPz(redeemer.calculateCid());
+        const bgDefaults = new BackgroundDefaults();
+        delete bgDefaults.extra.pfp_offset;
+        context.referenceInputs.find(input => input.output.asset == '"bg"' && input.output.label == 'LBL_100').output.datum = bgDefaults.render();
+        const program = tester.createProgram(contract, new Datum().render(), redeemer.render(), context.render());
+        return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
+    }),
+    tester.testCase(false, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, wrong qr bg color", () => {
+        const redeemer = new PzRedeemer();
+        redeemer.designer.qr_background_color = 'OutputDatum::new_inline(#dddddd).data';
+        const context = new ScriptContext().initPz(redeemer.calculateCid());
+        const program = tester.createProgram(contract, new Datum().render(), redeemer.render(), context.render());
+        return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
+    }, "qr_background_color is not set correctly"),
+    tester.testCase(true, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, no default qr bg color", () => {
+        const redeemer = new PzRedeemer();
+        redeemer.designer.qr_background_color = 'OutputDatum::new_inline(#dddddd).data';
+        const context = new ScriptContext().initPz(redeemer.calculateCid());
+        const bgDefaults = new BackgroundDefaults();
+        delete bgDefaults.extra.qr_background_color;
+        context.referenceInputs.find(input => input.output.asset == '"bg"' && input.output.label == 'LBL_100').output.datum = bgDefaults.render();
+        const program = tester.createProgram(contract, new Datum().render(), redeemer.render(), context.render());
+        return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
+    }),
 
     // MIGRATE ENDPOINT - SHOULD APPROVE
     tester.testCase(true, "MIGRATE", "admin, no owner", () => {
@@ -216,7 +404,7 @@ Promise.all([
     }),
 
     // RESET ENDPOINT - SHOULD DENY
-    tester.testCase(false, "RESET", "reset not allowed, all checks good", () => {
+    tester.testCase(false, "RESET", "reset not allowed because all good", () => {
         const context = new ScriptContext().initReset(resetRedeemer.calculateCid());
         context.signers = [];
         const datum = new Datum(resetRedeemer.calculateCid());

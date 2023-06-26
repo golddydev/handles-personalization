@@ -100,6 +100,18 @@ func loadPzSettings(ctx: ScriptContext) -> PzSettings {
     settings
 }
 
+func hasValueUnWrapped(data: Option[Data]) -> (Bool, ByteArray) {
+    data.switch{Some{d} => {
+        bytes: ByteArray = ByteArray::from_data(d);
+        if (bytes == #) {
+            (false, #)
+        }
+        else {
+            (true, bytes)
+        }
+    }, else => {(false, #)}}
+}
+
 func getApproverDatum(handle:String, settings: PzSettings, ctx: ScriptContext) -> Map[ByteArray]Map[ByteArray][]Int {
     input: Option[TxInput] = ctx.tx.ref_inputs.find_safe((input: TxInput) -> Bool { 
         (input.output.value.get_safe(AssetClass::new(HANDLE_POLICY, LBL_222 + (handle.encode_utf8()))) == 1 
@@ -294,6 +306,21 @@ func checkRequiredPfPs(pfp_asset: Option[Data], bg_datum_opt:OutputDatum, owner_
     }
 }
 
+func propInDesignerArray(default: Option[Data], property: Option[Data]) -> Bool {
+    (_, prop: ByteArray) = hasValueUnWrapped(property);
+    default == Option[Data]::None || []ByteArray::from_data(default.unwrap()).find_safe((val:ByteArray) -> Bool {
+         val == prop 
+    }) != Option[ByteArray]::None
+
+}
+
+func propEqualsDesignerDefault(default: Option[Data], property: Option[Data], exclusive: Bool = false) -> Bool {
+    default == Option[Data]::None && (exclusive == false || (
+            (_, prop: ByteArray) = hasValueUnWrapped(property);
+            prop == #))
+        || default == property
+}
+
 func designerSettingsAreValid(pz_data:Map[String]Data, designer: Map[String]Data, bg_datum_opt:OutputDatum, owner_cred:Credential, ctx: ScriptContext) -> Bool {
     if (bg_datum_opt != OutputDatum::new_none()) {
         bg_datum: Datum::CIP68 = Datum::CIP68::from_data(bg_datum_opt.get_inline_data());
@@ -301,56 +328,25 @@ func designerSettingsAreValid(pz_data:Map[String]Data, designer: Map[String]Data
         force: Option[Data] = defaults.get_safe("force_creator_settings");
         areRequiredPfpsPresent: Bool = checkRequiredPfPs(pz_data.get_safe("pfp_asset"), bg_datum_opt, owner_cred, ctx, true);
         if (force != Option[Data]::None && Int::from_data(force.unwrap()).to_bool() == true) {
-            bg_border_colors: Option[Data] = defaults.get_safe("bg_border_colors");
-            bg_border_color: ByteArray = ByteArray::from_data(designer.get("bg_border_color"));
-            assert(bg_border_colors == Option[Data]::None || []ByteArray::from_data(bg_border_colors.unwrap()).find_safe((color:ByteArray) -> Bool { 
-                color == bg_border_color
-            }) != Option[ByteArray]::None, "bg_border_color is not set correctly");
-            
-            pfp_border_colors: Option[Data] = defaults.get_safe("pfp_border_colors");
-            pfp_border_color: ByteArray = ByteArray::from_data(designer.get("pfp_border_color"));
-            assert(pfp_border_colors == Option[Data]::None || []ByteArray::from_data(pfp_border_colors.unwrap()).find_safe((color:ByteArray) -> Bool {
-                 color == pfp_border_color 
-            }) != Option[ByteArray]::None, "pfp_border_color is not set correctly");
-            
-            text_ribbon_gradient_opt: Option[Data] = defaults.get_safe("text_ribbon_gradient");
-            text_ribbon_gradient_x: String = text_ribbon_gradient_opt.switch{None => {""}, Some => { String::from_data(text_ribbon_gradient_opt.unwrap()) }};
-            text_ribbon_gradient: String = String::from_data(designer.get("text_ribbon_gradient"));
-            assert(text_ribbon_gradient_x == text_ribbon_gradient, "text_ribbon_gradient is not set correctly");
-            
+  
+            assert(propInDesignerArray(defaults.get_safe("bg_border_colors"), designer.get_safe("bg_border_color")), "bg_border_color is not set correctly");
+            assert(propInDesignerArray(defaults.get_safe("pfp_border_colors"), designer.get_safe("pfp_border_color")), "pfp_border_color is not set correctly");
+            assert(propInDesignerArray(defaults.get_safe("font_shadow_colors"), designer.get_safe("font_shadow_color")), "font_shadow_color is not set correctly");
+            assert(propEqualsDesignerDefault(defaults.get_safe("text_ribbon_gradient"), designer.get_safe("text_ribbon_gradient"), true), "text_ribbon_gradient is not set correctly");
+            assert(propEqualsDesignerDefault(defaults.get_safe("font_color"), designer.get_safe("font_color"), true), "font_color is not set correctly");
+            assert(propEqualsDesignerDefault(defaults.get_safe("font"), designer.get_safe("font"), true), "font is not set correctly");
+            assert(propEqualsDesignerDefault(defaults.get_safe("font_shadow_size"), designer.get_safe("font_shadow_size")), "font_shadow_size is not set correctly");
+            assert(propEqualsDesignerDefault(defaults.get_safe("pfp_zoom"), designer.get_safe("pfp_zoom")), "pfp_zoom is not set correctly");
+            assert(propEqualsDesignerDefault(defaults.get_safe("pfp_offset"), designer.get_safe("pfp_offset")), "pfp_offset is not set correctly");
+            assert(propEqualsDesignerDefault(defaults.get_safe("qr_background_color"), designer.get_safe("qr_background_color")), "qr_background_color is not set correctly");
+
+            (_, text_ribbon_gradient_x: ByteArray) = hasValueUnWrapped(defaults.get_safe("text_ribbon_gradient"));
             text_ribbon_colors_opt: Option[Data] = defaults.get_safe("text_ribbon_colors");
             text_ribbon_colors_x: []ByteArray = text_ribbon_colors_opt.switch{None => {[]ByteArray{}}, Some => {[]ByteArray::from_data(text_ribbon_colors_opt.unwrap())}};
             text_ribbon_colors: []ByteArray = []ByteArray::from_data(designer.get("text_ribbon_colors"));
-            assert(((text_ribbon_gradient_x == "radial" || text_ribbon_gradient_x.starts_with("linear")) 
-                        && text_ribbon_colors_x == text_ribbon_colors) 
-                    || text_ribbon_colors_x == text_ribbon_colors
-                    || text_ribbon_colors_x.find_safe((color:ByteArray) -> Bool {color == text_ribbon_colors.get_singleton()}) != Option[ByteArray]::None, "text_ribbon_colors is not set correctly");
-            
-            font_color_opt: Option[Data] = defaults.get_safe("font_colors");
-            font_color_x: ByteArray = font_color_opt.switch{None => {#ffffff}, Some => {ByteArray::from_data(font_color_opt.unwrap())}};
-            font_color: ByteArray = ByteArray::from_data(designer.get("font_color"));
-            assert(font_color_x == font_color, "font_color is not set correctly");
-
-            font_shadow_colors: Option[Data] = defaults.get_safe("font_shadow_colors");
-            font_shadow_color: ByteArray = ByteArray::from_data(designer.get("font_shadow_color"));
-            assert(font_shadow_colors == Option[Data]::None || []ByteArray::from_data(font_shadow_colors.unwrap()).find_safe((color:ByteArray) -> Bool {
-                color == font_shadow_color
-            }) != Option[ByteArray]::None, "font_shadow_color is not set correctly");
-
-            font_shadow_size_opt: Option[Data] = defaults.get_safe("font_shadow_size");
-            font_shadow_size_x: []Int = font_shadow_size_opt.switch{None => {[]Int{}}, Some => {[]Int::from_data(font_shadow_size_opt.unwrap())}};
-            font_shadow_size: []Int = []Int::from_data(designer.get("font_shadow_size"));
-            assert(font_shadow_size_opt == Option[Data]::None || font_shadow_size_x == font_shadow_size, "font_shadow_size is not set correctly");
-
-            font_opt: Option[Data] = defaults.get_safe("font");
-            font_x: String = font_opt.switch{None => {""}, Some => {String::from_data(font_opt.unwrap())}};
-            font: String = String::from_data(designer.get("font"));
-            assert(font_x == font, "font is not set correctly");
-
-            qr_bg_color_opt: Option[Data] = defaults.get_safe("qr_bg_color");
-            qr_bg_color_x: ByteArray = qr_bg_color_opt.switch{None => {#}, Some => {ByteArray::from_data(qr_bg_color_opt.unwrap())}};
-            qr_bg_color: ByteArray = ByteArray::from_data(designer.get("qr_bg_color"));
-            assert(qr_bg_color_opt == Option[Data]::None || qr_bg_color_x == qr_bg_color, "qr_bg_color is not set correctly");
+            gradient: Bool = text_ribbon_gradient_x == "radial".encode_utf8() || text_ribbon_gradient_x.starts_with("linear".encode_utf8());
+            assert(gradient && text_ribbon_colors_x == text_ribbon_colors 
+                    || (gradient == false && text_ribbon_colors_x.find_safe((color:ByteArray) -> Bool {color == text_ribbon_colors.get_singleton()}) != Option[ByteArray]::None), "text_ribbon_colors is not set correctly");
 
             qr_inner_eye_opt: Option[Data] = defaults.get_safe("qr_inner_eye");
             qr_inner_eye_x: String = qr_inner_eye_opt.switch{None => {""}, Some => {String::from_data(qr_inner_eye_opt.unwrap())}};
@@ -367,16 +363,6 @@ func designerSettingsAreValid(pz_data:Map[String]Data, designer: Map[String]Data
             qr_dot: String = String::from_data(designer.get("qr_dot"));
             assert(qr_dot_opt == Option[Data]::None && qr_dot.starts_with("square,") || qr_dot_x == qr_dot, "qr_dot is not set correctly");
 
-            pfp_zoom_opt: Option[Data] = defaults.get_safe("pfp_zoom");
-            pfp_zoom_x: Int = pfp_zoom_opt.switch{None => {100}, Some => {Int::from_data(pfp_zoom_opt.unwrap())}};
-            pfp_zoom: Int = Int::from_data(designer.get("pfp_zoom"));
-            assert(pfp_zoom_x == pfp_zoom, "pfp_zoom is not set correctly");
-            
-            pfp_offset_opt: Option[Data] = defaults.get_safe("pfp_offset");
-            pfp_offset_x: []Int = pfp_offset_opt.switch{None => []Int{0,0}, Some => {[]Int::from_data(pfp_offset_opt.unwrap())}};
-            pfp_offset: []Int = []Int::from_data(designer.get("pfp_offset"));
-            assert(pfp_offset_x == pfp_offset, "pfp_offset is not set correctly");
-
             assert(areRequiredPfpsPresent, "Background doesn't pass required PFP settings");
             true
         }
@@ -391,8 +377,8 @@ func designerSettingsAreValid(pz_data:Map[String]Data, designer: Map[String]Data
 }
 
 func immutablesAreUnchanged(prev_nft: Datum::CIP68, new_nft: Datum::CIP68) -> Bool {
-    prev_nft.nft.get("standard_image") == new_nft.nft.get("standard_image")
-    && prev_nft.nft.get("standard_image_hash") == new_nft.nft.get("standard_image_hash")
+    prev_nft.extra.get("standard_image") == new_nft.extra.get("standard_image")
+    && prev_nft.extra.get("standard_image_hash") == new_nft.extra.get("standard_image_hash")
     && prev_nft.nft.get("name") == new_nft.nft.get("name")
     && prev_nft.nft.get("mediaType") == new_nft.nft.get("mediaType")
     && prev_nft.nft.get("og") == new_nft.nft.get("og")
@@ -438,10 +424,10 @@ func pzDatumIsValid(
         provider: Option[PubKeyHash] = ctx.tx.signatories.find_safe((signer: PubKeyHash) -> Bool { settings.pz_providers.any((cred: ByteArray, _) -> Bool {signer == PubKeyHash::new(cred) && cred == validated_by})});
         assert((validated_by == # && provider == Option[PubKeyHash]::None) || provider != Option[PubKeyHash]::None, "validated_by is not set correctly");
 
-        pfp_asset_opt: Option[Data] = pz_data.get_safe("pfp_asset");
-        pfp_asset: AssetClass = pfp_asset_opt.switch{Some{a} => parseAsset(ByteArray::from_data(a)), else => AssetClass::new(MintingPolicyHash::new(#), #)};
+        (pfp_asset_set: Bool, pfp_asset_bytes: ByteArray) = hasValueUnWrapped(pz_data.get_safe("pfp_asset"));
+        pfp_asset: AssetClass = (if (pfp_asset_set) {parseAsset(pfp_asset_bytes)} else {AssetClass::new(MintingPolicyHash::new(#), #)});
 
-        assert(pfp_asset_opt == Option[Data]::None || approvers.get("pfp_approvers").any((pol: ByteArray, pattern: Map[ByteArray][]Int) -> Bool {
+        assert(pfp_asset_set == false || approvers.get("pfp_approvers").any((pol: ByteArray, pattern: Map[ByteArray][]Int) -> Bool {
             pol.serialize() == pfp_asset.mph.serialize() && pattern.any((p: ByteArray, props: []Int) -> Bool {
                 pfp_asset.token_name.starts_with(p) 
                     && Int::from_data(pz_data.get("trial")) == props.get(1)
@@ -449,10 +435,10 @@ func pzDatumIsValid(
             })
         }), "pfp_policy is in trial or nsfw, but Handle is not");
 
-        bg_asset_opt: Option[Data] = pz_data.get_safe("bg_asset");
-        bg_asset: AssetClass = bg_asset_opt.switch{Some{a} => parseAsset(ByteArray::from_data(a)), else => AssetClass::new(MintingPolicyHash::new(#), #)};
+        (bg_asset_set: Bool, bg_asset_bytes: ByteArray) = hasValueUnWrapped(pz_data.get_safe("bg_asset"));
+        bg_asset: AssetClass = (if (bg_asset_set) {parseAsset(bg_asset_bytes)} else {AssetClass::new(MintingPolicyHash::new(#), #)});
 
-        assert(bg_asset_opt == Option[Data]::None || approvers.get("bg_approvers").any((pol: ByteArray, pattern: Map[ByteArray][]Int) -> Bool {
+        assert(bg_asset_set == false || approvers.get("bg_approvers").any((pol: ByteArray, pattern: Map[ByteArray][]Int) -> Bool {
             pol.serialize() == bg_asset.mph.serialize() && pattern.any((p: ByteArray, props: []Int) -> Bool {
                 bg_asset.token_name.starts_with(p) 
                     && Int::from_data(pz_data.get("trial")) == props.get(1)
@@ -460,16 +446,18 @@ func pzDatumIsValid(
             })
         }), "bg_policy is in trial or nsfw, but Handle is not");
 
-        assert(bg_asset_opt == Option[Data]::None || (
-                bg_datum: OutputDatum = getAssetDatum(bg_asset, ctx);
-                bg_datum == OutputDatum::new_none() || String::from_data(Datum::CIP68::from_data(bg_datum.get_inline_data()).nft.get("image")) == String::from_data(pz_data.get("bg_image"))
-            ), "bg_image doesn't match bg_asset datum");
+        (bg_image_set: Bool, bg_image: ByteArray) = hasValueUnWrapped(pz_data.get_safe("bg_image"));
+        assert((bg_asset_set && bg_image_set) || (bg_asset_set == false && bg_image_set == false), "bg_asset/bg_image mismatch");
+        assert(bg_asset_set == false || (
+            bg_datum: OutputDatum = getAssetDatum(bg_asset, ctx);
+            bg_datum == OutputDatum::new_none() || String::from_data(Datum::CIP68::from_data(bg_datum.get_inline_data()).nft.get("image")) == bg_image.decode_utf8()), "bg_image doesn't match bg_asset datum");
 
-        assert(pfp_asset_opt == Option[Data]::None || (
-                pfp_datum: OutputDatum = getAssetDatum(pfp_asset, ctx);
-                pfp_datum == OutputDatum::new_none() || String::from_data(Datum::CIP68::from_data(pfp_datum.get_inline_data()).nft.get("image")) == String::from_data(pz_data.get("pfp_image"))
-            ), "pfp_image doesn't match pfp_asset datum");
-
+        (pfp_image_set: Bool, pfp_image: ByteArray) = hasValueUnWrapped(pz_data.get_safe("pfp_image"));
+        assert((pfp_asset_set && pfp_image_set) || (pfp_asset_set == false && pfp_image_set == false), "pfp_asset/pfp_image mismatch");
+        assert(pfp_asset_set == false || (
+            pfp_datum: OutputDatum = getAssetDatum(pfp_asset, ctx);
+            pfp_datum == OutputDatum::new_none() || String::from_data(Datum::CIP68::from_data(pfp_datum.get_inline_data()).nft.get("image")) == pfp_image.decode_utf8()), "pfp_image doesn't match pfp_asset datum");
+    
         true
 }
 
@@ -528,8 +516,8 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
             if (designer_assets_valid == false || require_pfp_valid == false || address_changed_with_socials || signed_by_provider) {
 
                 pz_datum_is_reset: Bool = (
-                    new_datum.nft.get("image") == new_datum.nft.get("standard_image")
-                    && new_datum.nft.get("image_hash") == new_datum.nft.get("standard_image_hash")
+                    new_datum.nft.get("image") == new_datum.extra.get("standard_image")
+                    && new_datum.extra.get("image_hash") == new_datum.extra.get("standard_image_hash")
                     && pz_data.get_safe("pfp_asset") == Option[Data]::None
                     && pz_data.get_safe("bg_asset") == Option[Data]::None
                     && String::from_data(pz_data.get("pfp_image")) == ""
@@ -564,3 +552,5 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
 // TODO: Required Fields Present
 // TODO: required_pfp count (SundaeSwap use case)
 // TODO: Support either pubkeys or validatorkeys for bg_100, pfp_100, or provider tokens
+// Not sure I like the idea of the contract permissions coming from a UTxO datum
+// Should hardcode at least one failsafe credential

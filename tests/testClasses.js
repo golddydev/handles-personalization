@@ -112,8 +112,8 @@ export class ScriptContext {
       const goodRefTokenOutput = new TxOutput(`${script_creds_bytes}`);
       goodRefTokenOutput.datumType = 'inline';
       const datum = new Datum(designerCid);
-      datum.nft.image = datum.nft.standard_image;
-      datum.nft.image_hash = datum.nft.standard_image_hash;
+      datum.nft.image = datum.extra.standard_image;
+      datum.extra.image_hash = datum.extra.standard_image_hash;
       delete datum.extra.bg_asset; 
       delete datum.extra.pfp_asset;
       datum.extra.pfp_image = 'OutputDatum::new_inline("").data'
@@ -231,7 +231,7 @@ export class ScriptContext {
       qr_inner_eye: 'OutputDatum::new_inline("square,#0a1fd3").data',
       qr_outer_eye: 'OutputDatum::new_inline("square,#0a1fd3").data',
       qr_dot: 'OutputDatum::new_inline("square,#0a1fd3").data',
-      qr_bg_color: 'OutputDatum::new_inline(#0a1fd3).data',
+      qr_background_color: 'OutputDatum::new_inline(#0a1fd3).data',
       pfp_zoom: 'OutputDatum::new_inline(100).data',
       pfp_offset: 'OutputDatum::new_inline([]Int{1, 2}).data',
       font: 'OutputDatum::new_inline("the font").data',
@@ -320,9 +320,6 @@ export class ScriptContext {
     nft = {
       name: `OutputDatum::new_inline("${handle}").data`,
       image: 'OutputDatum::new_inline("ipfs://pfp").data',
-      image_hash: 'OutputDatum::new_inline(#).data',
-      standard_image: 'OutputDatum::new_inline("ipfs://cid").data',
-      standard_image_hash: 'OutputDatum::new_inline(#).data',
       mediaType: 'OutputDatum::new_inline("image/jpeg").data',
       og: 'OutputDatum::new_inline(0).data',
       og_number: 'OutputDatum::new_inline(1).data',
@@ -335,6 +332,9 @@ export class ScriptContext {
     };
     version = 1;
     extra = {
+      image_hash: 'OutputDatum::new_inline(#).data',
+      standard_image: 'OutputDatum::new_inline("ipfs://cid").data',
+      standard_image_hash: 'OutputDatum::new_inline(#).data',
       bg_image: 'OutputDatum::new_inline("ipfs://image_cid").data',
       pfp_image: 'OutputDatum::new_inline("ipfs://pfp").data',
       designer: 'OutputDatum::new_inline("ipfs://cid").data',
@@ -441,7 +441,7 @@ export class ScriptContext {
       qr_inner_eye: 'OutputDatum::new_inline("square,#0a1fd3").data',
       qr_outer_eye: 'OutputDatum::new_inline("square,#0a1fd3").data',
       qr_dot: 'OutputDatum::new_inline("square,#0a1fd3").data',
-      qr_bg_color: 'OutputDatum::new_inline(#0a1fd3).data',
+      qr_background_color: 'OutputDatum::new_inline(#0a1fd3).data',
       pfp_zoom: 'OutputDatum::new_inline(100).data',
       pfp_offset: 'OutputDatum::new_inline([]Int{1, 2}).data',
       font: 'OutputDatum::new_inline("the font").data',
