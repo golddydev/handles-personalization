@@ -551,6 +551,8 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
 
 // TODO: Required Fields Present
 // TODO: required_pfp count (SundaeSwap use case)
+// Where are we using PKH?
+// Reset accounts for bundled addresses?
 // TODO: Support either pubkeys or validatorkeys for bg_100, pfp_100, or provider tokens
 // Not sure I like the idea of the contract permissions coming from a UTxO datum
 // Should hardcode at least one failsafe credential
