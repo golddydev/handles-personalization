@@ -377,7 +377,7 @@ func designerSettingsAreValid(pz_data:Map[String]Data, designer: Map[String]Data
 }
 
 func immutablesAreUnchanged(prev_nft: Datum::CIP68, new_nft: Datum::CIP68) -> Bool {
-    prev_nft.extra.get("standard_image") == new_nft.extra.get("standard_image")
+    assert(prev_nft.extra.get("standard_image") == new_nft.extra.get("standard_image")
     && prev_nft.extra.get("standard_image_hash") == new_nft.extra.get("standard_image_hash")
     && prev_nft.nft.get("name") == new_nft.nft.get("name")
     && prev_nft.nft.get("mediaType") == new_nft.nft.get("mediaType")
@@ -386,18 +386,31 @@ func immutablesAreUnchanged(prev_nft: Datum::CIP68, new_nft: Datum::CIP68) -> Bo
     && prev_nft.nft.get("rarity") == new_nft.nft.get("rarity")
     && prev_nft.nft.get("length") == new_nft.nft.get("length")
     && prev_nft.nft.get("characters") == new_nft.nft.get("characters")
-    && prev_nft.nft.get("numeric_modifiers") == new_nft.nft.get("numeric_modifiers")
+    && prev_nft.nft.get("numeric_modifiers") == new_nft.nft.get("numeric_modifiers"), "Immutables have changed");
+    true
 }
 
 func checkBrightness() -> Bool {true}
 
-func migrationSignersAreValid(ctx: ScriptContext, settings: PzSettings) -> Bool {
+func migrationSignersAreValid(migrate: Redeemer::MIGRATE, ctx: ScriptContext, settings: PzSettings, old_datum: Datum::CIP68) -> Bool {
     // Check if Owner Signature is required
-    assert(ctx.tx.signatories.length > 0 && 
-        ctx.tx.signatories.all((signer: PubKeyHash) -> Bool {
-            settings.admin_creds.any((admin: ByteArray) -> Bool {signer == PubKeyHash::new(admin)})
-        }), "Required admin signer(s) not present");
+    owner_sig_required: Bool = old_datum.extra.get_safe("migrate_sig_required").switch{Some{req} => {Int::from_data(req) != 0}, else => {false}};
+    if (owner_sig_required) {
+        (owner_token: Option[TxOutput], _) = findAsReferenceOrOutput(HANDLE_POLICY, LBL_222 + (migrate.handle.encode_utf8()), 1, ctx, false, true);
+        assert(owner_token != Option[TxOutput]::None, "Required owner signer not present");
+        assert(ctx.tx.signatories.length > 0 && 
+            ctx.tx.signatories.all((signer: PubKeyHash) -> Bool {
+                settings.admin_creds.any((admin: ByteArray) -> Bool {signer == PubKeyHash::new(admin)})
+            }), "Required admin signer(s) not present");
         true
+    }
+    else {
+        assert(ctx.tx.signatories.length > 0 && 
+            ctx.tx.signatories.all((signer: PubKeyHash) -> Bool {
+                settings.admin_creds.any((admin: ByteArray) -> Bool {signer == PubKeyHash::new(admin)})
+            }), "Required admin signer(s) not present");
+            true
+    }
 }
 
 func pzDatumIsValid(
@@ -489,13 +502,12 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
             new_datum: Datum::CIP68 = Datum::CIP68::from_data(reference_token.unwrap().datum.get_inline_data());
             assert(old_datum == new_datum
                 && isValidContract(reference_token.unwrap().address.credential.switch{v: Validator => v.hash, else => error("Not a valid migration")}, settings) 
-                && migrationSignersAreValid(ctx, settings), "Not a valid migration");
+                && migrationSignersAreValid(migrate, ctx, settings, old_datum), "Not a valid migration");
             true            
         },
         reset: RESET => {
             (settings: PzSettings, approvers: Map[String]Map[ByteArray]Map[ByteArray][]Int) = checkInputsAndLoadSettings(ctx);
-            owner_sig_required: Bool = old_datum.extra.get_safe("migrate_sig_required").switch{Some{req} => {Int::from_data(req) != 0}, else => {false}};
-            (owner_token: TxOutput, reference_token: TxOutput) = getHandleTokens(reset.handle, ctx, owner_sig_required);
+            (owner_token: TxOutput, reference_token: TxOutput) = getHandleTokens(reset.handle, ctx, false);
             assert(isValidContract(ctx.get_current_validator_hash(), settings) 
                 && cborHashesToCid(reset.designer, reference_token)
                 && immutablesAreUnchanged(old_datum, Datum::CIP68::from_data(reference_token.datum.get_inline_data()))
