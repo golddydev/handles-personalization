@@ -5,10 +5,10 @@ import { BackgroundDefaults, Datum, PzRedeemer, PzSettings, ScriptContext, Appro
 let contract = fs.readFileSync("../contract.helios").toString();
 contract = contract.replace(/ctx.get_current_validator_hash\(\)/g, 'ValidatorHash::new(#01234567890123456789012345678901234567890123456789000001)');
 
-tester.init();
+tester.init("RESET");
 
 const pzRedeemer = new PzRedeemer();
-const resetRedeemer = new PzRedeemer('RESET').reset();
+const resetRedeemer = new MigrateRedeemer('RESET');
 const migrateRedeemer = new MigrateRedeemer();
 
 Promise.all([
@@ -396,7 +396,7 @@ Promise.all([
 
     // RESET ENDPOINT - SHOULD APPROVE
     tester.testCase(true, "RESET", "no pz signer, pfp mismatch", () => {
-        const context = new ScriptContext().initReset(resetRedeemer.calculateCid());
+        const context = new ScriptContext().initReset(resetRedeemer);
         context.referenceInputs.find(input => input.output.asset == '"pfp"' && input.output.label == 'LBL_222').output.hash = '#123456789012345678901234567890123456789012345678901234af';
         context.signers = [];
         const program = tester.createProgram(contract, new Datum().render(), resetRedeemer.render(), context.render());
@@ -405,9 +405,9 @@ Promise.all([
 
     // RESET ENDPOINT - SHOULD DENY
     tester.testCase(false, "RESET", "reset not allowed because all good", () => {
-        const context = new ScriptContext().initReset(resetRedeemer.calculateCid());
+        const context = new ScriptContext().initReset(resetRedeemer);
         context.signers = [];
-        const datum = new Datum(resetRedeemer.calculateCid());
+        const datum = new Datum();
         datum.extra.bg_asset = `OutputDatum::new_inline(${bg_policy}001bc2806267).data`;
         datum.extra.pfp_asset = `OutputDatum::new_inline(${pfp_policy}000de140706670).data`;
         context.outputs.find(output => output.asset == `"${handle}"` && output.label == 'LBL_100').datum = datum.render();

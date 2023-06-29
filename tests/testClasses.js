@@ -107,17 +107,19 @@ export class ScriptContext {
       return this;
     }
 
-    initReset(designerCid=null) {
+    initReset() {
       this.addPzInputs();
       const goodRefTokenOutput = new TxOutput(`${script_creds_bytes}`);
       goodRefTokenOutput.datumType = 'inline';
-      const datum = new Datum(designerCid);
+      const datum = new Datum();
       datum.nft.image = datum.extra.standard_image;
       datum.extra.image_hash = datum.extra.standard_image_hash;
+      datum.extra.designer = 'OutputDatum::new_inline(#).data';
       delete datum.extra.bg_asset; 
       delete datum.extra.pfp_asset;
-      datum.extra.pfp_image = 'OutputDatum::new_inline("").data'
-      datum.extra.bg_image = 'OutputDatum::new_inline("").data'
+      datum.extra.pfp_image = 'OutputDatum::new_inline(#).data'
+      datum.extra.bg_image = 'OutputDatum::new_inline(#).data'
+      datum.extra.svg_version = 'OutputDatum::new_inline(#).data'
       goodRefTokenOutput.datum = datum.render();
       this.outputs.push(goodRefTokenOutput);
       this.signers = [];
@@ -224,7 +226,6 @@ export class ScriptContext {
   }
   
   export class PzRedeemer {
-    variant = '';
     handle = `"${handle}"`;
     designer = {
       pfp_border_color: 'OutputDatum::new_inline(#22d1af).data',
@@ -247,22 +248,7 @@ export class ScriptContext {
       svg_version: 'OutputDatum::new_inline(1).data'
     };
   
-    constructor(variant='PERSONALIZE') {
-      this.variant = variant;
-    }
-
-    reset() {
-      this.designer.pfp_border_color = 'OutputDatum::new_inline(#).data';
-      this.designer.font = 'OutputDatum::new_inline("").data';
-      this.designer.font_color = 'OutputDatum::new_inline(#ffffff).data';
-      this.designer.font_shadow_color = 'OutputDatum::new_inline(#).data';
-      this.designer.text_ribbon_colors = 'OutputDatum::new_inline([]ByteArray{}).data';
-      this.designer.bg_color = 'OutputDatum::new_inline(#).data';
-      this.designer.bg_border_color = 'OutputDatum::new_inline(#).data';
-      this.designer.qr_link = 'OutputDatum::new_inline("").data';
-      this.designer.socials = 'OutputDatum::new_inline(Map[String]String{}).data';
-      return this;
-    }
+    constructor() { }
   
     calculateCid() {
         const designer = this.renderDesigner();
@@ -297,21 +283,21 @@ export class ScriptContext {
     }
   
     render() {
-        let redeemer = `Redeemer::${this.variant} { handle: ${this.handle}, designer: ${this.renderDesigner()}`;
-        redeemer += '}\n';
-        return redeemer;
+        return `Redeemer::PERSONALIZE { handle: ${this.handle}, designer: ${this.renderDesigner()}}\n`;
     }
   
   }
 
   export class MigrateRedeemer {
+    variant = '';
     handle = `"${handle}"`;
   
-    constructor() {}
+    constructor(variant='PERSONALIZE') {
+      this.variant = variant;
+    }
   
     render() {
-        let redeemer = `Redeemer::MIGRATE { ${this.handle} }`;
-        return redeemer;
+        return `Redeemer::${this.variant} { ${this.handle} }`;
     }
   
   }

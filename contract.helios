@@ -10,7 +10,6 @@ enum Redeemer {
     }
     RESET { 
         handle: String
-        designer: Map[String]Data
     }
     RETURN_TO_SENDER
 }
@@ -509,7 +508,6 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
             (settings: PzSettings, approvers: Map[String]Map[ByteArray]Map[ByteArray][]Int) = checkInputsAndLoadSettings(ctx);
             (owner_token: TxOutput, reference_token: TxOutput) = getHandleTokens(reset.handle, ctx, false);
             assert(isValidContract(ctx.get_current_validator_hash(), settings) 
-                && cborHashesToCid(reset.designer, reference_token)
                 && immutablesAreUnchanged(old_datum, Datum::CIP68::from_data(reference_token.datum.get_inline_data()))
                 , "Contract failed validation");
             
@@ -530,23 +528,24 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                 pz_datum_is_reset: Bool = (
                     new_datum.nft.get("image") == new_datum.extra.get("standard_image")
                     && new_datum.extra.get("image_hash") == new_datum.extra.get("standard_image_hash")
-                    && pz_data.get_safe("pfp_asset") == Option[Data]::None
-                    && pz_data.get_safe("bg_asset") == Option[Data]::None
-                    && String::from_data(pz_data.get("pfp_image")) == ""
-                    && String::from_data(pz_data.get("bg_image")) == "");
+                    && (pz_data.get_safe("pfp_asset") == Option[Data]::None || ByteArray::from_data(pz_data.get("pfp_asset")) == #)
+                    && (pz_data.get_safe("bg_asset") == Option[Data]::None || ByteArray::from_data(pz_data.get("bg_asset")) == #)
+                    && (pz_data.get_safe("pfp_image") == Option[Data]::None || ByteArray::from_data(pz_data.get("pfp_image")) == #)
+                    && (pz_data.get_safe("bg_image") == Option[Data]::None || ByteArray::from_data(pz_data.get("bg_image")) == #)
+                    && (pz_data.get_safe("designer") == Option[Data]::None || ByteArray::from_data(pz_data.get("designer")) == #)
+                    && Int::from_data(pz_data.get("trial")) == 0
+                    && Int::from_data(pz_data.get("nsfw")) == 0
+                    && ByteArray::from_data(pz_data.get("svg_version")) == #);
 
-                designer_is_reset: Bool = (ByteArray::from_data(reset.designer.get("pfp_border_color")) == #
-                    && String::from_data(reset.designer.get("font")) == ""
-                    && ByteArray::from_data(reset.designer.get("font_color")) == #ffffff
-                    && ByteArray::from_data(reset.designer.get("font_shadow_color")) == #
-                    && []ByteArray::from_data(reset.designer.get("text_ribbon_colors")) == []ByteArray{}
-                    && ByteArray::from_data(reset.designer.get("bg_color")) == #
-                    && ByteArray::from_data(reset.designer.get("bg_border_color")) == #
-                    && String::from_data(reset.designer.get("qr_link")) == ""
-                    && Map[String]String::from_data(reset.designer.get("socials")) == Map[String]String{});
+                assert(pz_datum_is_reset, "Personalization properties not properly reset");
 
-                assert(pz_datum_is_reset && designer_is_reset, "Personalization properties not properly reset");
-                true
+                if (address_changed_with_socials) {
+                    assert(pz_data.get_safe("socials") == Option[Data]::None || ByteArray::from_data(pz_data.get("socials")) == #, "Socials need to be reset");
+                    true
+                }
+                else {
+                    true
+                }
             }
             else {
                 error("Reset is not allowed or not authorized")
@@ -565,6 +564,7 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
 // TODO: required_pfp count (SundaeSwap use case)
 // Where are we using PKH?
 // Reset accounts for bundled addresses?
+// Don't have to reset pfp if they still have it
 // TODO: Support either pubkeys or validatorkeys for bg_100, pfp_100, or provider tokens
 // Not sure I like the idea of the contract permissions coming from a UTxO datum
 // Should hardcode at least one failsafe credential
