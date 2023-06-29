@@ -114,12 +114,12 @@ export class ScriptContext {
       const datum = new Datum();
       datum.nft.image = datum.extra.standard_image;
       datum.extra.image_hash = datum.extra.standard_image_hash;
-      datum.extra.designer = 'OutputDatum::new_inline(#).data';
+      delete datum.extra.designer;
       delete datum.extra.bg_asset; 
       delete datum.extra.pfp_asset;
-      datum.extra.pfp_image = 'OutputDatum::new_inline(#).data'
-      datum.extra.bg_image = 'OutputDatum::new_inline(#).data'
-      datum.extra.svg_version = 'OutputDatum::new_inline(#).data'
+      delete datum.extra.pfp_image;
+      delete datum.extra.bg_image;
+      delete datum.extra.svg_version;
       goodRefTokenOutput.datum = datum.render();
       this.outputs.push(goodRefTokenOutput);
       this.signers = [];
@@ -292,7 +292,7 @@ export class ScriptContext {
     variant = '';
     handle = `"${handle}"`;
   
-    constructor(variant='PERSONALIZE') {
+    constructor(variant='MIGRATE') {
       this.variant = variant;
     }
   
@@ -331,7 +331,6 @@ export class ScriptContext {
       vendor: 'OutputDatum::new_inline("ipfs://cid").data',
       default: 'OutputDatum::new_inline(1).data',
       last_update_address: `OutputDatum::new_inline(#60 + ${owner_bytes}).data`,
-      validated_by: 'OutputDatum::new_inline(#).data',
       agreed_terms: 'OutputDatum::new_inline("https://tou").data',
       trial: 'OutputDatum::new_inline(0).data',
       nsfw: 'OutputDatum::new_inline(0).data',

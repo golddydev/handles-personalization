@@ -5,7 +5,7 @@ import { BackgroundDefaults, Datum, PzRedeemer, PzSettings, ScriptContext, Appro
 let contract = fs.readFileSync("../contract.helios").toString();
 contract = contract.replace(/ctx.get_current_validator_hash\(\)/g, 'ValidatorHash::new(#01234567890123456789012345678901234567890123456789000001)');
 
-tester.init("RESET");
+tester.init();
 
 const pzRedeemer = new PzRedeemer();
 const resetRedeemer = new MigrateRedeemer('RESET');
