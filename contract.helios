@@ -117,7 +117,9 @@ func getApproverDatum(handle:String, settings: PzSettings, ctx: ScriptContext) -
         || (input.output.value.contains_policy(HANDLE_POLICY) && input.output.value.get_policy(HANDLE_POLICY).any((asset_name: ByteArray, count: Int) -> Bool {
                 asset_name.ends_with(("@" + handle).encode_utf8()) && count == 1
         })))
-        && settings.pz_providers.any((_, cred: ByteArray) -> Bool { input.output.address.credential == Credential::new_validator(ValidatorHash::new(cred)) })
+        && settings.pz_providers.any((_, cred: ByteArray) -> Bool { input.output.address.credential.switch{
+            p: PubKey => {p == Credential::new_pubkey(PubKeyHash::new(cred))}, 
+            v: Validator => {v == Credential::new_validator(ValidatorHash::new(cred))}}})
     });
     assert(input != Option[TxInput]::None, handle + " reference input not present or not from valid provider");
     Map[ByteArray]Map[ByteArray][]Int::from_data(input.unwrap().output.datum.get_inline_data())
@@ -144,7 +146,9 @@ func feesArePaid(ctx: ScriptContext, settings: PzSettings, handle: String) -> Bo
     // PZ provider fee paid
     assert(ctx.tx.outputs.any((output: TxOutput) -> Bool {
         // Check that datum is attached so it can be spent (also guard against double satisfaction)
-        settings.pz_providers.any((_, cred: ByteArray) -> Bool { output.address.credential == Credential::new_validator(ValidatorHash::new(cred)) })
+        settings.pz_providers.any((_, cred: ByteArray) -> Bool { output.address.credential.switch{
+            p: PubKey => {p == Credential::new_pubkey(PubKeyHash::new(cred))}, 
+            v: Validator => {v == Credential::new_validator(ValidatorHash::new(cred))}}})
         && output.value.contains(Value::lovelace(settings.pz_min_fee))
         && output.datum.get_inline_data().switch{b: ByteArray => { b == handle.encode_utf8() }, else => {false}}
     }), "Personalization provider not found or fee unpaid");
@@ -428,9 +432,7 @@ func pzDatumIsValid(
             else {
                 Option[StakingCredential]::None
             };
-        //print(Address::new(last_cred, last_stake_cred).serialize().show() + " == " + owner_token.address.serialize().show());
         assert(Address::new(last_cred, last_stake_cred) == owner_token.address, "last_update_address does not match Handle address");
-        // set provider validated - if provider in signatories ? validated == #provider_sig : validated == #
         validated_by: Option[Data] = pz_data.get_safe("validated_by");
         assert(validated_by == Option[Data]::None || ctx.tx.signatories.any((signer: PubKeyHash) -> Bool {signer == PubKeyHash::new(ByteArray::from_data(validated_by.unwrap()))}), "validated_by is set but not signed");
 
@@ -560,12 +562,11 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
     }
 }
 
-// TODO: Required Fields Present
 // TODO: required_pfp count (SundaeSwap use case) or required_signature
 // Where are we using PKH?
-// Reset accounts for bundled addresses?
-// Don't have to reset pfp if they still have it
 // TODO: Support either pubkeys or validatorkeys for bg_100, pfp_100, or provider tokens
+// Don't have to reset pfp if they still have it
+// TODO: Required Fields Present
+// Reset accounts for bundled addresses?
 // Not sure I like the idea of the contract permissions coming from a UTxO datum
 // Should hardcode at least one failsafe credential
-// anyone can validate
