@@ -228,13 +228,13 @@ func assetIsValid(asset_type:String, pz_data: Map[String]Data, approvers: Map[St
     }
 
 }
-func getAndValidateDesignerAssets(pz_data: Map[String]Data, owner_cred: Credential, approvers: Map[String]Map[ByteArray]Map[ByteArray][]Int, ctx: ScriptContext, throw_errors:Bool) -> (OutputDatum, OutputDatum, Credential, Bool) {
+func getAndValidateDesignerAssets(pz_data: Map[String]Data, owner_cred: Credential, approvers: Map[String]Map[ByteArray]Map[ByteArray][]Int, ctx: ScriptContext, throw_errors:Bool) -> (OutputDatum, Bool) {
     // handle, pfp, and bg can be ref_input or output
     // handle determines the address creds, all others must match 
     // We know we have a signature from the owner.
 
     // print("REDEEMER: " + pz_data.serialize().show());
-    (pfp_valid: Bool, pfp_cred: Option[Credential], pfp_datum_opt: OutputDatum) = assetIsValid("pfp", pz_data, approvers, ctx);
+    (pfp_valid: Bool, pfp_cred: Option[Credential], _) = assetIsValid("pfp", pz_data, approvers, ctx);
     (bg_valid: Bool, bg_cred: Option[Credential], bg_datum_opt: OutputDatum) = assetIsValid("bg", pz_data, approvers, ctx);
     pfp_cred_valid: Bool = pfp_cred == Option[Credential]::None || pfp_cred.unwrap() == owner_cred;
     bg_cred_valid: Bool = bg_cred == Option[Credential]::None || bg_cred.unwrap() == owner_cred;
@@ -243,10 +243,10 @@ func getAndValidateDesignerAssets(pz_data: Map[String]Data, owner_cred: Credenti
         assert(pfp_valid && bg_valid, "Designer assets are not valid");
         assert(pfp_cred_valid, "PFP address not the same as handle");
         assert(bg_cred_valid, "BG address not the same as handle");
-        (pfp_datum_opt, bg_datum_opt, owner_cred, true)
+        (bg_datum_opt, true)
     }
     else {
-        (pfp_datum_opt, bg_datum_opt, owner_cred, pfp_valid && bg_valid && pfp_cred_valid && bg_cred_valid)
+        (bg_datum_opt, pfp_valid && bg_valid && pfp_cred_valid && bg_cred_valid)
     }
 }
 
@@ -346,24 +346,24 @@ func designerSettingsAreValid(pz_data:Map[String]Data, designer: Map[String]Data
             (_, text_ribbon_gradient_x: ByteArray) = hasValueUnWrapped(defaults.get_safe("text_ribbon_gradient"));
             text_ribbon_colors_opt: Option[Data] = defaults.get_safe("text_ribbon_colors");
             text_ribbon_colors_x: []ByteArray = text_ribbon_colors_opt.switch{None => {[]ByteArray{}}, Some => {[]ByteArray::from_data(text_ribbon_colors_opt.unwrap())}};
-            text_ribbon_colors: []ByteArray = []ByteArray::from_data(designer.get("text_ribbon_colors"));
+            text_ribbon_colors: []ByteArray = designer.get_safe("text_ribbon_colors").switch{None => {[]ByteArray{}}, Some{d} => {[]ByteArray::from_data(d)}};
             gradient: Bool = text_ribbon_gradient_x == "radial".encode_utf8() || text_ribbon_gradient_x.starts_with("linear".encode_utf8());
             assert(gradient && text_ribbon_colors_x == text_ribbon_colors 
                     || (gradient == false && text_ribbon_colors_x.find_safe((color:ByteArray) -> Bool {color == text_ribbon_colors.get_singleton()}) != Option[ByteArray]::None), "text_ribbon_colors is not set correctly");
 
             qr_inner_eye_opt: Option[Data] = defaults.get_safe("qr_inner_eye");
-            qr_inner_eye_x: String = qr_inner_eye_opt.switch{None => {""}, Some => {String::from_data(qr_inner_eye_opt.unwrap())}};
-            qr_inner_eye: String = String::from_data(designer.get("qr_inner_eye"));
+            qr_inner_eye_x: String = qr_inner_eye_opt.switch{None => {""}, Some{s} => {String::from_data(s)}};
+            qr_inner_eye: String = designer.get_safe("qr_inner_eye").switch{None => {""}, Some{s} => {String::from_data(s)}};
             assert(qr_inner_eye_opt == Option[Data]::None && qr_inner_eye.starts_with("square,") || qr_inner_eye_x == qr_inner_eye, "qr_inner_eye is not set correctly");
 
             qr_outer_eye_opt: Option[Data] = defaults.get_safe("qr_outer_eye");
-            qr_outer_eye_x: String = qr_outer_eye_opt.switch{None => {""}, Some => {String::from_data(qr_outer_eye_opt.unwrap())}};
-            qr_outer_eye: String = String::from_data(designer.get("qr_outer_eye"));
+            qr_outer_eye_x: String = qr_outer_eye_opt.switch{None => {""}, Some{s} => {String::from_data(s)}};
+            qr_outer_eye: String = designer.get_safe("qr_outer_eye").switch{None => {""}, Some{s} => {String::from_data(s)}};
             assert(qr_outer_eye_opt == Option[Data]::None && qr_outer_eye.starts_with("square,") || qr_outer_eye_x == qr_outer_eye, "qr_outer_eye is not set correctly");
 
             qr_dot_opt: Option[Data] = defaults.get_safe("qr_dot");
-            qr_dot_x: String = qr_dot_opt.switch{None => {""}, Some => {String::from_data(qr_dot_opt.unwrap())}};
-            qr_dot: String = String::from_data(designer.get("qr_dot"));
+            qr_dot_x: String = qr_dot_opt.switch{None => {""}, Some{s} => {String::from_data(s)}};
+            qr_dot: String = designer.get_safe("qr_dot").switch{None => {""}, Some{s} => {String::from_data(s)}};
             assert(qr_dot_opt == Option[Data]::None && qr_dot.starts_with("square,") || qr_dot_x == qr_dot, "qr_dot is not set correctly");
 
             assert(areRequiredPfpsPresent, "Background doesn't pass required PFP settings");
@@ -489,7 +489,7 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                 && immutablesAreUnchanged(old_datum, new_datum)
                 , "Contract failed validation");
 
-            (_, bg_datum:OutputDatum, _, _) = getAndValidateDesignerAssets(new_datum.extra, owner_token.address.credential, approvers, ctx, true);
+            (bg_datum:OutputDatum, _) = getAndValidateDesignerAssets(new_datum.extra, owner_token.address.credential, approvers, ctx, true);
             assert(pzDatumIsValid(owner_token, reference_token, approvers, ctx)
                 && designerSettingsAreValid(new_datum.extra, pz.designer, bg_datum, owner_token.address.credential, ctx) && checkBrightness(), "Personalization settings checks failed");
             true
@@ -511,7 +511,7 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                 && immutablesAreUnchanged(old_datum, Datum::CIP68::from_data(reference_token.datum.get_inline_data()))
                 , "Contract failed validation");
             
-            (_, bg_datum:OutputDatum, _, designer_assets_valid:Bool) = getAndValidateDesignerAssets(old_datum.extra, owner_token.address.credential, approvers, ctx, false);
+            (bg_datum:OutputDatum, designer_assets_valid:Bool) = getAndValidateDesignerAssets(old_datum.extra, owner_token.address.credential, approvers, ctx, false);
             assert(pzDatumIsValid(owner_token, reference_token, approvers, ctx), "Personalization settings checks failed");
 
             new_datum: Datum::CIP68 = Datum::CIP68::from_data(reference_token.datum.get_inline_data());
@@ -563,10 +563,6 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
 }
 
 // TODO: required_pfp count (SundaeSwap use case) or required_signature
-// Where are we using PKH?
-// TODO: Support either pubkeys or validatorkeys for bg_100, pfp_100, or provider tokens
-// Don't have to reset pfp if they still have it
 // TODO: Required Fields Present
-// Reset accounts for bundled addresses?
 // Not sure I like the idea of the contract permissions coming from a UTxO datum
 // Should hardcode at least one failsafe credential
