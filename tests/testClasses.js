@@ -229,10 +229,10 @@ export class ScriptContext {
     handle = `"${handle}"`;
     designer = {
       pfp_border_color: 'OutputDatum::new_inline(#22d1af).data',
-      qr_inner_eye: 'OutputDatum::new_inline("square,#0a1fd3").data',
-      qr_outer_eye: 'OutputDatum::new_inline("square,#0a1fd3").data',
-      qr_dot: 'OutputDatum::new_inline("square,#0a1fd3").data',
-      qr_background_color: 'OutputDatum::new_inline(#0a1fd3).data',
+      qr_inner_eye: 'OutputDatum::new_inline("dots,#0a1fd4").data',
+      qr_outer_eye: 'OutputDatum::new_inline("dots,#0a1fd5").data',
+      qr_dot: 'OutputDatum::new_inline("dots,#0a1fd6").data',
+      qr_bg_color: 'OutputDatum::new_inline(#0a1fd3).data',
       pfp_zoom: 'OutputDatum::new_inline(100).data',
       pfp_offset: 'OutputDatum::new_inline([]Int{1, 2}).data',
       font: 'OutputDatum::new_inline("the font").data',
@@ -423,10 +423,10 @@ export class ScriptContext {
     };
     version = 1;
     extra = {
-      qr_inner_eye: 'OutputDatum::new_inline("square,#0a1fd3").data',
-      qr_outer_eye: 'OutputDatum::new_inline("square,#0a1fd3").data',
-      qr_dot: 'OutputDatum::new_inline("square,#0a1fd3").data',
-      qr_background_color: 'OutputDatum::new_inline(#0a1fd3).data',
+      qr_inner_eye: 'OutputDatum::new_inline("dots,#0a1fd4").data',
+      qr_outer_eye: 'OutputDatum::new_inline("dots,#0a1fd5").data',
+      qr_dot: 'OutputDatum::new_inline("dots,#0a1fd6").data',
+      qr_bg_color: 'OutputDatum::new_inline(#0a1fd3).data',
       pfp_zoom: 'OutputDatum::new_inline(100).data',
       pfp_offset: 'OutputDatum::new_inline([]Int{1, 2}).data',
       font: 'OutputDatum::new_inline("the font").data',

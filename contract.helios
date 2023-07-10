@@ -228,6 +228,7 @@ func assetIsValid(asset_type:String, pz_data: Map[String]Data, approvers: Map[St
     }
 
 }
+
 func getAndValidateDesignerAssets(pz_data: Map[String]Data, owner_cred: Credential, approvers: Map[String]Map[ByteArray]Map[ByteArray][]Int, ctx: ScriptContext, throw_errors:Bool) -> (OutputDatum, Bool) {
     // handle, pfp, and bg can be ref_input or output
     // handle determines the address creds, all others must match 
@@ -341,7 +342,7 @@ func designerSettingsAreValid(pz_data:Map[String]Data, designer: Map[String]Data
             assert(propEqualsDesignerDefault(defaults.get_safe("font_shadow_size"), designer.get_safe("font_shadow_size")), "font_shadow_size is not set correctly");
             assert(propEqualsDesignerDefault(defaults.get_safe("pfp_zoom"), designer.get_safe("pfp_zoom")), "pfp_zoom is not set correctly");
             assert(propEqualsDesignerDefault(defaults.get_safe("pfp_offset"), designer.get_safe("pfp_offset")), "pfp_offset is not set correctly");
-            assert(propEqualsDesignerDefault(defaults.get_safe("qr_background_color"), designer.get_safe("qr_background_color")), "qr_background_color is not set correctly");
+            assert(propEqualsDesignerDefault(defaults.get_safe("qr_bg_color"), designer.get_safe("qr_bg_color")), "qr_bg_color is not set correctly");
 
             (_, text_ribbon_gradient_x: ByteArray) = hasValueUnWrapped(defaults.get_safe("text_ribbon_gradient"));
             text_ribbon_colors_opt: Option[Data] = defaults.get_safe("text_ribbon_colors");
@@ -564,5 +565,3 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
 
 // TODO: required_pfp count (SundaeSwap use case) or required_signature
 // TODO: Required Fields Present
-// Not sure I like the idea of the contract permissions coming from a UTxO datum
-// Should hardcode at least one failsafe credential

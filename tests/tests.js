@@ -357,17 +357,17 @@ Promise.all([
     }),
     tester.testCase(false, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, wrong qr bg color", () => {
         const redeemer = new PzRedeemer();
-        redeemer.designer.qr_background_color = 'OutputDatum::new_inline(#dddddd).data';
+        redeemer.designer.qr_bg_color = 'OutputDatum::new_inline(#dddddd).data';
         const context = new ScriptContext().initPz(redeemer.calculateCid());
         const program = tester.createProgram(contract, new Datum().render(), redeemer.render(), context.render());
         return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
-    }, "qr_background_color is not set correctly"),
+    }, "qr_bg_color is not set correctly"),
     tester.testCase(true, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, no default qr bg color", () => {
         const redeemer = new PzRedeemer();
-        redeemer.designer.qr_background_color = 'OutputDatum::new_inline(#dddddd).data';
+        redeemer.designer.qr_bg_color = 'OutputDatum::new_inline(#dddddd).data';
         const context = new ScriptContext().initPz(redeemer.calculateCid());
         const bgDefaults = new BackgroundDefaults();
-        delete bgDefaults.extra.qr_background_color;
+        delete bgDefaults.extra.qr_bg_color;
         context.referenceInputs.find(input => input.output.asset == '"bg"' && input.output.label == 'LBL_100').output.datum = bgDefaults.render();
         const program = tester.createProgram(contract, new Datum().render(), redeemer.render(), context.render());
         return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
