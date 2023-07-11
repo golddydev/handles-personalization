@@ -19,7 +19,7 @@ export const pfp_policy = '#f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0
 // TRANSACTION HASHES
 const script_tx_hash = 'TxId::new(#0123456789012345678901234567890123456789012345678901234567891234)';
 const owner_tx_hash = 'TxId::new(#0123456789012345678901234567890123456789012345678901234567891235)';
-const handles_tx_hash = 'TxId::new(#0123456789012345678901234567890123456789012345678901234567891236)';
+export const handles_tx_hash = 'TxId::new(#0123456789012345678901234567890123456789012345678901234567891236)';
 
 // SIGNATURE HASHES
 const owner_pubkey_hash = `PubKeyHash::new(${owner_bytes})`;
@@ -40,7 +40,7 @@ export class ScriptContext {
       goodRefTokenOutput.datumType = 'inline';
       goodRefTokenOutput.datum = new Datum(designerCid).render();
       this.outputs.push(goodRefTokenOutput);
-      this.signers = [owner_bytes];
+      this.signers = [owner_bytes, pz_provider_bytes];
       return this;
     }
 
@@ -82,7 +82,7 @@ export class ScriptContext {
       const goodPfpListInput = new TxInput(`${handles_tx_hash}`, new TxOutput(`${ada_handles_bytes}`, 'LBL_222', '"pfp_policy_ids"'));
       goodPfpListInput.output.datumType = 'inline';
       const pfpApproverList = new ApprovedPolicyIds(); 
-      pfpApproverList.map[`${pfp_policy}`] = {'#000de140706670': [0,0,0]}
+      pfpApproverList.map[`${pfp_policy}`] = {'#000de140706670': [0,0,0],'#706670706670': [0,0,0]}
       goodPfpListInput.output.datum = pfpApproverList.render();
       const goodPzInput = new TxInput(`${handles_tx_hash}`, new TxOutput(`${ada_handles_bytes}`, 'LBL_222', '"pz_settings"'));
       goodPzInput.output.datumType = 'inline';
@@ -120,6 +120,7 @@ export class ScriptContext {
       delete datum.extra.pfp_image;
       delete datum.extra.bg_image;
       delete datum.extra.svg_version;
+      delete datum.extra.validated_by;
       goodRefTokenOutput.datum = datum.render();
       this.outputs.push(goodRefTokenOutput);
       this.signers = [];
@@ -233,6 +234,7 @@ export class ScriptContext {
       qr_outer_eye: 'OutputDatum::new_inline("dots,#0a1fd5").data',
       qr_dot: 'OutputDatum::new_inline("dots,#0a1fd6").data',
       qr_bg_color: 'OutputDatum::new_inline(#0a1fd3).data',
+      qr_image: 'OutputDatum::new_inline("https://img").data',
       pfp_zoom: 'OutputDatum::new_inline(100).data',
       pfp_offset: 'OutputDatum::new_inline([]Int{1, 2}).data',
       font: 'OutputDatum::new_inline("the font").data',
@@ -334,7 +336,8 @@ export class ScriptContext {
       agreed_terms: 'OutputDatum::new_inline("https://tou").data',
       trial: 'OutputDatum::new_inline(0).data',
       nsfw: 'OutputDatum::new_inline(0).data',
-      migrate_sig_required: 'OutputDatum::new_inline(0).data'
+      migrate_sig_required: 'OutputDatum::new_inline(0).data',
+      validated_by: `OutputDatum::new_inline(${pz_provider_bytes}).data`
     };
   
     constructor(designerCid=null) {
@@ -426,6 +429,7 @@ export class ScriptContext {
       qr_inner_eye: 'OutputDatum::new_inline("dots,#0a1fd4").data',
       qr_outer_eye: 'OutputDatum::new_inline("dots,#0a1fd5").data',
       qr_dot: 'OutputDatum::new_inline("dots,#0a1fd6").data',
+      qr_image: 'OutputDatum::new_inline("https://img").data',
       qr_bg_color: 'OutputDatum::new_inline(#0a1fd3).data',
       pfp_zoom: 'OutputDatum::new_inline(100).data',
       pfp_offset: 'OutputDatum::new_inline([]Int{1, 2}).data',
@@ -437,7 +441,7 @@ export class ScriptContext {
       bg_border_colors: 'OutputDatum::new_inline([]ByteArray{#0a1fd3, #22d1af, #31bc23}).data',
       pfp_border_colors: 'OutputDatum::new_inline([]ByteArray{#0a1fd3, #22d1af, #31bc23}).data',
       font_shadow_colors: 'OutputDatum::new_inline([]ByteArray{#0a1fd3, #22d1af, #31bc23}).data',
-      require_pfp_collections: `OutputDatum::new_inline([]ByteArray{${pfp_policy}}).data`,
+      require_pfp_collections: `OutputDatum::new_inline([]ByteArray{${pfp_policy}000de140706670,${pfp_policy}706670}).data`,
       require_pfp_attributes: 'OutputDatum::new_inline([]String{"attr:rtta"}).data',
       require_pfp_displayed: 'OutputDatum::new_inline(1).data',
       price: 'OutputDatum::new_inline(125).data',
