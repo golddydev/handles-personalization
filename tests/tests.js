@@ -193,7 +193,7 @@ Promise.all([
         context.outputs.find(output => output.asset == `"${handle}"` && output.label == 'LBL_100').hash = '#123456789012345678901234567890123456789012345678901234af'
         const program = tester.createProgram(contract, new Datum().render(), pzRedeemer.render(), context.render());
         return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
-    }, "Reference Token not returned to contract"),
+    }, "Contract not found in valid contracts list"),
     tester.testCase(false, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, handle sig mismatch", () => {
         const context = new ScriptContext().initPz(pzRedeemer.calculateCid());
         context.referenceInputs.find(input => input.output.asset == `"${handle}"` && input.output.label == 'LBL_222').output.hash = '#123456789012345678901234567890123456789012345678901234af'
@@ -519,7 +519,7 @@ Promise.all([
         context.referenceInputs.find(input => input.output.asset == '"bg_policy_ids"' && input.output.label == 'LBL_222').output.datum = approver.render();
         const program = tester.createProgram(contract, new Datum().render(), pzRedeemer.render(), context.render());
         return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
-    }, "bg_policy is in trial or nsfw, but Handle is not"),
+    }, "Trial/NSFW flags set incorrectly (BG)"),
     tester.testCase(false, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, bg trial", () => {
         const context = new ScriptContext().initPz(pzRedeemer.calculateCid());
         const approver =  new ApprovedPolicyIds();
@@ -527,7 +527,7 @@ Promise.all([
         context.referenceInputs.find(input => input.output.asset == '"bg_policy_ids"' && input.output.label == 'LBL_222').output.datum = approver.render();
         const program = tester.createProgram(contract, new Datum().render(), pzRedeemer.render(), context.render());
         return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
-    }, "bg_policy is in trial or nsfw, but Handle is not"),
+    }, "Trial/NSFW flags set incorrectly (BG)"),
     tester.testCase(false, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, pfp nsfw", () => {
         const context = new ScriptContext().initPz(pzRedeemer.calculateCid());
         const approver =  new ApprovedPolicyIds();
@@ -535,7 +535,7 @@ Promise.all([
         context.referenceInputs.find(input => input.output.asset == '"pfp_policy_ids"' && input.output.label == 'LBL_222').output.datum = approver.render();
         const program = tester.createProgram(contract, new Datum().render(), pzRedeemer.render(), context.render());
         return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
-    }, "pfp_policy is in trial or nsfw, but Handle is not"),
+    }, "Trial/NSFW flags set incorrectly (PFP)"),
     tester.testCase(false, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, pfp trial", () => {
         const context = new ScriptContext().initPz(pzRedeemer.calculateCid());
         const approver =  new ApprovedPolicyIds();
@@ -543,7 +543,7 @@ Promise.all([
         context.referenceInputs.find(input => input.output.asset == '"pfp_policy_ids"' && input.output.label == 'LBL_222').output.datum = approver.render();
         const program = tester.createProgram(contract, new Datum().render(), pzRedeemer.render(), context.render());
         return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
-    }, "pfp_policy is in trial or nsfw, but Handle is not"),
+    }, "Trial/NSFW flags set incorrectly (PFP)"),
 
 
     // MIGRATE ENDPOINT - SHOULD APPROVE

@@ -79,12 +79,20 @@ func findAsReferenceOrOutput(policy: MintingPolicyHash, name: ByteArray, amount:
     }
 }
 
-func getHandleTokens(handle: String, ctx: ScriptContext, check_sig: Bool) -> (TxOutput, TxOutput) {
+func isValidContract(hash: ValidatorHash, settings: PzSettings) -> Bool {
+    assert(settings.valid_contracts.any((cred: ByteArray) -> Bool {
+        Credential::new_validator(hash) == Credential::new_validator(ValidatorHash::new(cred))
+    }), "Contract not found in valid contracts list");
+    
+    true
+}
+
+func getHandleTokens(handle: String, settings: PzSettings, ctx: ScriptContext, check_sig: Bool) -> (TxOutput, TxOutput) {
     (reference_token: Option[TxOutput], _) = findAsReferenceOrOutput(HANDLE_POLICY, LBL_100 + (handle.encode_utf8()), 1, ctx, false, false);
     (owner_token: Option[TxOutput], _) = findAsReferenceOrOutput(HANDLE_POLICY, LBL_222 + (handle.encode_utf8()), 1, ctx, false, check_sig);
     assert(owner_token != Option[TxOutput]::None, "Handle input not present");
     assert(reference_token != Option[TxOutput]::None, "Reference Token input not present");
-    assert(reference_token.unwrap().address.credential == Credential::new_validator(ctx.get_current_validator_hash()), "Reference Token not returned to contract");
+    assert(isValidContract(reference_token.unwrap().address.credential.switch{v: Validator => v.hash, else => error("Invalid contract address")}, settings), "Reference Token not returned to contract");
     (owner_token.unwrap(), reference_token.unwrap())
 }
 
@@ -153,14 +161,6 @@ func feesArePaid(ctx: ScriptContext, settings: PzSettings, handle: String) -> Bo
         && output.datum.get_inline_data().switch{b: ByteArray => { b == handle.encode_utf8() }, else => {false}}
     }), "Personalization provider not found or fee unpaid");
 
-    true
-}
-
-func isValidContract(hash: ValidatorHash, settings: PzSettings) -> Bool {
-    assert(settings.valid_contracts.any((cred: ByteArray) -> Bool {
-        Credential::new_validator(hash) == Credential::new_validator(ValidatorHash::new(cred))
-    }), "Contract not found in valid contracts list");
-    
     true
 }
 
@@ -255,6 +255,8 @@ func checkRequiredPfPs(pfp_asset: Option[Data], bg_datum_opt:OutputDatum, owner_
     if (bg_datum_opt != OutputDatum::new_none()) {
         bg_datum: Datum::CIP68 = Datum::CIP68::from_data(bg_datum_opt.get_inline_data());
         defaults: Map[String]Data = bg_datum.extra;
+        required_sig_opt: Option[Data] = defaults.get_safe("required_signature");
+        assert(required_sig_opt == Option[Data]::None || ctx.tx.signatories.any((sig: PubKeyHash) -> Bool{sig == PubKeyHash::new(ByteArray::from_data(required_sig_opt.unwrap()))}), "Required signature for background not present");
         require_pfp_collections_opt: Option[Data] = defaults.get_safe("require_pfp_collections");
         require_pfp_attributes_opt: Option[Data] = defaults.get_safe("require_pfp_attributes");
         require_pfp_displayed_opt: Option[Data] = defaults.get_safe("require_pfp_displayed");
@@ -397,24 +399,22 @@ func immutablesAreUnchanged(prev_nft: Datum::CIP68, new_nft: Datum::CIP68) -> Bo
 
 func checkBrightness() -> Bool {true}
 
+func adminHasSignedTx(settings: PzSettings, ctx: ScriptContext) -> Bool {
+    ctx.tx.signatories.length > 0 
+    && ctx.tx.signatories.any((signer: PubKeyHash) -> Bool { settings.admin_creds.any((admin: ByteArray) -> Bool {signer == PubKeyHash::new(admin)}) })
+}
+
 func migrationSignersAreValid(migrate: Redeemer::MIGRATE, ctx: ScriptContext, settings: PzSettings, old_datum: Datum::CIP68) -> Bool {
     // Check if Owner Signature is required
     owner_sig_required: Bool = old_datum.extra.get_safe("migrate_sig_required").switch{Some{req} => {Int::from_data(req) != 0}, else => {false}};
+    assert(adminHasSignedTx(settings, ctx), "Required admin signer(s) not present");
     if (owner_sig_required) {
         (owner_token: Option[TxOutput], _) = findAsReferenceOrOutput(HANDLE_POLICY, LBL_222 + (migrate.handle.encode_utf8()), 1, ctx, false, true);
         assert(owner_token != Option[TxOutput]::None, "Required owner signer not present");
-        assert(ctx.tx.signatories.length > 0 && 
-            ctx.tx.signatories.all((signer: PubKeyHash) -> Bool {
-                settings.admin_creds.any((admin: ByteArray) -> Bool {signer == PubKeyHash::new(admin)})
-            }), "Required admin signer(s) not present");
         true
     }
     else {
-        assert(ctx.tx.signatories.length > 0 && 
-            ctx.tx.signatories.all((signer: PubKeyHash) -> Bool {
-                settings.admin_creds.any((admin: ByteArray) -> Bool {signer == PubKeyHash::new(admin)})
-            }), "Required admin signer(s) not present");
-            true
+        true
     }
 }
 
@@ -440,25 +440,25 @@ func pzDatumIsValid(
 
         (pfp_asset_set: Bool, pfp_asset_bytes: ByteArray) = hasValueUnWrapped(pz_data.get_safe("pfp_asset"));
         pfp_asset: AssetClass = (if (pfp_asset_set) {parseAsset(pfp_asset_bytes)} else {AssetClass::new(MintingPolicyHash::new(#), #)});
-
+    
         assert(pfp_asset_set == false || approvers.get("pfp_approvers").any((pol: ByteArray, pattern: Map[ByteArray][]Int) -> Bool {
             pol.serialize() == pfp_asset.mph.serialize() && pattern.any((p: ByteArray, props: []Int) -> Bool {
                 pfp_asset.token_name.starts_with(p) 
                     && Int::from_data(pz_data.get("trial")) == props.get(1)
                     && Int::from_data(pz_data.get("nsfw")) == props.get(0)
             })
-        }), "pfp_policy is in trial or nsfw, but Handle is not");
-
+        }), "Trial/NSFW flags set incorrectly (PFP)");
+    
         (bg_asset_set: Bool, bg_asset_bytes: ByteArray) = hasValueUnWrapped(pz_data.get_safe("bg_asset"));
         bg_asset: AssetClass = (if (bg_asset_set) {parseAsset(bg_asset_bytes)} else {AssetClass::new(MintingPolicyHash::new(#), #)});
-
+    
         assert(bg_asset_set == false || approvers.get("bg_approvers").any((pol: ByteArray, pattern: Map[ByteArray][]Int) -> Bool {
             pol.serialize() == bg_asset.mph.serialize() && pattern.any((p: ByteArray, props: []Int) -> Bool {
                 bg_asset.token_name.starts_with(p) 
                     && Int::from_data(pz_data.get("trial")) == props.get(1)
                     && Int::from_data(pz_data.get("nsfw")) == props.get(0)
             })
-        }), "bg_policy is in trial or nsfw, but Handle is not");
+        }), "Trial/NSFW flags set incorrectly (BG)");
 
         (bg_image_set: Bool, bg_image: ByteArray) = hasValueUnWrapped(pz_data.get_safe("bg_image"));
         assert((bg_asset_set && bg_image_set) || (bg_asset_set == false && bg_image_set == false), "bg_asset/bg_image mismatch");
@@ -483,7 +483,7 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
     redeemer.switch {
         pz: PERSONALIZE => {
             (settings: PzSettings, approvers: Map[String]Map[ByteArray]Map[ByteArray][]Int) = checkInputsAndLoadSettings(ctx);
-            (owner_token: TxOutput, reference_token: TxOutput) = getHandleTokens(pz.handle, ctx, true);
+            (owner_token: TxOutput, reference_token: TxOutput) = getHandleTokens(pz.handle, settings, ctx, true);
             new_datum: Datum::CIP68 = Datum::CIP68::from_data(reference_token.datum.get_inline_data());
             assert(isValidContract(ctx.get_current_validator_hash(), settings) 
                 && feesArePaid(ctx, settings, pz.handle) 
@@ -508,7 +508,7 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
         },
         reset: RESET => {
             (settings: PzSettings, approvers: Map[String]Map[ByteArray]Map[ByteArray][]Int) = checkInputsAndLoadSettings(ctx);
-            (owner_token: TxOutput, reference_token: TxOutput) = getHandleTokens(reset.handle, ctx, false);
+            (owner_token: TxOutput, reference_token: TxOutput) = getHandleTokens(reset.handle, settings, ctx, false);
             assert(isValidContract(ctx.get_current_validator_hash(), settings) 
                 && immutablesAreUnchanged(old_datum, Datum::CIP68::from_data(reference_token.datum.get_inline_data()))
                 , "Contract failed validation");
@@ -554,15 +554,17 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
             }
         },
         RETURN_TO_SENDER => {
+            settings: PzSettings = loadPzSettings(ctx);
             // This can check for our signature to return anything that isn't a Handle Reference Token
             // It has to have a datum though since cardano-node won't call a smart contract without datum
-            true
+            ctx.tx.outputs.all((output: TxOutput) -> Bool {output.value.to_map().all((policy:MintingPolicyHash, names: Map[ByteArray]Int) -> Bool {
+                    policy != HANDLE_POLICY || names.all((name: ByteArray, _) -> Bool{name.starts_with(LBL_100) == false})
+                })
+            })
+            && adminHasSignedTx(settings, ctx)
         },
         else => {
             false
         }
     }
 }
-
-// TODO: required_pfp count (SundaeSwap use case) or required_signature
-// TODO: Required Fields Present

@@ -450,7 +450,6 @@ export class ScriptContext {
     }
 
     constructor() {}
-    
   
     render() {
       let datum = `Datum::CIP68 {\n`;
