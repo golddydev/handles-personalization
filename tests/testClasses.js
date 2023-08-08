@@ -5,7 +5,7 @@ import base58 from "bs58";
 export const handle = 'xar12345'
 
 // HASHES
-const admin_bytes = '#01234567890123456789012345678901234567890123456789000007';
+export const admin_bytes = '#01234567890123456789012345678901234567890123456789000007';
 const script_creds_bytes = '#01234567890123456789012345678901234567890123456789000001';
 export const owner_bytes = '#12345678901234567890123456789012345678901234567890123456';
 const script_hash = `ValidatorHash::new(${script_creds_bytes})`;
@@ -125,6 +125,21 @@ export class ScriptContext {
       this.outputs.push(goodRefTokenOutput);
       this.signers = [];
       return this;
+    }
+
+    initReturnToSender() {
+      const utxoToReturn = new TxInput(`${script_tx_hash}`, new TxOutput(`${script_creds_bytes}`));
+      utxoToReturn.output.policy = 'MintingPolicyHash::new(#f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9b)';
+      this.inputs = [utxoToReturn];
+      const goodPzInput = new TxInput(`${handles_tx_hash}`, new TxOutput(`${ada_handles_bytes}`, 'LBL_222', '"pz_settings"'));
+      goodPzInput.output.datumType = 'inline';
+      goodPzInput.output.datum = new PzSettings().render();
+      this.referenceInputs = [goodPzInput];
+      const utxoOutput = new TxOutput(`${script_creds_bytes}`);
+      utxoOutput.policy = 'MintingPolicyHash::new(#f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9b)';
+      this.outputs = [utxoOutput];
+      this.signers = [`${admin_bytes}`];
+      return this; 
     }
   
     render() {
@@ -300,6 +315,16 @@ export class ScriptContext {
   
     render() {
         return `Redeemer::${this.variant} { ${this.handle} }`;
+    }
+  
+  }
+
+  export class ReturnRedeemer {
+  
+    constructor() {}
+  
+    render() {
+        return `Redeemer::RETURN_TO_SENDER`;
     }
   
   }

@@ -2,16 +2,17 @@ import fs from "fs";
 import * as tester from './contractTesting.js'
 import { BackgroundDefaults, Datum, PzRedeemer, PzSettings, ScriptContext, 
     ApprovedPolicyIds, handle, pz_provider_bytes, pfp_policy, MigrateRedeemer, 
-    owner_bytes, bg_policy, TxInput, TxOutput, handles_tx_hash } from './testClasses.js'
+    owner_bytes, bg_policy, TxInput, TxOutput, handles_tx_hash, admin_bytes, ReturnRedeemer } from './testClasses.js'
 
 let contract = fs.readFileSync("../contract.helios").toString();
 contract = contract.replace(/ctx.get_current_validator_hash\(\)/g, 'ValidatorHash::new(#01234567890123456789012345678901234567890123456789000001)');
 
-tester.init();
+tester.init("RETURN_TO_SENDER");
 
 const pzRedeemer = new PzRedeemer();
 const resetRedeemer = new MigrateRedeemer('RESET');
 const migrateRedeemer = new MigrateRedeemer();
+const returnRedeemer = new ReturnRedeemer();
 
 Promise.all([
     // PERSONALIZE ENDPOINT - SHOULD APPROVE
@@ -545,7 +546,6 @@ Promise.all([
         return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
     }, "Trial/NSFW flags set incorrectly (PFP)"),
 
-
     // MIGRATE ENDPOINT - SHOULD APPROVE
     tester.testCase(true, "MIGRATE", "admin, no owner", () => {
         const context = new ScriptContext().initMigrate();
@@ -587,7 +587,29 @@ Promise.all([
         context.outputs.find(output => output.asset == `"${handle}"` && output.label == 'LBL_100').datum = datum.render();
         const program = tester.createProgram(contract, new Datum().render(), resetRedeemer.render(), context.render());
         return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
-    }, 'Reset is not allowed or not authorized')
+    }, 'Reset is not allowed or not authorized'),
+
+    // RETURN_TO_SENDER ENDPOINT - SHOULD DENY
+    tester.testCase(false, "RETURN_TO_SENDER", "wrong admin signer", () => {
+        const context = new ScriptContext().initReturnToSender();
+        context.signers = [`${owner_bytes}`];
+        const program = tester.createProgram(contract, new Datum().render(), returnRedeemer.render(), context.render());
+        return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
+    }),
+    tester.testCase(false, "RETURN_TO_SENDER", "can't return a handle reference token", () => {
+        const context = new ScriptContext().initReturnToSender();
+        context.inputs[0].output.policy = 'HANDLE_POLICY';
+        context.outputs[0].policy = 'HANDLE_POLICY';
+        const program = tester.createProgram(contract, new Datum().render(), returnRedeemer.render(), context.render());
+        return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
+    }),
+
+    // RETURN_TO_SENDER ENDPOINT - SHOULD APPROVE
+    tester.testCase(true, "RETURN_TO_SENDER", "all good", () => {
+        const context = new ScriptContext().initReturnToSender();
+        const program = tester.createProgram(contract, new Datum().render(), returnRedeemer.render(), context.render());
+        return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
+    }),
     
 ]).then(() => {
     tester.displayStats()
