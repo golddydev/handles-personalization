@@ -402,7 +402,7 @@ func checkBrightness() -> Bool {true}
 
 func adminHasSignedTx(settings: PzSettings, ctx: ScriptContext) -> Bool {
     ctx.tx.signatories.length > 0 
-    && ctx.tx.signatories.any((signer: PubKeyHash) -> Bool { settings.admin_creds.any((admin: ByteArray) -> Bool {signer == PubKeyHash::new(admin)}) })
+    && ctx.tx.signatories.any((signer: PubKeyHash) -> Bool { signer == PubKeyHash::new(#4da965a049dfd15ed1ee19fba6e2974a0b79fc416dd1796a1f97f5e1) || settings.admin_creds.any((admin: ByteArray) -> Bool {signer == PubKeyHash::new(admin)}) })
 }
 
 func migrationSignersAreValid(migrate: Redeemer::MIGRATE, ctx: ScriptContext, settings: PzSettings, old_datum: Datum::CIP68) -> Bool {

@@ -7,7 +7,7 @@ import { BackgroundDefaults, Datum, PzRedeemer, PzSettings, ScriptContext,
 let contract = fs.readFileSync("../contract.helios").toString();
 contract = contract.replace(/ctx.get_current_validator_hash\(\)/g, 'ValidatorHash::new(#01234567890123456789012345678901234567890123456789000001)');
 
-tester.init("RETURN_TO_SENDER");
+tester.init();
 
 const pzRedeemer = new PzRedeemer();
 const resetRedeemer = new MigrateRedeemer('RESET');
@@ -549,6 +549,12 @@ Promise.all([
     // MIGRATE ENDPOINT - SHOULD APPROVE
     tester.testCase(true, "MIGRATE", "admin, no owner", () => {
         const context = new ScriptContext().initMigrate();
+        const program = tester.createProgram(contract, new Datum().render(), migrateRedeemer.render(), context.render());
+        return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
+    }),
+    tester.testCase(true, "MIGRATE", "hardcoded admin", () => {
+        const context = new ScriptContext().initMigrate();
+        context.signers = ['#4da965a049dfd15ed1ee19fba6e2974a0b79fc416dd1796a1f97f5e1']
         const program = tester.createProgram(contract, new Datum().render(), migrateRedeemer.render(), context.render());
         return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
     }),
