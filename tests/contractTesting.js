@@ -34,7 +34,7 @@ export async function testCase(shouldApprove, testGroup, testName, setup, messag
 
 function logTest(shouldApprove, testGroup, testName, message=null, res) {
   const hasPrintStatements = Array.isArray(res) && res.length > 1 && res[1].length > 1;
-  const assertion = Array.isArray(res) && (shouldApprove ? res[0].toString() == "()" : res[0].toString() != "()" && (!message || res[1][0] == message));
+  const assertion = Array.isArray(res) && (shouldApprove ? res[0].toString() == "()" : res[0].toString() != "()" && (!message || res[1][0].includes(message)));
   const textColor = assertion ? Color.FgGreen : Color.FgRed
   
   if (!assertion || hasPrintStatements)

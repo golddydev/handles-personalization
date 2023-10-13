@@ -432,7 +432,7 @@ func pzDatumIsValid(
         last_address_bytes = ByteArray::from_data(pz_data.get("last_update_address"));
         last_cred = Credential::new_pubkey(PubKeyHash::new(last_address_bytes.slice(1,29)));
         last_stake_cred: Option[StakingCredential] = if (last_address_bytes.length > 29 ) { 
-                Option[StakingCredential]::Some{StakingCredential::new_hash(StakingHash::new_stakekey(StakeKeyHash::new(last_address_bytes.slice(29,57))))} 
+                Option[StakingCredential]::Some{StakingCredential::new_hash(StakingHash::new_stakekey(PubKeyHash::new(last_address_bytes.slice(29,57))))} 
             } 
             else {
                 Option[StakingCredential]::None
