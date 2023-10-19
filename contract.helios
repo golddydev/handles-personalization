@@ -330,6 +330,17 @@ func propEqualsDesignerDefault(default: Option[Data], property: Option[Data], ex
         || default == property
 }
 
+func exclusiveSettingsAreBlank(designer: Map[String]Data) -> Bool {
+    designer.get_safe("text_ribbon_gradient").switch{None => {true}, Some{d} => {ByteArray::from_data(d) == #}} &&
+    designer.get_safe("font_color").switch{None => {true}, Some{d} => {ByteArray::from_data(d) == #}} &&
+    designer.get_safe("font").switch{None => {true}, Some{d} => {ByteArray::from_data(d) == #}} &&
+    designer.get_safe("qr_image").switch{None => {true}, Some{d} => {ByteArray::from_data(d) == #}} &&
+    designer.get_safe("text_ribbon_colors").switch{None => {true}, Some{d} => {[]ByteArray::from_data(d).length <= 1}} &&
+    designer.get_safe("qr_inner_eye").switch{None => {true}, Some{d} => {String::from_data(d).starts_with("square,")}} &&
+    designer.get_safe("qr_outer_eye").switch{None => {true}, Some{d} => {String::from_data(d).starts_with("square,")}} &&
+    designer.get_safe("qr_dot").switch{None => {true}, Some{d} => {String::from_data(d).starts_with("square,")}}
+}
+
 func designerSettingsAreValid(pz_data:Map[String]Data, designer: Map[String]Data, bg_datum_opt:OutputDatum, owner_cred:Credential, ctx: ScriptContext) -> Bool {
     if (bg_datum_opt != OutputDatum::new_none()) {
         bg_datum: Datum::CIP68 = Datum::CIP68::from_data(bg_datum_opt.get_inline_data());
@@ -377,11 +388,13 @@ func designerSettingsAreValid(pz_data:Map[String]Data, designer: Map[String]Data
             true
         }
         else {
+            assert(exclusiveSettingsAreBlank(designer), "Exclusive settings are only for approved projects");
             assert(areRequiredPfpsPresent, "Background doesn't pass required PFP settings");
             true
         }
     }
     else {
+        assert(exclusiveSettingsAreBlank(designer), "Exclusive settings are only for approved projects");
         true
     }
 }
