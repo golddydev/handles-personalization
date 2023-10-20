@@ -401,8 +401,6 @@ func immutablesAreUnchanged(prev_nft: Datum::CIP68, new_nft: Datum::CIP68) -> Bo
     true
 }
 
-func checkBrightness() -> Bool {true}
-
 func adminHasSignedTx(settings: PzSettings, ctx: ScriptContext) -> Bool {
     ctx.tx.signatories.length > 0 
     && ctx.tx.signatories.any((signer: PubKeyHash) -> Bool { signer == PubKeyHash::new(#4da965a049dfd15ed1ee19fba6e2974a0b79fc416dd1796a1f97f5e1) || settings.admin_creds.any((admin: ByteArray) -> Bool {signer == PubKeyHash::new(admin)}) })
@@ -428,23 +426,20 @@ func pzDatumIsValid(
     approvers: Map[String]Map[ByteArray]Map[ByteArray][]Int, 
     ctx: ScriptContext) -> Bool {
         // check last_update_address == owner_222.address
-        new_datum: Datum::CIP68 = Datum::CIP68::from_data(reference_token.datum.get_inline_data());
-        pz_data: Map[String]Data = new_datum.extra;
+        pz_data: Map[String]Data = Datum::CIP68::from_data(reference_token.datum.get_inline_data()).extra;
         last_address_bytes = ByteArray::from_data(pz_data.get("last_update_address"));
-        last_cred = Credential::new_pubkey(PubKeyHash::new(last_address_bytes.slice(1,29)));
-        last_stake_cred: Option[StakingCredential] = if (last_address_bytes.length > 29 ) { 
+        assert(Address::new(Credential::new_pubkey(PubKeyHash::new(last_address_bytes.slice(1,29))), (
+            if (last_address_bytes.length > 29 ) { 
                 Option[StakingCredential]::Some{StakingCredential::new_hash(StakingHash::new_stakekey(PubKeyHash::new(last_address_bytes.slice(29,57))))} 
             } 
             else {
                 Option[StakingCredential]::None
-            };
-        assert(Address::new(last_cred, last_stake_cred) == owner_token.address, "last_update_address does not match Handle address");
+            })) == owner_token.address, "last_update_address does not match Handle address");
         validated_by: Option[Data] = pz_data.get_safe("validated_by");
         assert(validated_by == Option[Data]::None || ctx.tx.signatories.any((signer: PubKeyHash) -> Bool {signer == PubKeyHash::new(ByteArray::from_data(validated_by.unwrap()))}), "validated_by is set but not signed");
 
         (pfp_asset_set: Bool, pfp_asset_data: Data) = hasValueUnWrapped(pz_data.get_safe("pfp_asset"));
-        pfp_asset_bytes: ByteArray = ByteArray::from_data(pfp_asset_data);
-        pfp_asset: AssetClass = (if (pfp_asset_set) {parseAsset(pfp_asset_bytes)} else {AssetClass::new(MintingPolicyHash::new(#), #)});
+        pfp_asset: AssetClass = (if (pfp_asset_set) {parseAsset(ByteArray::from_data(pfp_asset_data))} else {AssetClass::new(MintingPolicyHash::new(#), #)});
     
         assert(pfp_asset_set == false || approvers.get("pfp_approvers").any((pol: ByteArray, pattern: Map[ByteArray][]Int) -> Bool {
             pol.serialize() == pfp_asset.mph.serialize() && pattern.any((p: ByteArray, props: []Int) -> Bool {
@@ -455,8 +450,7 @@ func pzDatumIsValid(
         }), "Trial/NSFW flags set incorrectly (PFP)");
     
         (bg_asset_set: Bool, bg_asset_data: Data) = hasValueUnWrapped(pz_data.get_safe("bg_asset"));
-        bg_asset_bytes: ByteArray = ByteArray::from_data(bg_asset_data);
-        bg_asset: AssetClass = (if (bg_asset_set) {parseAsset(bg_asset_bytes)} else {AssetClass::new(MintingPolicyHash::new(#), #)});
+        bg_asset: AssetClass = (if (bg_asset_set) {parseAsset(ByteArray::from_data(bg_asset_data))} else {AssetClass::new(MintingPolicyHash::new(#), #)});
     
         assert(bg_asset_set == false || approvers.get("bg_approvers").any((pol: ByteArray, pattern: Map[ByteArray][]Int) -> Bool {
             pol.serialize() == bg_asset.mph.serialize() && pattern.any((p: ByteArray, props: []Int) -> Bool {
@@ -467,18 +461,16 @@ func pzDatumIsValid(
         }), "Trial/NSFW flags set incorrectly (BG)");
 
         (bg_image_set: Bool, bg_image_data: Data) = hasValueUnWrapped(pz_data.get_safe("bg_image"));
-        bg_image: ByteArray = ByteArray::from_data(bg_image_data);
         assert((bg_asset_set && bg_image_set) || (bg_asset_set == false && bg_image_set == false), "bg_asset/bg_image mismatch");
         assert(bg_asset_set == false || (
             bg_datum: OutputDatum = getAssetDatum(bg_asset, ctx);
-            bg_datum == OutputDatum::new_none() || String::from_data(Datum::CIP68::from_data(bg_datum.get_inline_data()).nft.get("image")) == bg_image.decode_utf8()), "bg_image doesn't match bg_asset datum");
+            bg_datum == OutputDatum::new_none() || String::from_data(Datum::CIP68::from_data(bg_datum.get_inline_data()).nft.get("image")) == ByteArray::from_data(bg_image_data).decode_utf8()), "bg_image doesn't match bg_asset datum");
 
         (pfp_image_set: Bool, pfp_image_data: Data) = hasValueUnWrapped(pz_data.get_safe("pfp_image"));
-        pfp_image: ByteArray = ByteArray::from_data(pfp_image_data);
         assert((pfp_asset_set && pfp_image_set) || (pfp_asset_set == false && pfp_image_set == false), "pfp_asset/pfp_image mismatch");
         assert(pfp_asset_set == false || (
             pfp_datum: OutputDatum = getAssetDatum(pfp_asset, ctx);
-            pfp_datum == OutputDatum::new_none() || String::from_data(Datum::CIP68::from_data(pfp_datum.get_inline_data()).nft.get("image")) == pfp_image.decode_utf8()), "pfp_image doesn't match pfp_asset datum");
+            pfp_datum == OutputDatum::new_none() || String::from_data(Datum::CIP68::from_data(pfp_datum.get_inline_data()).nft.get("image")) == ByteArray::from_data(pfp_image_data).decode_utf8()), "pfp_image doesn't match pfp_asset datum");
     
         true
 }
@@ -501,7 +493,7 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
 
             (bg_datum:OutputDatum, _) = getAndValidateDesignerAssets(new_datum.extra, owner_token.address.credential, approvers, ctx, true);
             assert(pzDatumIsValid(owner_token, reference_token, approvers, ctx)
-                && designerSettingsAreValid(new_datum.extra, pz.designer, bg_datum, owner_token.address.credential, ctx) && checkBrightness(), "Personalization settings checks failed");
+                && designerSettingsAreValid(new_datum.extra, pz.designer, bg_datum, owner_token.address.credential, ctx), "Personalization settings checks failed");
             true
         },
         migrate: MIGRATE => {
