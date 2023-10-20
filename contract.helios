@@ -39,19 +39,12 @@ const LBL_100: ByteArray = #000643b0 // (100)bigirishlion
 const PZ_HANDLE: AssetClass = AssetClass::new(HANDLE_POLICY, LBL_222 + ("pz_settings".encode_utf8()))
 
 func policyAndAssetSearch(output: TxOutput, policy: MintingPolicyHash, name: ByteArray, amount: Int, starts_with: Bool) -> Option[AssetClass] {
-    (asset_found: () -> (MintingPolicyHash, Map[ByteArray]Int), found: Bool) = output.value.to_map().find_safe((key: MintingPolicyHash, value: Map[ByteArray]Int) -> Bool {
+    output.value.to_map().fold_lazy((key: MintingPolicyHash, value: Map[ByteArray]Int, next: () -> Option[AssetClass]) -> {
         asset_name: Option[ByteArray] = value.find_key_safe((k: ByteArray) -> Bool { if (starts_with) { k.starts_with(name) } else { k == name } });
-        policy == key && asset_name != Option[ByteArray]::None && value.get(asset_name.unwrap()) >= amount
-    });
-
-    if (found){
-        (key:MintingPolicyHash, value: Map[ByteArray]Int) = asset_found();
-        asset_name: ByteArray = value.find_key((k: ByteArray) -> Bool { if (starts_with) { k.starts_with(name) } else { k == name } });
-        Option[AssetClass]::Some{AssetClass::new(key, asset_name)}
-    }
-    else {
-        Option[AssetClass]::None
-    }
+        if (policy == key && asset_name != Option[ByteArray]::None && value.get(asset_name.unwrap()) >= amount) {
+            Option[AssetClass]::Some{AssetClass::new(key, asset_name.unwrap())}
+        } else { next() }
+    }, Option[AssetClass]::None)
 }
 
 func findAsReferenceOrOutput(policy: MintingPolicyHash, name: ByteArray, amount: Int, ctx: ScriptContext, starts_with: Bool, check_sig: Bool) -> (Option[TxOutput], Option[AssetClass]) {
@@ -191,10 +184,8 @@ func cborHashesToCid(designer: Map[String]Data, reference_token: TxOutput) -> Bo
 
 func parseAsset(asset_bytes: ByteArray) -> AssetClass {
     assert(asset_bytes.length > 28, "Asset is defined but not valid");
-    policy_id: ByteArray = asset_bytes.slice(0, 28);
-    policy = MintingPolicyHash::new(policy_id);
-    name: ByteArray = asset_bytes.slice(28, asset_bytes.length);
-    AssetClass::new(policy, name)
+    policy = MintingPolicyHash::new(asset_bytes.slice(0, 28));
+    AssetClass::new(policy, asset_bytes.slice(28, asset_bytes.length))
 }
 
 func getAssetDatum(asset: AssetClass, ctx: ScriptContext) -> OutputDatum {
@@ -223,16 +214,11 @@ func assetIsValid(asset_type:String, pz_data: Map[String]Data, approvers: Map[St
         (asset_output: Option[TxOutput], _) = findAsReferenceOrOutput(asset.mph, asset.token_name, 1, ctx, false, false);
         assert(asset_output != Option[TxOutput]::None, "Required " + asset_type + " input/reference missing");
 
-        // Get datum if CIP-68
-        asset_datum: OutputDatum = getAssetDatum(asset, ctx);
-
-        approved: Map[ByteArray]Map[ByteArray][]Int = approvers.get(asset_type + "_approvers");
-
-        assert(approved.any((pol: ByteArray, pattern: Map[ByteArray][]Int) -> Bool {
+        assert(approvers.get(asset_type + "_approvers").any((pol: ByteArray, pattern: Map[ByteArray][]Int) -> Bool {
             // print(pol.serialize().show() + " = " + asset.mph.serialize().show() + " & " + asset.token_name.show());
             pol.serialize() == asset.mph.serialize() && pattern.any((p: ByteArray, _) -> Bool { asset.token_name.starts_with(p) })
         }), asset_type + " is not in the approved list");
-        (true, Option[Credential]::Some{asset_output.unwrap().address.credential}, asset_datum)
+        (true, Option[Credential]::Some{asset_output.unwrap().address.credential}, getAssetDatum(asset, ctx))
     }
     else {
         (true, Option[Credential]::None, OutputDatum::new_none())
@@ -264,17 +250,14 @@ func getAndValidateDesignerAssets(pz_data: Map[String]Data, owner_cred: Credenti
 
 func checkRequiredPfPs(pfp_asset: Option[Data], bg_datum_opt:OutputDatum, owner_cred:Credential, ctx: ScriptContext, throw_errors: Bool) -> Bool {
     if (bg_datum_opt != OutputDatum::new_none()) {
-        bg_datum: Datum::CIP68 = Datum::CIP68::from_data(bg_datum_opt.get_inline_data());
-        defaults: Map[String]Data = bg_datum.extra;
+        defaults: Map[String]Data = Datum::CIP68::from_data(bg_datum_opt.get_inline_data()).extra;
         required_sig_opt: Option[Data] = defaults.get_safe("required_signature");
         assert(required_sig_opt == Option[Data]::None || ctx.tx.signatories.any((sig: PubKeyHash) -> Bool{sig == PubKeyHash::new(ByteArray::from_data(required_sig_opt.unwrap()))}), "Required signature for background not present");
         require_pfp_collections_opt: Option[Data] = defaults.get_safe("require_pfp_collections");
         require_pfp_attributes_opt: Option[Data] = defaults.get_safe("require_pfp_attributes");
         require_pfp_displayed_opt: Option[Data] = defaults.get_safe("require_pfp_displayed");
         required_pfp_present: Bool = (require_pfp_collections_opt == Option[Data]::None || []ByteArray::from_data(require_pfp_collections_opt.unwrap()).any((asset_bytes: ByteArray) -> Bool {
-            policy_id: MintingPolicyHash = MintingPolicyHash::new(asset_bytes.slice(0, 28));
-            asset_name: ByteArray = asset_bytes.slice(28, asset_bytes.length);
-            (output: Option[TxOutput], asset_opt: Option[AssetClass]) = findAsReferenceOrOutput(policy_id, asset_name, 1, ctx, true, false);
+            (output: Option[TxOutput], asset_opt: Option[AssetClass]) = findAsReferenceOrOutput(MintingPolicyHash::new(asset_bytes.slice(0, 28)), asset_bytes.slice(28, asset_bytes.length), 1, ctx, true, false);
             output != Option[TxOutput]::None && output.unwrap().address.credential == owner_cred
                 && (
                     asset: AssetClass = asset_opt.unwrap();
