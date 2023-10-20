@@ -168,17 +168,13 @@ func feesArePaid(ctx: ScriptContext, settings: PzSettings, handle: String) -> Bo
 
 func cborHashesToCid(designer: Map[String]Data, reference_token: TxOutput) -> Bool {
     //print("REDEEMER: " + designer.serialize().show());
-    datum: Datum::CIP68 = Datum::CIP68::from_data(reference_token.datum.get_inline_data());
-    ipfs = ByteArray::from_data(datum.extra.get("designer"));
-    cid: String = ipfs.slice(8, ipfs.length).decode_utf8(); // This strips away "ipfs://z" (the z can be removed - see CID multiformats)
-    multihash: ByteArray = Int::from_base58(cid).to_big_endian();
-    content_hash: ByteArray = multihash.slice(4, multihash.length); // This strips away 0x01 0x70 0x12 0x20 (CIDv1, base58, sha2, 32 bytes)
-    // print("cid = " + cid);
+    ipfs = ByteArray::from_data(Datum::CIP68::from_data(reference_token.datum.get_inline_data()).extra.get("designer"));
+    multihash: ByteArray = Int::from_base58(ipfs.slice(8, ipfs.length).decode_utf8()).to_big_endian();  // This strips away "ipfs://z" (the z can be removed - see CID multiformats)
     // print("multihash = " + multihash.show());
     // print("designer.show() = " + designer.show());
     // print(content_hash.show() + " = " + designer.serialize().sha2().show());
-    assert(content_hash == designer.serialize().sha2(), "Personalization designer settings hash doesn't match CID multihash");
-
+    // This strips away 0x01 0x70 0x12 0x20 (CIDv1, base58, sha2, 32 bytes)
+    assert(multihash.slice(4, multihash.length) == designer.serialize().sha2(), "Personalization designer settings hash doesn't match CID multihash");
     true
 }
 
