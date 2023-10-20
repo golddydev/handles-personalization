@@ -39,12 +39,19 @@ const LBL_100: ByteArray = #000643b0 // (100)bigirishlion
 const PZ_HANDLE: AssetClass = AssetClass::new(HANDLE_POLICY, LBL_222 + ("pz_settings".encode_utf8()))
 
 func policyAndAssetSearch(output: TxOutput, policy: MintingPolicyHash, name: ByteArray, amount: Int, starts_with: Bool) -> Option[AssetClass] {
-    output.value.to_map().fold_lazy((key: MintingPolicyHash, value: Map[ByteArray]Int, next: () -> Option[AssetClass]) -> {
+    (asset_found: () -> (MintingPolicyHash, Map[ByteArray]Int), found: Bool) = output.value.to_map().find_safe((key: MintingPolicyHash, value: Map[ByteArray]Int) -> Bool {
         asset_name: Option[ByteArray] = value.find_key_safe((k: ByteArray) -> Bool { if (starts_with) { k.starts_with(name) } else { k == name } });
-        if (policy == key && asset_name != Option[ByteArray]::None && value.get(asset_name.unwrap()) >= amount) {
-            Option[AssetClass]::Some{AssetClass::new(key, asset_name.unwrap())}
-        } else { next() }
-    }, Option[AssetClass]::None)
+        policy == key && asset_name != Option[ByteArray]::None && value.get(asset_name.unwrap()) >= amount
+    });
+
+    if (found){
+        (key:MintingPolicyHash, value: Map[ByteArray]Int) = asset_found();
+        asset_name: ByteArray = value.find_key((k: ByteArray) -> Bool { if (starts_with) { k.starts_with(name) } else { k == name } });
+        Option[AssetClass]::Some{AssetClass::new(key, asset_name)}
+    }
+    else {
+        Option[AssetClass]::None
+    }
 }
 
 func findAsReferenceOrOutput(policy: MintingPolicyHash, name: ByteArray, amount: Int, ctx: ScriptContext, starts_with: Bool, check_sig: Bool) -> (Option[TxOutput], Option[AssetClass]) {
