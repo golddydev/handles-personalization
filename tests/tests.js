@@ -56,9 +56,9 @@ Promise.all([
         const redeemer = new PzRedeemer();
         redeemer.designer.font = 'OutputDatum::new_inline(#).data';
         redeemer.designer.font_color = 'OutputDatum::new_inline(#).data';
-        redeemer.designer.qr_inner_eye = 'OutputDatum::new_inline("square,,#0a1fd4").data';
-        redeemer.designer.qr_outer_eye = 'OutputDatum::new_inline("square,,#0a1fd4").data';
-        redeemer.designer.qr_dot = 'OutputDatum::new_inline("square,,#0a1fd4").data';
+        // redeemer.designer.qr_inner_eye = 'OutputDatum::new_inline("square,#0a1fd4").data';
+        // redeemer.designer.qr_outer_eye = 'OutputDatum::new_inline("square,#0a1fd4").data';
+        redeemer.designer.qr_dot = 'OutputDatum::new_inline("square,#0a1fd4").data';
         redeemer.designer.qr_image = 'OutputDatum::new_inline(#).data';
         redeemer.designer.text_ribbon_colors = 'OutputDatum::new_inline([]ByteArray{#0a1fd3}).data';
         redeemer.designer.text_ribbon_gradient = 'OutputDatum::new_inline(#).data';
@@ -572,15 +572,15 @@ Promise.all([
         const program = tester.createProgram(contract, new Datum().render(), pzRedeemer.render(), context.render());
         return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
     }, "Trial/NSFW flags set incorrectly (PFP)"),
-    tester.testCase(false, "PERSONALIZE", "reference inputs, CIP-68, not forced defaults bad", () => {
+    tester.testCase(false, "PERSONALIZE", "reference inputs, CIP-68, can't use exclusive", () => {
         const context = new ScriptContext().initPz(pzRedeemer.calculateCid());
         const bg_ref = context.referenceInputs.find(input => input.output.asset == '"bg"' && input.output.label == 'LBL_100');
         const defaults = new BackgroundDefaults();
-        defaults.extra.force_creator_settings = 'OutputDatum::new_inline(0).data';
+        defaults.extra = {};
         bg_ref.output.datum = defaults.render();
         const program = tester.createProgram(contract, new Datum().render(), pzRedeemer.render(), context.render());
         return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
-    }, "Exclusive settings are only for approved projects"),
+    }, "text_ribbon_gradient is not set correctly"),
 
     // MIGRATE ENDPOINT - SHOULD APPROVE
     tester.testCase(true, "MIGRATE", "admin, no owner", () => {

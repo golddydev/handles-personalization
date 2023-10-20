@@ -15,8 +15,6 @@ export function init(groupName=null, testName=null) {
   group = groupName;
   test = testName;
 }
-
-// evalParam(p) and runWithPrint(p[]). Look for unit "()" response
 export async function testCase(shouldApprove, testGroup, testName, setup, message=null) {
   if (group == null || group == testGroup) {
     if (test == null || test == testName) {
@@ -34,6 +32,7 @@ export async function testCase(shouldApprove, testGroup, testName, setup, messag
 
 function logTest(shouldApprove, testGroup, testName, message=null, res) {
   const hasPrintStatements = Array.isArray(res) && res.length > 1 && res[1].length > 1;
+  // evalParam(p) and runWithPrint(p[]). Look for unit "()" response
   const assertion = Array.isArray(res) && (shouldApprove ? res[0].toString() == "()" : res[0].toString() != "()" && (!message || res[1][0].includes(message)));
   const textColor = assertion ? Color.FgGreen : Color.FgRed
   
