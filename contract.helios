@@ -59,9 +59,7 @@ func findAsReferenceOrOutput(policy: MintingPolicyHash, name: ByteArray, amount:
 
             if (a != Option[AssetClass]::None && b) {
                 (Option[TxOutput]::Some{input.output}, a)
-            } else { 
-            next() 
-            }
+            } else { next() }
         }, 
         Option[TxOutput]::None, Option[AssetClass]::None
     );
@@ -184,8 +182,7 @@ func parseAsset(asset_bytes: ByteArray) -> AssetClass {
 func getAssetDatum(asset: AssetClass, ctx: ScriptContext) -> OutputDatum {
     output: Option[TxOutput] = (
         if (asset.token_name.starts_with(LBL_222) || asset.token_name.starts_with(LBL_444)) {
-            real_name: ByteArray = asset.token_name.slice(4, asset.token_name.length);
-            (tx: Option[TxOutput], _) = findAsReferenceOrOutput(asset.mph, LBL_100 + real_name, 1, ctx, false, false);
+            (tx: Option[TxOutput], _) = findAsReferenceOrOutput(asset.mph, LBL_100 + asset.token_name.slice(4, asset.token_name.length), 1, ctx, false, false);
             assert(tx != Option[TxOutput]::None, "Asset not found in inputs");
             assert(tx.unwrap().datum != OutputDatum::new_none(), "CIP-68 tokens require inline datum");
             tx
@@ -216,7 +213,6 @@ func assetIsValid(asset_type:String, pz_data: Map[String]Data, approvers: Map[St
     else {
         (true, Option[Credential]::None, OutputDatum::new_none())
     }
-
 }
 
 func getAndValidateDesignerAssets(pz_data: Map[String]Data, owner_cred: Credential, approvers: Map[String]Map[ByteArray]Map[ByteArray][]Int, ctx: ScriptContext, throw_errors:Bool) -> (OutputDatum, Bool) {
