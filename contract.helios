@@ -138,10 +138,7 @@ func getApproverDatum(handle:String, settings: PzSettings, ctx: ScriptContext) -
 func checkInputsAndLoadSettings(ctx: ScriptContext) -> (PzSettings, Map[String]Map[ByteArray]Map[ByteArray][]Int) {
     // TODO: Add @acc_policy_ids (for accessories directly on the Handle - image borders [pfp/bg], santa/leprechaun hats, halloween bats, etc)
     settings: PzSettings = loadPzSettings(ctx);
-    bg_approver_datum: Map[ByteArray]Map[ByteArray][]Int = getApproverDatum("bg_policy_ids", settings, ctx);
-    pfp_approver_datum: Map[ByteArray]Map[ByteArray][]Int = getApproverDatum("pfp_policy_ids", settings, ctx);
-
-    (settings, Map[String]Map[ByteArray]Map[ByteArray][]Int{"bg_approvers": bg_approver_datum, "pfp_approvers": pfp_approver_datum})
+    (settings, Map[String]Map[ByteArray]Map[ByteArray][]Int{"bg_approvers": getApproverDatum("bg_policy_ids", settings, ctx), "pfp_approvers": getApproverDatum("pfp_policy_ids", settings, ctx)})
 }
 
 func feesArePaid(ctx: ScriptContext, settings: PzSettings, handle: String) -> Bool {
