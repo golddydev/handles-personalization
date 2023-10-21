@@ -320,36 +320,30 @@ func exclusiveSettingsAreValid(defaults: Map[String]Data, designer: Map[String]D
     assert(propEqualsDesignerDefault(defaults.get_safe("qr_image"), designer.get_safe("qr_image"), true, forced), "qr_image is not set correctly");
 
     (_, ribbon_gradient_val_data: Data) = hasValueUnWrapped(defaults.get_safe("text_ribbon_gradient"));
-    ribbon_gradient_val: ByteArray = ByteArray::from_data(ribbon_gradient_val_data);
-    creator_ribbon_colors_opt: Option[Data] = defaults.get_safe("text_ribbon_colors");
-    no_creator_colors: Bool = creator_ribbon_colors_opt == Option[Data]::None;
-    creator_ribbon_colors: []ByteArray = creator_ribbon_colors_opt.switch{None => {[]ByteArray{}}, Some => {[]ByteArray::from_data(creator_ribbon_colors_opt.unwrap())}};
+    creator_ribbon_colors: []ByteArray = defaults.get_safe("text_ribbon_colors").switch{None => {[]ByteArray{}}, Some{d} => {[]ByteArray::from_data(d)}};
     ribbon_colors: []ByteArray = designer.get_safe("text_ribbon_colors").switch{None => {[]ByteArray{}}, Some{d} => {[]ByteArray::from_data(d)}};
-    gradient: Bool = ribbon_gradient_val == "radial".encode_utf8() || ribbon_gradient_val.starts_with("linear".encode_utf8());
-    assert((no_creator_colors && ribbon_colors.length <= 1) // Creator didn't define, so any single ribbon color is fine
+    gradient: Bool = ByteArray::from_data(ribbon_gradient_val_data) == "radial".encode_utf8() || ByteArray::from_data(ribbon_gradient_val_data).starts_with("linear".encode_utf8());
+    assert((defaults.get_safe("text_ribbon_colors") == Option[Data]::None && ribbon_colors.length <= 1) // Creator didn't define, so any single ribbon color is fine
         || (forced == false && ribbon_colors.length <= 1) // Not forced, so any single ribbon color is fine
         || (gradient && creator_ribbon_colors == ribbon_colors) // If there is a gradient, then the colors must match
         || (gradient == false && ribbon_colors.length == 1 && creator_ribbon_colors.any((color: ByteArray) -> Bool {color == ribbon_colors.get_singleton()}))
     , "text_ribbon_colors is not set correctly");
 
-    qr_inner_eye_opt: Option[Data] = defaults.get_safe("qr_inner_eye");
-    qr_inner_eye_x: String = qr_inner_eye_opt.switch{None => {""}, Some{s} => {String::from_data(s)}};
+    qr_inner_eye_x: String = defaults.get_safe("qr_inner_eye").switch{None => {""}, Some{s} => {String::from_data(s)}};
     qr_inner_eye: String = designer.get_safe("qr_inner_eye").switch{None => {""}, Some{s} => {String::from_data(s)}};
-    assert(qr_inner_eye_opt == Option[Data]::None && qr_inner_eye.starts_with("square,") 
+    assert(defaults.get_safe("qr_inner_eye") == Option[Data]::None && qr_inner_eye.starts_with("square,") 
         || (forced && qr_inner_eye_x == qr_inner_eye)
         || (forced == false && (qr_inner_eye.starts_with("square,") || qr_inner_eye_x == qr_inner_eye)), "qr_inner_eye is not set correctly");
 
-    qr_outer_eye_opt: Option[Data] = defaults.get_safe("qr_outer_eye");
-    qr_outer_eye_x: String = qr_outer_eye_opt.switch{None => {""}, Some{s} => {String::from_data(s)}};
+    qr_outer_eye_x: String = defaults.get_safe("qr_outer_eye").switch{None => {""}, Some{s} => {String::from_data(s)}};
     qr_outer_eye: String = designer.get_safe("qr_outer_eye").switch{None => {""}, Some{s} => {String::from_data(s)}};
-    assert(qr_outer_eye_opt == Option[Data]::None && qr_outer_eye.starts_with("square,") 
+    assert(defaults.get_safe("qr_outer_eye") == Option[Data]::None && qr_outer_eye.starts_with("square,") 
         || (forced && qr_outer_eye_x == qr_outer_eye)
         || (forced == false && (qr_outer_eye.starts_with("square,") || qr_outer_eye_x == qr_outer_eye)), "qr_outer_eye is not set correctly");
 
-    qr_dot_opt: Option[Data] = defaults.get_safe("qr_dot");
-    qr_dot_x: String = qr_dot_opt.switch{None => {""}, Some{s} => {String::from_data(s)}};
+    qr_dot_x: String = defaults.get_safe("qr_dot").switch{None => {""}, Some{s} => {String::from_data(s)}};
     qr_dot: String = designer.get_safe("qr_dot").switch{None => {""}, Some{s} => {String::from_data(s)}};
-    assert(qr_dot_opt == Option[Data]::None && qr_dot.starts_with("square,") 
+    assert(defaults.get_safe("qr_dot") == Option[Data]::None && qr_dot.starts_with("square,") 
         || (forced && qr_dot_x == qr_dot)
         || (forced == false && (qr_dot.starts_with("square,") || qr_dot_x == qr_dot)), "qr_dot is not set correctly");
     true
