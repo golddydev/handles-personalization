@@ -175,8 +175,7 @@ func cborHashesToCid(designer: Map[String]Data, reference_token: TxOutput) -> Bo
 
 func parseAsset(asset_bytes: ByteArray) -> AssetClass {
     assert(asset_bytes.length > 28, "Asset is defined but not valid");
-    policy = MintingPolicyHash::new(asset_bytes.slice(0, 28));
-    AssetClass::new(policy, asset_bytes.slice(28, asset_bytes.length))
+    AssetClass::new(MintingPolicyHash::new(asset_bytes.slice(0, 28)), asset_bytes.slice(28, asset_bytes.length))
 }
 
 func getAssetDatum(asset: AssetClass, ctx: ScriptContext) -> OutputDatum {
