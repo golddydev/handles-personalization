@@ -7,7 +7,7 @@ import { BackgroundDefaults, Datum, PzRedeemer, PzSettings, ScriptContext,
 let contract = fs.readFileSync("../contract.helios").toString();
 contract = contract.replace(/ctx.get_current_validator_hash\(\)/g, 'ValidatorHash::new(#01234567890123456789012345678901234567890123456789000001)');
 
-tester.init("PERSONALIZE");
+tester.init();
 
 const pzRedeemer = new PzRedeemer();
 const resetRedeemer = new MigrateRedeemer('RESET');
@@ -73,6 +73,16 @@ Promise.all([
     tester.testCase(true, "PERSONALIZE", "reference inputs, CIP-68, pfp_zoom in unenforced defaults but not defined", () => {
         const redeemer = new PzRedeemer();
         delete redeemer.designer.pfp_zoom;
+        const context = new ScriptContext().initPz(redeemer.calculateCid());
+        const bgDefaults = new BackgroundDefaults();
+        delete bgDefaults.extra.force_creator_settings;
+        context.referenceInputs.find(input => input.output.asset == '"bg"' && input.output.label == 'LBL_100').output.datum = bgDefaults.render();
+        const program = tester.createProgram(contract, new Datum().render(), redeemer.render(), context.render());
+        return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
+    }),
+    tester.testCase(true, "PERSONALIZE", "reference inputs, CIP-68, unenforced defaults, exclusive left blank", () => {
+        const redeemer = new PzRedeemer();
+        delete redeemer.designer.qr_image;
         const context = new ScriptContext().initPz(redeemer.calculateCid());
         const bgDefaults = new BackgroundDefaults();
         delete bgDefaults.extra.force_creator_settings;
@@ -591,6 +601,16 @@ Promise.all([
         const program = tester.createProgram(contract, new Datum().render(), pzRedeemer.render(), context.render());
         return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
     }, "text_ribbon_gradient is not set correctly"),
+    tester.testCase(false, "PERSONALIZE", "reference inputs, CIP-68, unenforced defaults, exclusive used", () => {
+        const redeemer = new PzRedeemer();
+        redeemer.designer.qr_image = 'OutputDatum::new_inline("https://wrong").data';
+        const context = new ScriptContext().initPz(redeemer.calculateCid());
+        const bgDefaults = new BackgroundDefaults();
+        delete bgDefaults.extra.force_creator_settings;
+        context.referenceInputs.find(input => input.output.asset == '"bg"' && input.output.label == 'LBL_100').output.datum = bgDefaults.render();
+        const program = tester.createProgram(contract, new Datum().render(), redeemer.render(), context.render());
+        return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
+    }, "qr_image is not set correctly"),
 
     // MIGRATE ENDPOINT - SHOULD APPROVE
     tester.testCase(true, "MIGRATE", "admin, no owner", () => {
