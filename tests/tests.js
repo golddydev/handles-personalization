@@ -7,7 +7,7 @@ import { BackgroundDefaults, Datum, PzRedeemer, PzSettings, ScriptContext,
 let contract = fs.readFileSync("../contract.helios").toString();
 contract = contract.replace(/ctx.get_current_validator_hash\(\)/g, 'ValidatorHash::new(#01234567890123456789012345678901234567890123456789000001)');
 
-tester.init();
+tester.init("PERSONALIZE");
 
 const pzRedeemer = new PzRedeemer();
 const resetRedeemer = new MigrateRedeemer('RESET');
@@ -67,6 +67,16 @@ Promise.all([
         const defaults = new BackgroundDefaults();
         defaults.extra.force_creator_settings = 'OutputDatum::new_inline(0).data';
         bg_ref.output.datum = defaults.render();
+        const program = tester.createProgram(contract, new Datum().render(), redeemer.render(), context.render());
+        return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
+    }),
+    tester.testCase(true, "PERSONALIZE", "reference inputs, CIP-68, pfp_zoom in unenforced defaults but not defined", () => {
+        const redeemer = new PzRedeemer();
+        delete redeemer.designer.pfp_zoom;
+        const context = new ScriptContext().initPz(redeemer.calculateCid());
+        const bgDefaults = new BackgroundDefaults();
+        delete bgDefaults.extra.force_creator_settings;
+        context.referenceInputs.find(input => input.output.asset == '"bg"' && input.output.label == 'LBL_100').output.datum = bgDefaults.render();
         const program = tester.createProgram(contract, new Datum().render(), redeemer.render(), context.render());
         return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
     }),
