@@ -11,10 +11,13 @@ let program = helios.Program.new(contractHelios);
 const contract = program.compile(OPTIMIZE);
 const address = helios.Address.fromValidatorHash(contract.validatorHash);
 
+fs.mkdirSync("./contract", {recursive: true});
 fs.writeFileSync("./contract/contract.json", contract.serialize());
+fs.writeFileSync("./contract/contract.hex", JSON.parse(contract.serialize()).cborHex);
 fs.writeFileSync("./contract/contract.cbor", Buffer.from(JSON.parse(contract.serialize()).cborHex, "hex"));
 fs.writeFileSync("./contract/contract.addr", address.toBech32());
 fs.writeFileSync("./contract/contract.hash", contract.validatorHash.hex);
+fs.writeFileSync("./contract/contract.uplc", contract.toString());
 
 // // Treasury
 // console.log("Treasury", helios.Address.fromBech32('addr1x92852d60qgsjm9wxsvheerqkrvtshyezcyxula3tgn8h0250g5m57q3p9k2udqe0njxpvxchpwfj9sgdelmzk3x0w7sz9zapd').validatorHash.hex)

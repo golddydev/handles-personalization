@@ -304,8 +304,8 @@ func propInDesignerArray(default: Option[Data], property: Option[Data], forced: 
 func propEqualsDesignerDefault(default: Option[Data], property: Option[Data], exclusive: Bool = false, forced: Bool = false) -> Bool {
     (has_val:Bool, _) = hasValueUnWrapped(property);
     default == property // This is good already
-    || (forced == false || default == Option[Data]::None ) // At this point, this has to be true
-        && (exclusive == false || has_val == false) // Can only have a value at this point if not exclusive
+    || ((forced == false || default == Option[Data]::None ) // At this point, this has to be true
+        && (exclusive == false || has_val == false)) // Can only have a value at this point if not exclusive
 }
 
 func exclusiveSettingsAreValid(defaults: Map[String]Data, designer: Map[String]Data, forced: Bool) -> Bool {
