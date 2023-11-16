@@ -136,7 +136,8 @@ func getApproverDatum(handle:String, settings: PzSettings, ctx: ScriptContext) -
 func checkInputsAndLoadSettings(ctx: ScriptContext) -> (PzSettings, Map[String]Map[ByteArray]Map[ByteArray][]Int) {
     // TODO: Add @acc_policy_ids (for accessories directly on the Handle - image borders [pfp/bg], santa/leprechaun hats, halloween bats, etc)
     settings: PzSettings = loadPzSettings(ctx);
-    (settings, Map[String]Map[ByteArray]Map[ByteArray][]Int{"bg_approvers": getApproverDatum("bg_policy_ids", settings, ctx), "pfp_approvers": getApproverDatum("pfp_policy_ids", settings, ctx)})
+    pfp_approvers: Map[ByteArray]Map[ByteArray][]Int = getApproverDatum("pfp_policy_ids", settings, ctx);
+    (settings, Map[String]Map[ByteArray]Map[ByteArray][]Int{"bg_approvers": getApproverDatum("bg_policy_ids", settings, ctx) + pfp_approvers, "pfp_approvers": pfp_approvers})
 }
 
 func feesArePaid(ctx: ScriptContext, settings: PzSettings, handle: String) -> Bool {
@@ -198,13 +199,11 @@ func assetIsValid(asset_type:String, pz_data: Map[String]Data, approvers: Map[St
     if (pz_data.find_key_safe((key: String) -> { key == asset_type + "_asset" }) != Option[String]::None) {
         asset: AssetClass = parseAsset(ByteArray::from_data(pz_data.get(asset_type + "_asset")));
 
-        //print(asset.mph.show() + " " + asset.token_name.show());
         // Is the asset passed in as an input/reference?
         (asset_output: Option[TxOutput], _) = findAsReferenceOrOutput(asset.mph, asset.token_name, 1, ctx, false, false);
         assert(asset_output != Option[TxOutput]::None, "Required " + asset_type + " input/reference missing");
 
         assert(approvers.get(asset_type + "_approvers").any((pol: ByteArray, pattern: Map[ByteArray][]Int) -> Bool {
-            // print(pol.serialize().show() + " = " + asset.mph.serialize().show() + " & " + asset.token_name.show());
             pol.serialize() == asset.mph.serialize() && pattern.any((p: ByteArray, _) -> Bool { asset.token_name.starts_with(p) })
         }), asset_type + " is not in the approved list");
         (true, Option[Credential]::Some{asset_output.unwrap().address.credential}, getAssetDatum(asset, ctx))
