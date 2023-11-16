@@ -78,10 +78,10 @@ export class ScriptContext {
       goodPfpInputRef.output.policy = `MintingPolicyHash::new(${pfp_policy})`;
       const goodBgListInput = new TxInput(`${handles_tx_hash}`, new TxOutput(`${ada_handles_bytes}`, 'LBL_222', '"bg_policy_ids"'));
       goodBgListInput.output.datumType = 'inline';
-      goodBgListInput.output.datum = new ApprovedPolicyIds().render();
+      goodBgListInput.output.datum = new ApprovedPolicyIds(bg_policy).render();
       const goodPfpListInput = new TxInput(`${handles_tx_hash}`, new TxOutput(`${ada_handles_bytes}`, 'LBL_222', '"pfp_policy_ids"'));
       goodPfpListInput.output.datumType = 'inline';
-      const pfpApproverList = new ApprovedPolicyIds(); 
+      const pfpApproverList = new ApprovedPolicyIds(pfp_policy); 
       pfpApproverList.map[`${pfp_policy}`] = {'#000de140706670': [0,0,0],'#706670706670': [0,0,0]}
       goodPfpListInput.output.datum = pfpApproverList.render();
       const goodPzInput = new TxInput(`${handles_tx_hash}`, new TxOutput(`${ada_handles_bytes}`, 'LBL_222', '"pz_settings"'));
@@ -222,7 +222,7 @@ export class ScriptContext {
   
     render() {
       if (this.asset != null && this.value == null) {
-        this.value = `+ Value::new(AssetClass::new(${this.policy}, ${this.label}${this.label ? ' + ': ''}(${this.asset}.encode_utf8())), 1)`;
+        this.value = `+ Value::new(AssetClass::new(${this.policy}, ${this.label}${this.label ? ' + ' : ''}(${this.asset}.encode_utf8())), 1)`;
       }
       let hashString = 'validator(Validator';
       if (this.hashType == 'pubkey') {
@@ -417,8 +417,8 @@ export class ScriptContext {
   
   export class ApprovedPolicyIds {
     map = {}
-    constructor() {
-      this.map[bg_policy] = {"#001bc2806267": [0,0,0]};
+    constructor(policy) {
+      this.map[policy] = {"#001bc2806267": [0,0,0]};
     }
     render() {
       let ids = 'Map[ByteArray]Map[ByteArray][]Int {\n';

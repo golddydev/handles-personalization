@@ -7,7 +7,7 @@ import { BackgroundDefaults, Datum, PzRedeemer, PzSettings, ScriptContext,
 let contract = fs.readFileSync("../contract.helios").toString();
 contract = contract.replace(/ctx.get_current_validator_hash\(\)/g, 'ValidatorHash::new(#01234567890123456789012345678901234567890123456789000001)');
 
-tester.init();
+tester.init("PERSONALIZE", "reference inputs, CIP-25 PFP as BG");
 
 const pzRedeemer = new PzRedeemer();
 const resetRedeemer = new MigrateRedeemer('RESET');
@@ -21,6 +21,31 @@ Promise.all([
         const program = tester.createProgram(contract, new Datum().render(), pzRedeemer.render(), context.render());
         return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
     }),
+    tester.testCase(true, "PERSONALIZE", "reference inputs, CIP-25 PFP as BG", () => {
+        const redeemer = new PzRedeemer();
+        redeemer.designer.text_ribbon_colors = 'OutputDatum::new_inline([]ByteArray{#0a1fd3}).data',
+        delete redeemer.designer.text_ribbon_gradient;
+        delete redeemer.designer.font_color;
+        delete redeemer.designer.font;
+        delete redeemer.designer.qr_image;
+        delete redeemer.designer.text_ribbon_colors;
+        delete redeemer.designer.qr_inner_eye;
+        delete redeemer.designer.qr_outer_eye;
+        delete redeemer.designer.qr_dot;
+        const context = new ScriptContext().initPz(redeemer.calculateCid());
+        const pfpApproverList = new ApprovedPolicyIds(pfp_policy);
+        pfpApproverList.map[`${pfp_policy}`] = {'#706670': [0,0,0], '#000de140706670': [0,0,0]}
+        context.referenceInputs.find(input => input.output.asset == '"pfp_policy_ids"' && input.output.label == 'LBL_222').output.datum = pfpApproverList.render();
+        const bgInput = context.referenceInputs.find(input => input.output.asset == '"bg"' && input.output.label == 'LBL_444');
+        bgInput.output.label = '';
+        bgInput.output.asset = '"pfp"';
+        bgInput.output.policy = `MintingPolicyHash::new(${pfp_policy})`;
+        const datum = new Datum(redeemer.calculateCid());
+        datum.extra.bg_asset = `OutputDatum::new_inline(${pfp_policy}706670).data`;
+        context.outputs.find(output => output.asset == `"${handle}"` && output.label == 'LBL_100').datum = datum.render();
+        const program = tester.createProgram(contract, new Datum().render(), redeemer.render(), context.render());
+        return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
+    }),
     tester.testCase(true, "PERSONALIZE", "reference inputs, pfp CIP-25, defaults forced", () => {
         const context = new ScriptContext().initPz(pzRedeemer.calculateCid());
         context.referenceInputs.find(input => input.output.asset == '"pfp"' && input.output.label == 'LBL_222').output.label = '';
@@ -28,7 +53,7 @@ Promise.all([
         const datum = new Datum(pzRedeemer.calculateCid());
         datum.extra.pfp_asset = `OutputDatum::new_inline(${pfp_policy}706670).data`;
         context.outputs.find(output => output.asset == `"${handle}"` && output.label == 'LBL_100').datum = datum.render();
-        const pfpApproverList = new ApprovedPolicyIds();
+        const pfpApproverList = new ApprovedPolicyIds(pfp_policy);
         pfpApproverList.map[`${pfp_policy}`] = {'#706670': [0,0,0]}
         context.referenceInputs.find(input => input.output.asset == '"pfp_policy_ids"' && input.output.label == 'LBL_222').output.datum = pfpApproverList.render();
         const program = tester.createProgram(contract, new Datum().render(), pzRedeemer.render(), context.render());
@@ -562,7 +587,7 @@ Promise.all([
     }, "validated_by is set but not signed"),
     tester.testCase(false, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, bg nsfw", () => {
         const context = new ScriptContext().initPz(pzRedeemer.calculateCid());
-        const approver =  new ApprovedPolicyIds();
+        const approver =  new ApprovedPolicyIds(bg_policy);
         approver.map[bg_policy] = {"#001bc2806267": [1,0,0]}
         context.referenceInputs.find(input => input.output.asset == '"bg_policy_ids"' && input.output.label == 'LBL_222').output.datum = approver.render();
         const program = tester.createProgram(contract, new Datum().render(), pzRedeemer.render(), context.render());
@@ -570,7 +595,7 @@ Promise.all([
     }, "Trial/NSFW flags set incorrectly (BG)"),
     tester.testCase(false, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, bg trial", () => {
         const context = new ScriptContext().initPz(pzRedeemer.calculateCid());
-        const approver =  new ApprovedPolicyIds();
+        const approver =  new ApprovedPolicyIds(bg_policy);
         approver.map[bg_policy] = {"#001bc2806267": [0,1,0]}
         context.referenceInputs.find(input => input.output.asset == '"bg_policy_ids"' && input.output.label == 'LBL_222').output.datum = approver.render();
         const program = tester.createProgram(contract, new Datum().render(), pzRedeemer.render(), context.render());
@@ -578,7 +603,7 @@ Promise.all([
     }, "Trial/NSFW flags set incorrectly (BG)"),
     tester.testCase(false, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, pfp nsfw", () => {
         const context = new ScriptContext().initPz(pzRedeemer.calculateCid());
-        const approver =  new ApprovedPolicyIds();
+        const approver =  new ApprovedPolicyIds(pfp_policy);
         approver.map[`${pfp_policy}`] = {'#000de140706670': [1,0,0],'#706670706670': [1,0,0]}
         context.referenceInputs.find(input => input.output.asset == '"pfp_policy_ids"' && input.output.label == 'LBL_222').output.datum = approver.render();
         const program = tester.createProgram(contract, new Datum().render(), pzRedeemer.render(), context.render());
@@ -586,7 +611,7 @@ Promise.all([
     }, "Trial/NSFW flags set incorrectly (PFP)"),
     tester.testCase(false, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, pfp trial", () => {
         const context = new ScriptContext().initPz(pzRedeemer.calculateCid());
-        const approver =  new ApprovedPolicyIds();
+        const approver =  new ApprovedPolicyIds(pfp_policy);
         approver.map[`${pfp_policy}`] = {'#000de140706670': [0,1,0],'#706670706670': [0,1,0]}
         context.referenceInputs.find(input => input.output.asset == '"pfp_policy_ids"' && input.output.label == 'LBL_222').output.datum = approver.render();
         const program = tester.createProgram(contract, new Datum().render(), pzRedeemer.render(), context.render());
