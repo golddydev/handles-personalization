@@ -12,7 +12,7 @@ const script_hash = `ValidatorHash::new(${script_creds_bytes})`;
 const treasury_bytes = '#01234567890123456789012345678901234567890123456789000002';
 const ada_handles_bytes = '#01234567890123456789012345678901234567890123456789000003';
 export const pz_provider_bytes = '#01234567890123456789012345678901234567890123456789000004';
-const handles_policy = '#f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9a';
+export const handles_policy = '#f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9a';
 export const bg_policy = '#f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9b';
 export const pfp_policy = '#f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9c';
 
@@ -250,8 +250,8 @@ export class ScriptContext {
       qr_dot: 'OutputDatum::new_inline("dots,#0a1fd6").data',
       qr_bg_color: 'OutputDatum::new_inline(#0a1fd3).data',
       qr_image: 'OutputDatum::new_inline("https://img").data',
-      pfp_zoom: 'OutputDatum::new_inline(100).data',
-      pfp_offset: 'OutputDatum::new_inline([]Int{1, 2}).data',
+      pfp_zoom: 'OutputDatum::new_inline(130).data',
+      pfp_offset: 'OutputDatum::new_inline([]Int{60, 60}).data',
       font: 'OutputDatum::new_inline("the font").data',
       font_color: 'OutputDatum::new_inline(#ffffff).data',
       font_shadow_size: 'OutputDatum::new_inline([]Int{12, 10, 8}).data',
@@ -456,8 +456,8 @@ export class ScriptContext {
       qr_dot: 'OutputDatum::new_inline("dots,#0a1fd6").data',
       qr_image: 'OutputDatum::new_inline("https://img").data',
       qr_bg_color: 'OutputDatum::new_inline(#0a1fd3).data',
-      pfp_zoom: 'OutputDatum::new_inline(100).data',
-      pfp_offset: 'OutputDatum::new_inline([]Int{1, 2}).data',
+      pfp_zoom: 'OutputDatum::new_inline(130).data',
+      pfp_offset: 'OutputDatum::new_inline([]Int{60, 60}).data',
       font: 'OutputDatum::new_inline("the font").data',
       font_color: 'OutputDatum::new_inline(#ffffff).data',
       font_shadow_size: 'OutputDatum::new_inline([]Int{12, 10, 8}).data',
@@ -466,9 +466,9 @@ export class ScriptContext {
       bg_border_colors: 'OutputDatum::new_inline([]ByteArray{#0a1fd3, #22d1af, #31bc23}).data',
       pfp_border_colors: 'OutputDatum::new_inline([]ByteArray{#0a1fd3, #22d1af, #31bc23}).data',
       font_shadow_colors: 'OutputDatum::new_inline([]ByteArray{#0a1fd3, #22d1af, #31bc23}).data',
-      require_pfp_collections: `OutputDatum::new_inline([]ByteArray{${pfp_policy}000de140706670,${pfp_policy}706670}).data`,
-      require_pfp_attributes: 'OutputDatum::new_inline([]String{"attr:rtta"}).data',
-      require_pfp_displayed: 'OutputDatum::new_inline(1).data',
+      require_asset_collections: `OutputDatum::new_inline([]ByteArray{${pfp_policy}000de140706670,${pfp_policy}706670}).data`,
+      require_asset_attributes: 'OutputDatum::new_inline([]String{"attr:rtta"}).data',
+      require_asset_displayed: 'OutputDatum::new_inline(1).data',
       price: 'OutputDatum::new_inline(125).data',
       force_creator_settings: 'OutputDatum::new_inline(1).data',
       custom_dollar_symbol: 'OutputDatum::new_inline(0).data'
