@@ -446,24 +446,30 @@ func pzDatumIsValid(
         (pfp_asset_set: Bool, pfp_asset_data: Data) = hasValueUnWrapped(pz_data.get_safe("pfp_asset"));
         pfp_asset: AssetClass = (if (pfp_asset_set) {parseAsset(ByteArray::from_data(pfp_asset_data))} else {AssetClass::new(MintingPolicyHash::new(#), #)});
     
-        assert(pfp_asset_set == false || approvers.get("pfp_approvers").any((pol: ByteArray, pattern: Map[ByteArray][]Int) -> Bool {
-            pol.serialize() == pfp_asset.mph.serialize() && pattern.any((p: ByteArray, props: []Int) -> Bool {
-                pfp_asset.token_name.starts_with(p) 
-                    && Int::from_data(pz_data.get("trial")) == props.get(1)
-                    && Int::from_data(pz_data.get("nsfw")) == props.get(0)
-            })
-        }), "Trial/NSFW flags set incorrectly (PFP)");
-    
         (bg_asset_set: Bool, bg_asset_data: Data) = hasValueUnWrapped(pz_data.get_safe("bg_asset"));
         bg_asset: AssetClass = (if (bg_asset_set) {parseAsset(ByteArray::from_data(bg_asset_data))} else {AssetClass::new(MintingPolicyHash::new(#), #)});
-    
-        assert(bg_asset_set == false || approvers.get("bg_approvers").any((pol: ByteArray, pattern: Map[ByteArray][]Int) -> Bool {
-            pol.serialize() == bg_asset.mph.serialize() && pattern.any((p: ByteArray, props: []Int) -> Bool {
-                bg_asset.token_name.starts_with(p) 
-                    && Int::from_data(pz_data.get("trial")) == props.get(1)
-                    && Int::from_data(pz_data.get("nsfw")) == props.get(0)
-            })
-        }), "Trial/NSFW flags set incorrectly (BG)");
+
+        bg_flags: []Int = (
+            if (bg_asset_set) {
+                approvers.get("bg_approvers").fold_lazy((pol: ByteArray, pattern: Map[ByteArray][]Int, next: () -> []Int) -> {
+                    if (pol.serialize() == bg_asset.mph.serialize()) { 
+                        pattern.find((p: ByteArray, _) -> Bool { bg_asset.token_name.starts_with(p) }).second
+                    }
+                    else { next() }
+                }, []Int{0,0})
+            } else {[]Int{0,0}});
+
+        pfp_flags: []Int = (
+            if (pfp_asset_set) {
+                approvers.get("pfp_approvers").fold_lazy((pol: ByteArray, pattern: Map[ByteArray][]Int, next: () -> []Int) -> {
+                    if (pol.serialize() == pfp_asset.mph.serialize()) { 
+                        pattern.find((p: ByteArray, _) -> Bool { pfp_asset.token_name.starts_with(p) }).second
+                    }
+                    else { next() }
+                }, []Int{0,0})
+            } else {[]Int{0,0}});
+
+        assert(Int::from_data(pz_data.get("nsfw")) == (if (bg_flags.get(0) + pfp_flags.get(0) > 0) {1} else {0}) && Int::from_data(pz_data.get("trial")) == (if (bg_flags.get(1) + pfp_flags.get(1) > 0) {1} else {0}), "Trial/NSFW flags set incorrectly");
 
         (bg_image_set: Bool, bg_image_data: Data) = hasValueUnWrapped(pz_data.get_safe("bg_image"));
         assert((bg_asset_set && bg_image_set) || (bg_asset_set == false && bg_image_set == false), "bg_asset/bg_image mismatch");

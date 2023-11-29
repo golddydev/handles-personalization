@@ -7,7 +7,7 @@ import { BackgroundDefaults, Datum, PzRedeemer, PzSettings, ScriptContext,
 let contract = fs.readFileSync("../contract.helios").toString();
 contract = contract.replace(/ctx.get_current_validator_hash\(\)/g, 'ValidatorHash::new(#01234567890123456789012345678901234567890123456789000001)');
 
-tester.init("PERSONALIZE", "reference inputs, require_asset_displayed Handle not present");
+tester.init();
 
 const pzRedeemer = new PzRedeemer();
 const resetRedeemer = new MigrateRedeemer('RESET');
@@ -650,7 +650,7 @@ Promise.all([
         context.referenceInputs.find(input => input.output.asset == '"bg_policy_ids"' && input.output.label == 'LBL_222').output.datum = approver.render();
         const program = tester.createProgram(contract, new Datum().render(), pzRedeemer.render(), context.render());
         return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
-    }, "Trial/NSFW flags set incorrectly (BG)"),
+    }, "Trial/NSFW flags set incorrectly"),
     tester.testCase(false, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, bg trial", () => {
         const context = new ScriptContext().initPz(pzRedeemer.calculateCid());
         const approver =  new ApprovedPolicyIds(bg_policy);
@@ -658,7 +658,7 @@ Promise.all([
         context.referenceInputs.find(input => input.output.asset == '"bg_policy_ids"' && input.output.label == 'LBL_222').output.datum = approver.render();
         const program = tester.createProgram(contract, new Datum().render(), pzRedeemer.render(), context.render());
         return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
-    }, "Trial/NSFW flags set incorrectly (BG)"),
+    }, "Trial/NSFW flags set incorrectly"),
     tester.testCase(false, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, pfp nsfw", () => {
         const context = new ScriptContext().initPz(pzRedeemer.calculateCid());
         const approver =  new ApprovedPolicyIds(pfp_policy);
@@ -666,7 +666,7 @@ Promise.all([
         context.referenceInputs.find(input => input.output.asset == '"pfp_policy_ids"' && input.output.label == 'LBL_222').output.datum = approver.render();
         const program = tester.createProgram(contract, new Datum().render(), pzRedeemer.render(), context.render());
         return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
-    }, "Trial/NSFW flags set incorrectly (PFP)"),
+    }, "Trial/NSFW flags set incorrectly"),
     tester.testCase(false, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, pfp trial", () => {
         const context = new ScriptContext().initPz(pzRedeemer.calculateCid());
         const approver =  new ApprovedPolicyIds(pfp_policy);
@@ -674,7 +674,7 @@ Promise.all([
         context.referenceInputs.find(input => input.output.asset == '"pfp_policy_ids"' && input.output.label == 'LBL_222').output.datum = approver.render();
         const program = tester.createProgram(contract, new Datum().render(), pzRedeemer.render(), context.render());
         return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
-    }, "Trial/NSFW flags set incorrectly (PFP)"),
+    }, "Trial/NSFW flags set incorrectly"),
     tester.testCase(false, "PERSONALIZE", "reference inputs, CIP-68, can't use exclusive", () => {
         const context = new ScriptContext().initPz(pzRedeemer.calculateCid());
         const bg_ref = context.referenceInputs.find(input => input.output.asset == '"bg"' && input.output.label == 'LBL_100');
