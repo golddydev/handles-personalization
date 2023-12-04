@@ -271,10 +271,11 @@ func checkRequiredPfPs(handle: String, pfp_asset: Option[Data], bg_datum_opt:Out
                     else {true}
                 )
                 && (
+                    asset: AssetClass = asset_opt.unwrap();
                     pfp_is_displayed: Bool = (require_asset_displayed_opt == Option[Data]::None 
                         || Int::from_data(require_asset_displayed_opt.unwrap()).to_bool() == false
                         || (Int::from_data(require_asset_displayed_opt.unwrap()).to_bool()
-                            && ((pfp_asset != Option[Data]::None && ByteArray::from_data(pfp_asset.unwrap()).starts_with(asset_bytes))
+                            && ((pfp_asset != Option[Data]::None && (displayed_pfp: ByteArray = ByteArray::from_data(pfp_asset.unwrap()); (displayed_pfp.starts_with(asset_bytes)) && displayed_pfp.show() == (asset.mph.show() + asset.token_name.show())))
                                  || (HANDLE_HASH + LBL_222 + (handle.encode_utf8())).starts_with(asset_bytes) // It can also be the Handle being personalized
                                )
                         ));
