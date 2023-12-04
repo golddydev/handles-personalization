@@ -7,7 +7,7 @@
     "author": "et",
     "license": "MIT",
     "dependencies": {
-        "@hyperionbt/helios": "0.16.5",
+        "@hyperionbt/helios": "0.16.6",
         "bs58": "^5.0.0"
     }
 }
