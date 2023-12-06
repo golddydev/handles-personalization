@@ -244,13 +244,14 @@ func checkRequiredPfPs(handle: String, pfp_asset: Option[Data], bg_datum_opt:Out
         require_asset_collections_opt: Option[Data] = defaults.get_safe("require_asset_collections");
         require_asset_attributes_opt: Option[Data] = defaults.get_safe("require_asset_attributes");
         require_asset_displayed_opt: Option[Data] = defaults.get_safe("require_asset_displayed");
-        required_asset_present: Bool = (require_asset_collections_opt == Option[Data]::None || []ByteArray::from_data(require_asset_collections_opt.unwrap()).any((asset_bytes: ByteArray) -> Bool {
-            (output: Option[TxOutput], asset_opt: Option[AssetClass]) = findAsReferenceOrOutput(MintingPolicyHash::new(asset_bytes.slice(0, 28)), asset_bytes.slice(28, asset_bytes.length), 1, ctx, true, false);
-            output != Option[TxOutput]::None && output.unwrap().address.credential == owner_cred
-                && (
-                    asset: AssetClass = asset_opt.unwrap();
-                    if (asset.token_name.starts_with(LBL_222) || asset.token_name.starts_with(LBL_444)) {
-                        required_attributes_present: Bool = (require_asset_attributes_opt == Option[Data]::None || []ByteArray::from_data(require_asset_attributes_opt.unwrap()).all((attr_bytes: ByteArray) -> Bool {
+        require_asset_valid: Bool = require_asset_collections_opt == Option[Data]::None ||
+            []ByteArray::from_data(require_asset_collections_opt.unwrap()).any((asset_bytes: ByteArray) -> Bool {
+                (output: Option[TxOutput], asset_opt: Option[AssetClass]) = findAsReferenceOrOutput(MintingPolicyHash::new(asset_bytes.slice(0, 28)), asset_bytes.slice(28, asset_bytes.length), 1, ctx, true, false);
+                output != Option[TxOutput]::None && output.unwrap().address.credential == owner_cred
+                && (asset: AssetClass = asset_opt.unwrap();
+                    (require_asset_attributes_opt == Option[Data]::None
+                    || (if (asset.token_name.starts_with(LBL_222) || asset.token_name.starts_with(LBL_444)) {
+                        []ByteArray::from_data(require_asset_attributes_opt.unwrap()).all((attr_bytes: ByteArray) -> Bool {
                             attr: String = attr_bytes.decode_utf8();
                             nft: Map[String]Data = Datum::CIP68::from_data(getAssetDatum(asset, ctx).get_inline_data()).nft;
                             attributes: Map[String]Data = nft.get_safe("attributes").switch{ att: Some => Map[String]Data::from_data(att.some), else => nft };
@@ -260,38 +261,26 @@ func checkRequiredPfPs(handle: String, pfp_asset: Option[Data], bg_datum_opt:Out
                                 b: ByteArray => b.decode_utf8(),
                                 else => ""
                             })
-                        }));
-                        if (throw_errors) {
-                            assert(required_attributes_present, "Required asset attribute not present on asset");
-                            true
-                        }
-                        else {required_attributes_present}
+                        })
                     }
-                    // We can't check CIP-25 so just approve it
-                    else {true}
-                )
-                && (
-                    asset: AssetClass = asset_opt.unwrap();
-                    pfp_is_displayed: Bool = (require_asset_displayed_opt == Option[Data]::None 
+                    else {
+                        // We can't check CIP-25 so just deny it
+                        false
+                    }))
+                    && (require_asset_displayed_opt == Option[Data]::None 
                         || Int::from_data(require_asset_displayed_opt.unwrap()).to_bool() == false
                         || (Int::from_data(require_asset_displayed_opt.unwrap()).to_bool()
-                            && ((pfp_asset != Option[Data]::None && (displayed_pfp: ByteArray = ByteArray::from_data(pfp_asset.unwrap()); (displayed_pfp.starts_with(asset_bytes)) && displayed_pfp.show() == (asset.mph.show() + asset.token_name.show())))
-                                 || (HANDLE_HASH + LBL_222 + (handle.encode_utf8())).starts_with(asset_bytes) // It can also be the Handle being personalized
-                               )
-                        ));
-                    //print(pfp_asset.unwrap().serialize().show() + " = " + asset_bytes.show());
-                    if (throw_errors) {
-                        assert(pfp_is_displayed, "Required asset isn't displayed");
-                        true
-                    }
-                    else {pfp_is_displayed}
+                            && ((pfp_asset != Option[Data]::None 
+                                    && (displayed_pfp: ByteArray = ByteArray::from_data(pfp_asset.unwrap()); (displayed_pfp.starts_with(asset_bytes)) && displayed_pfp.show() == (asset.mph.show() + asset.token_name.show()))
+                                )
+                                || (HANDLE_HASH + LBL_222 + (handle.encode_utf8())).starts_with(asset_bytes)))) // It can also be the Handle being personalized
                 )
-        }));
+        });
         if (throw_errors) {
-            assert(required_asset_present, "Required asset is not present in inputs");
+            assert(require_asset_valid, "Required asset not found/displayed");
             true
-        }
-        else {required_asset_present}
+        } 
+        else {require_asset_valid}
     }
     else {
         true

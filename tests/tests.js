@@ -46,7 +46,7 @@ Promise.all([
         const program = tester.createProgram(contract, new Datum().render(), redeemer.render(), context.render());
         return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
     }),
-    tester.testCase(true, "PERSONALIZE", "reference inputs, pfp CIP-25, defaults forced", () => {
+    tester.testCase(false, "PERSONALIZE", "reference inputs, pfp CIP-25, defaults forced", () => {
         const context = new ScriptContext().initPz(pzRedeemer.calculateCid());
         context.referenceInputs.find(input => input.output.asset == '"pfp"' && input.output.label == 'LBL_222').output.label = '';
         context.referenceInputs.splice(context.referenceInputs.indexOf(context.referenceInputs.find(input => input.output.asset == '"pfp"' && input.output.label == 'LBL_100')), 1);
@@ -58,7 +58,7 @@ Promise.all([
         context.referenceInputs.find(input => input.output.asset == '"pfp_policy_ids"' && input.output.label == 'LBL_222').output.datum = pfpApproverList.render();
         const program = tester.createProgram(contract, new Datum().render(), pzRedeemer.render(), context.render());
         return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
-    }),
+    }, "Required asset not found/displayed"),
     tester.testCase(true, "PERSONALIZE", "reference inputs, require_asset_displayed Handle", () => {
         const context = new ScriptContext().initPz(pzRedeemer.calculateCid());
         const datum = new Datum(pzRedeemer.calculateCid());
@@ -68,6 +68,14 @@ Promise.all([
         const bgDefaults = new BackgroundDefaults();
         bgDefaults.extra.require_asset_collections = `OutputDatum::new_inline([]ByteArray{${handles_policy}+LBL_222+"${handle}".encode_utf8()}).data`;
         bgDefaults.extra.require_asset_displayed = `OutputDatum::new_inline(1).data`;
+        context.referenceInputs.find(input => input.output.asset == '"bg"' && input.output.label == 'LBL_100').output.datum = bgDefaults.render();
+        const program = tester.createProgram(contract, new Datum().render(), pzRedeemer.render(), context.render());
+        return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
+    }),
+    tester.testCase(true, "PERSONALIZE", "reference inputs, require_asset_collections startswith", () => {
+        const context = new ScriptContext().initPz(pzRedeemer.calculateCid());
+        const bgDefaults = new BackgroundDefaults();
+        bgDefaults.extra.require_asset_collections = `OutputDatum::new_inline([]ByteArray{${pfp_policy}000de1407066,${pfp_policy}7066}).data`;
         context.referenceInputs.find(input => input.output.asset == '"bg"' && input.output.label == 'LBL_100').output.datum = bgDefaults.render();
         const program = tester.createProgram(contract, new Datum().render(), pzRedeemer.render(), context.render());
         return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
@@ -251,7 +259,7 @@ Promise.all([
         context.referenceInputs.find(input => input.output.asset == '"bg"' && input.output.label == 'LBL_100').output.datum = bgDefaults.render();
         const program = tester.createProgram(contract, new Datum().render(), pzRedeemer.render(), context.render());
         return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
-    }, "Required asset is not present in inputs"),
+    }, "Required asset not found/displayed"),
     tester.testCase(false, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, wrong handle name", () => {
         const context = new ScriptContext().initPz(pzRedeemer.calculateCid());
         context.referenceInputs.find(input => input.output.asset == `"${handle}"` && input.output.label == 'LBL_222').output.asset = '"xar12346"'
@@ -608,7 +616,7 @@ Promise.all([
         context.referenceInputs.find(input => input.output.asset == '"bg"' && input.output.label == 'LBL_100').output.datum = bgDefaults.render();
         const program = tester.createProgram(contract, new Datum().render(), pzRedeemer.render(), context.render());
         return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
-    }, "Required asset attribute not present on asset"),
+    }, "Required asset not found/displayed"),
     tester.testCase(false, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, wrong pfp", () => {
         const context = new ScriptContext().initPz(pzRedeemer.calculateCid());
         const bgDefaults = new BackgroundDefaults();
@@ -616,7 +624,7 @@ Promise.all([
         context.referenceInputs.find(input => input.output.asset == '"bg"' && input.output.label == 'LBL_100').output.datum = bgDefaults.render();
         const program = tester.createProgram(contract, new Datum().render(), pzRedeemer.render(), context.render());
         return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
-    }, "Required asset is not present in inputs"),
+    }, "Required asset not found/displayed"),
     tester.testCase(false, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, pfp not displayed", () => {
         const context = new ScriptContext().initPz(pzRedeemer.calculateCid());
         const datum = new Datum(pzRedeemer.calculateCid());
@@ -628,7 +636,7 @@ Promise.all([
         context.referenceInputs.push(goodPfpInput);
         const program = tester.createProgram(contract, new Datum().render(), pzRedeemer.render(), context.render());
         return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
-    }, "Required asset isn't displayed"),
+    }, "Required asset not found/displayed"),
     tester.testCase(false, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, bad update address", () => {
         const context = new ScriptContext().initPz(pzRedeemer.calculateCid());
         const datum = new Datum(pzRedeemer.calculateCid());
