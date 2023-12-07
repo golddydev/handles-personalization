@@ -7,7 +7,7 @@ import { BackgroundDefaults, Datum, PzRedeemer, PzSettings, ScriptContext,
 let contract = fs.readFileSync("../contract.helios").toString();
 contract = contract.replace(/ctx.get_current_validator_hash\(\)/g, 'ValidatorHash::new(#01234567890123456789012345678901234567890123456789000001)');
 
-tester.init();
+tester.init("PERSONALIZE", "reference inputs, pfp CIP-25, defaults forced");
 
 const pzRedeemer = new PzRedeemer();
 const resetRedeemer = new MigrateRedeemer('RESET');
@@ -46,7 +46,7 @@ Promise.all([
         const program = tester.createProgram(contract, new Datum().render(), redeemer.render(), context.render());
         return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
     }),
-    tester.testCase(false, "PERSONALIZE", "reference inputs, pfp CIP-25, defaults forced", () => {
+    tester.testCase(true, "PERSONALIZE", "reference inputs, pfp CIP-25, defaults forced", () => {
         const context = new ScriptContext().initPz(pzRedeemer.calculateCid());
         context.referenceInputs.find(input => input.output.asset == '"pfp"' && input.output.label == 'LBL_222').output.label = '';
         context.referenceInputs.splice(context.referenceInputs.indexOf(context.referenceInputs.find(input => input.output.asset == '"pfp"' && input.output.label == 'LBL_100')), 1);
@@ -58,7 +58,7 @@ Promise.all([
         context.referenceInputs.find(input => input.output.asset == '"pfp_policy_ids"' && input.output.label == 'LBL_222').output.datum = pfpApproverList.render();
         const program = tester.createProgram(contract, new Datum().render(), pzRedeemer.render(), context.render());
         return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
-    }, "Required asset not found/displayed"),
+    }),
     tester.testCase(true, "PERSONALIZE", "reference inputs, require_asset_displayed Handle", () => {
         const context = new ScriptContext().initPz(pzRedeemer.calculateCid());
         const datum = new Datum(pzRedeemer.calculateCid());

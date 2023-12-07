@@ -39,19 +39,24 @@ const LBL_222: ByteArray = #000de140 // (222)bigirishlion
 const LBL_100: ByteArray = #000643b0 // (100)bigirishlion
 const PZ_HANDLE: AssetClass = AssetClass::new(HANDLE_POLICY, LBL_222 + ("pz_settings".encode_utf8()))
 
-func policyAndAssetSearch(output: TxOutput, policy: MintingPolicyHash, name: ByteArray, amount: Int, starts_with: Bool) -> Option[AssetClass] {
+func policyAndAssetSearch(output: TxOutput, policy: MintingPolicyHash, name: ByteArray, amount: Int, starts_with: Bool, owner_creds: Option[Credential]) -> Option[AssetClass] {
     output.value.to_map().fold_lazy((key: MintingPolicyHash, value: Map[ByteArray]Int, next: () -> Option[AssetClass]) -> {
         asset_name: Option[ByteArray] = value.find_key_safe((k: ByteArray) -> Bool { if (starts_with) { k.starts_with(name) } else { k == name } });
-        if (policy == key && asset_name != Option[ByteArray]::None && value.get(asset_name.unwrap()) >= amount) {
-            Option[AssetClass]::Some{AssetClass::new(key, asset_name.unwrap())}
-        } else { next() }
+        if (owner_creds != Option[Credential]::None && owner_creds.unwrap() != output.address.credential) {
+            next()
+        }
+            else {
+            if (policy == key && asset_name != Option[ByteArray]::None && value.get(asset_name.unwrap()) >= amount) {
+                Option[AssetClass]::Some{AssetClass::new(key, asset_name.unwrap())}
+            } else { next() }
+        }
     }, Option[AssetClass]::None)
 }
 
-func findAsReferenceOrOutput(policy: MintingPolicyHash, name: ByteArray, amount: Int, ctx: ScriptContext, starts_with: Bool, check_sig: Bool) -> (Option[TxOutput], Option[AssetClass]) {
+func findAsReferenceOrOutput(policy: MintingPolicyHash, name: ByteArray, amount: Int, ctx: ScriptContext, starts_with: Bool, check_sig: Bool, owner_creds: Option[Credential]) -> (Option[TxOutput], Option[AssetClass]) {
     (tx: Option[TxOutput], asset: Option[AssetClass]) = ctx.tx.ref_inputs.fold2_lazy(
         (input: TxInput, next: () -> (Option[TxOutput], Option[AssetClass])) -> {
-            a: Option[AssetClass] = policyAndAssetSearch(input.output, policy, name, amount, starts_with);
+            a: Option[AssetClass] = policyAndAssetSearch(input.output, policy, name, amount, starts_with, owner_creds);
             b: Bool = if (check_sig) {
             ctx.tx.signatories.any((signer: PubKeyHash) -> {
                 input.output.address.credential == Credential::new_pubkey(signer)
@@ -69,7 +74,7 @@ func findAsReferenceOrOutput(policy: MintingPolicyHash, name: ByteArray, amount:
         else => {
             ctx.tx.outputs.fold2_lazy(
                 (output: TxOutput, next: () -> (Option[TxOutput], Option[AssetClass])) -> {
-                    a: Option[AssetClass] = policyAndAssetSearch(output, policy, name, amount, starts_with);
+                    a: Option[AssetClass] = policyAndAssetSearch(output, policy, name, amount, starts_with, owner_creds);
                     if (a != Option[AssetClass]::None) {
                         (Option[TxOutput]::Some{output}, a)
                     } else { next() }
@@ -87,8 +92,8 @@ func isValidContract(hash: ValidatorHash, settings: PzSettings) -> Bool {
 }
 
 func getHandleTokens(handle: String, settings: PzSettings, ctx: ScriptContext, check_sig: Bool) -> (TxOutput, TxOutput) {
-    (reference_token: Option[TxOutput], _) = findAsReferenceOrOutput(HANDLE_POLICY, LBL_100 + (handle.encode_utf8()), 1, ctx, false, false);
-    (owner_token: Option[TxOutput], _) = findAsReferenceOrOutput(HANDLE_POLICY, LBL_222 + (handle.encode_utf8()), 1, ctx, false, check_sig);
+    (reference_token: Option[TxOutput], _) = findAsReferenceOrOutput(HANDLE_POLICY, LBL_100 + (handle.encode_utf8()), 1, ctx, false, false, Option[Credential]::None);
+    (owner_token: Option[TxOutput], _) = findAsReferenceOrOutput(HANDLE_POLICY, LBL_222 + (handle.encode_utf8()), 1, ctx, false, check_sig, Option[Credential]::None);
     assert(owner_token != Option[TxOutput]::None, "Handle input not present");
     assert(reference_token != Option[TxOutput]::None, "Reference Token input not present");
     assert(isValidContract(reference_token.unwrap().address.credential.switch{v: Validator => v.hash, else => error("Invalid contract address")}, settings), "Reference Token not returned to contract");
@@ -183,13 +188,13 @@ func parseAsset(asset_bytes: ByteArray) -> AssetClass {
 func getAssetDatum(asset: AssetClass, ctx: ScriptContext) -> OutputDatum {
     output: Option[TxOutput] = (
         if (asset.token_name.starts_with(LBL_222) || asset.token_name.starts_with(LBL_444)) {
-            (tx: Option[TxOutput], _) = findAsReferenceOrOutput(asset.mph, LBL_100 + asset.token_name.slice(4, asset.token_name.length), 1, ctx, false, false);
+            (tx: Option[TxOutput], _) = findAsReferenceOrOutput(asset.mph, LBL_100 + asset.token_name.slice(4, asset.token_name.length), 1, ctx, false, false, Option[Credential]::None);
             assert(tx != Option[TxOutput]::None, "Asset not found in inputs");
             assert(tx.unwrap().datum != OutputDatum::new_none(), "CIP-68 tokens require inline datum");
             tx
         } 
         else {
-            (tx: Option[TxOutput], _) = findAsReferenceOrOutput(asset.mph, asset.token_name, 1, ctx, false, false);
+            (tx: Option[TxOutput], _) = findAsReferenceOrOutput(asset.mph, asset.token_name, 1, ctx, false, false, Option[Credential]::None);
             tx
     });
     assert(output != Option[TxOutput]::None, "Asset not found in inputs");
@@ -201,7 +206,7 @@ func assetIsValid(asset_type:String, pz_data: Map[String]Data, approvers: Map[St
         asset: AssetClass = parseAsset(ByteArray::from_data(pz_data.get(asset_type + "_asset")));
 
         // Is the asset passed in as an input/reference?
-        (asset_output: Option[TxOutput], _) = findAsReferenceOrOutput(asset.mph, asset.token_name, 1, ctx, false, false);
+        (asset_output: Option[TxOutput], _) = findAsReferenceOrOutput(asset.mph, asset.token_name, 1, ctx, false, false, Option[Credential]::None);
         assert(asset_output != Option[TxOutput]::None, "Required " + asset_type + " input/reference missing");
 
         assert(approvers.get(asset_type + "_approvers").any((pol: ByteArray, pattern: Map[ByteArray][]Int) -> Bool {
@@ -246,8 +251,8 @@ func checkRequiredPfPs(handle: String, pfp_asset: Option[Data], bg_datum_opt:Out
         require_asset_displayed_opt: Option[Data] = defaults.get_safe("require_asset_displayed");
         require_asset_valid: Bool = require_asset_collections_opt == Option[Data]::None ||
             []ByteArray::from_data(require_asset_collections_opt.unwrap()).any((asset_bytes: ByteArray) -> Bool {
-                (output: Option[TxOutput], asset_opt: Option[AssetClass]) = findAsReferenceOrOutput(MintingPolicyHash::new(asset_bytes.slice(0, 28)), asset_bytes.slice(28, asset_bytes.length), 1, ctx, true, false);
-                output != Option[TxOutput]::None && output.unwrap().address.credential == owner_cred
+                (output: Option[TxOutput], asset_opt: Option[AssetClass]) = findAsReferenceOrOutput(MintingPolicyHash::new(asset_bytes.slice(0, 28)), asset_bytes.slice(28, asset_bytes.length), 1, ctx, true, false, Option[Credential]::Some{owner_cred});
+                output != Option[TxOutput]::None
                 && (asset: AssetClass = asset_opt.unwrap();
                     (require_asset_attributes_opt == Option[Data]::None
                     || (if (asset.token_name.starts_with(LBL_222) || asset.token_name.starts_with(LBL_444)) {
@@ -264,8 +269,8 @@ func checkRequiredPfPs(handle: String, pfp_asset: Option[Data], bg_datum_opt:Out
                         })
                     }
                     else {
-                        // We can't check CIP-25 so just deny it
-                        false
+                        // We can't check CIP-25 so just approve it
+                        true
                     }))
                     && (require_asset_displayed_opt == Option[Data]::None 
                         || Int::from_data(require_asset_displayed_opt.unwrap()).to_bool() == false
@@ -406,7 +411,7 @@ func migrationSignersAreValid(migrate: Redeemer::MIGRATE, ctx: ScriptContext, se
     owner_sig_required: Bool = old_datum.extra.get_safe("migrate_sig_required").switch{Some{req} => {Int::from_data(req) != 0}, else => {false}};
     assert(adminHasSignedTx(settings, ctx), "Required admin signer(s) not present");
     if (owner_sig_required) {
-        (owner_token: Option[TxOutput], _) = findAsReferenceOrOutput(HANDLE_POLICY, LBL_222 + (migrate.handle.encode_utf8()), 1, ctx, false, true);
+        (owner_token: Option[TxOutput], _) = findAsReferenceOrOutput(HANDLE_POLICY, LBL_222 + (migrate.handle.encode_utf8()), 1, ctx, false, true, Option[Credential]::None);
         assert(owner_token != Option[TxOutput]::None, "Required owner signer not present");
         true
     }
@@ -499,7 +504,7 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
         },
         migrate: MIGRATE => {
             settings: PzSettings = loadPzSettings(ctx);
-            (reference_token: Option[TxOutput], _) = findAsReferenceOrOutput(HANDLE_POLICY, LBL_100 + (migrate.handle.encode_utf8()), 1, ctx, false, false);
+            (reference_token: Option[TxOutput], _) = findAsReferenceOrOutput(HANDLE_POLICY, LBL_100 + (migrate.handle.encode_utf8()), 1, ctx, false, false, Option[Credential]::None);
             //print(reference_token.serialize().show());
             new_datum: Datum::CIP68 = Datum::CIP68::from_data(reference_token.unwrap().datum.get_inline_data());
             assert(old_datum == new_datum
