@@ -7,7 +7,7 @@ import { BackgroundDefaults, Datum, PzRedeemer, PzSettings, ScriptContext,
 let contract = fs.readFileSync("../contract.helios").toString();
 contract = contract.replace(/ctx.get_current_validator_hash\(\)/g, 'ValidatorHash::new(#01234567890123456789012345678901234567890123456789000001)');
 
-tester.init("PERSONALIZE", "reference inputs, pfp CIP-25, defaults forced");
+tester.init();
 
 const pzRedeemer = new PzRedeemer();
 const resetRedeemer = new MigrateRedeemer('RESET');
@@ -628,7 +628,8 @@ Promise.all([
     tester.testCase(false, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, pfp not displayed", () => {
         const context = new ScriptContext().initPz(pzRedeemer.calculateCid());
         const datum = new Datum(pzRedeemer.calculateCid());
-        datum.extra.pfp_asset = `OutputDatum::new_inline(${pfp_policy}706670706670).data`;
+        delete datum.extra.pfp_asset;
+        delete datum.extra.pfp_image;
         context.outputs.find(output => output.asset == `"${handle}"` && output.label == 'LBL_100').datum = datum.render();
         const goodPfpInput = new TxInput(`${handles_tx_hash}`, new TxOutput(`${owner_bytes}`, '', '"pfppfp"'));
         goodPfpInput.output.hashType = 'pubkey';

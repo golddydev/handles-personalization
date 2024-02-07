@@ -260,6 +260,8 @@ export class ScriptContext {
       font_shadow_color: 'OutputDatum::new_inline(#22d1af).data',
       bg_color: 'OutputDatum::new_inline(#).data',
       bg_border_color: 'OutputDatum::new_inline(#22d1af).data',
+      bg_color: 'OutputDatum::new_inline(#22d1af).data',
+      circuit_color: 'OutputDatum::new_inline(#22d1af).data',
       qr_link: 'OutputDatum::new_inline("").data',
       socials: 'OutputDatum::new_inline([]String{}).data',
       svg_version: 'OutputDatum::new_inline(1).data'
@@ -464,6 +466,8 @@ export class ScriptContext {
       text_ribbon_colors: 'OutputDatum::new_inline([]ByteArray{#0a1fd3, #0a1fd4}).data',
       text_ribbon_gradient: 'OutputDatum::new_inline("linear-45").data',
       bg_border_colors: 'OutputDatum::new_inline([]ByteArray{#0a1fd3, #22d1af, #31bc23}).data',
+      bg_colors: 'OutputDatum::new_inline([]ByteArray{#0a1fd3, #22d1af, #31bc23}).data',
+      circuit_colors: 'OutputDatum::new_inline([]ByteArray{#0a1fd3, #22d1af, #31bc23}).data',
       pfp_border_colors: 'OutputDatum::new_inline([]ByteArray{#0a1fd3, #22d1af, #31bc23}).data',
       font_shadow_colors: 'OutputDatum::new_inline([]ByteArray{#0a1fd3, #22d1af, #31bc23}).data',
       require_asset_collections: `OutputDatum::new_inline([]ByteArray{${pfp_policy}000de140706670,${pfp_policy}706670}).data`,
