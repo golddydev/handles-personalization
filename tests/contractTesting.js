@@ -1,5 +1,5 @@
 import {Color} from './colors.js'
-import * as helios from "@hyperionbt/helios"
+import * as helios from "../helios.js"
 import fs from "fs";
 
 let testCount;

@@ -383,13 +383,13 @@ export class ScriptContext {
       datum = datum.replace(/,\n$/g, '\n');
       datum += '               },\n'
       datum += '               version: 1,\n'
-      datum += '               extra: Map[String]Data {\n';
+      datum += '               extra: OutputDatum::new_inline(Map[String]Data {\n';
   
       Object.keys(this.extra).forEach((key) => {
         datum += `              "${key}": ${this.extra[key]},\n`
       })
       datum = datum.replace(/,\n$/g, '\n');
-      datum += '            }}\n'
+      datum += '            }).data}\n'
       return datum;
     }
   }
@@ -490,13 +490,13 @@ export class ScriptContext {
       datum = datum.replace(/,\n$/g, '\n');
       datum += '          },\n'
       datum += '          version: 1,\n'
-      datum += '          extra: Map[String]Data {\n';
+      datum += '          extra: OutputDatum::new_inline(Map[String]Data {\n';
   
       Object.keys(this.extra).forEach((key) => {
         datum += `            "${key}": ${this.extra[key]},\n`
       })
       datum = datum.replace(/,\n$/g, '\n');
-      datum += '          }}\n'
+      datum += '          }).data}\n'
       return datum;
     }
   }
