@@ -46,6 +46,19 @@ func get_extra(extra: Data) -> Map[String]Data {
     }
 }
 
+func get_datum(output_datum: OutputDatum, ctx: ScriptContext) -> Data {
+    output_datum.switch{
+        hash: Hash => {
+            ctx.tx.datums.get(hash.hash)
+        },
+        inline: Inline => {
+            inline.data
+        },
+        _ => OutputDatum::new_inline(#).data
+    }
+
+}
+
 const HANDLE_HASH: ByteArray = #f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9a
 const HANDLE_POLICY: MintingPolicyHash = MintingPolicyHash::new(HANDLE_HASH)
 const LBL_444: ByteArray = #001bc280 // (444)bigirishlion
@@ -257,7 +270,7 @@ func getAndValidateDesignerAssets(pz_data: Map[String]Data, owner_cred: Credenti
 
 func checkRequiredPfPs(handle: String, pfp_asset: Option[Data], bg_datum_opt:OutputDatum, owner_cred:Credential, ctx: ScriptContext, throw_errors: Bool) -> Bool {
     if (bg_datum_opt != OutputDatum::new_none()) {
-        defaults: Map[String]Data = get_extra(Datum::CIP68::from_data(bg_datum_opt.get_inline_data()).extra);
+        defaults: Map[String]Data = get_extra(Datum::CIP68::from_data(get_datum(bg_datum_opt, ctx)).extra);
         required_sig_opt: Option[Data] = defaults.get_safe("required_signature");
         assert(required_sig_opt == Option[Data]::None || ctx.tx.signatories.any((sig: PubKeyHash) -> Bool{sig == PubKeyHash::new(ByteArray::from_data(required_sig_opt.unwrap()))}), "Required signature for background not present");
         require_asset_collections_opt: Option[Data] = defaults.get_safe("require_asset_collections");
@@ -272,7 +285,7 @@ func checkRequiredPfPs(handle: String, pfp_asset: Option[Data], bg_datum_opt:Out
                     || (if (asset.token_name.starts_with(LBL_222) || asset.token_name.starts_with(LBL_444)) {
                         []ByteArray::from_data(require_asset_attributes_opt.unwrap()).all((attr_bytes: ByteArray) -> Bool {
                             attr: String = attr_bytes.decode_utf8();
-                            nft: Map[String]Data = Datum::CIP68::from_data(getAssetDatum(asset, ctx).get_inline_data()).nft;
+                            nft: Map[String]Data = Datum::CIP68::from_data(get_datum(getAssetDatum(asset, ctx), ctx)).nft;
                             attributes: Map[String]Data = nft.get_safe("attributes").switch{ att: Some => Map[String]Data::from_data(att.some), else => nft };
                             found_att: Option[String] = attributes.find_key_safe((key: String) -> Bool { attr.starts_with(key + ":") });
                             found_att != Option[String]::None && attr.ends_with(":" + attributes.get(found_att.unwrap()).switch{
@@ -360,7 +373,7 @@ func designerSettingsAreValid(pz_data:Map[String]Data, redeemer: Redeemer::PERSO
     designer: Map[String]Data = redeemer.designer;
     defaults: Map[String]Data = (
         if (bg_datum_opt != OutputDatum::new_none()) {
-            bg_datum: Datum::CIP68 = Datum::CIP68::from_data(bg_datum_opt.get_inline_data());
+            bg_datum: Datum::CIP68 = Datum::CIP68::from_data(get_datum(bg_datum_opt, ctx));
             get_extra(bg_datum.extra)
         }
         else {Map[String]Data{}}
@@ -488,13 +501,13 @@ func pzDatumIsValid(
         assert((bg_asset_set && bg_image_set) || (bg_asset_set == false && bg_image_set == false), "bg_asset/bg_image mismatch");
         assert(bg_asset_set == false || (
             bg_datum: OutputDatum = getAssetDatum(bg_asset, ctx);
-            bg_datum == OutputDatum::new_none() || String::from_data(Datum::CIP68::from_data(bg_datum.get_inline_data()).nft.get("image")) == ByteArray::from_data(bg_image_data).decode_utf8()), "bg_image doesn't match bg_asset datum");
+            bg_datum == OutputDatum::new_none() || String::from_data(Datum::CIP68::from_data(get_datum(bg_datum, ctx)).nft.get("image")) == ByteArray::from_data(bg_image_data).decode_utf8()), "bg_image doesn't match bg_asset datum");
 
         (pfp_image_set: Bool, pfp_image_data: Data) = hasValueUnWrapped(pz_data.get_safe("pfp_image"));
         assert((pfp_asset_set && pfp_image_set) || (pfp_asset_set == false && pfp_image_set == false), "pfp_asset/pfp_image mismatch");
         assert(pfp_asset_set == false || (
             pfp_datum: OutputDatum = getAssetDatum(pfp_asset, ctx);
-            pfp_datum == OutputDatum::new_none() || String::from_data(Datum::CIP68::from_data(pfp_datum.get_inline_data()).nft.get("image")) == ByteArray::from_data(pfp_image_data).decode_utf8()), "pfp_image doesn't match pfp_asset datum");
+            pfp_datum == OutputDatum::new_none() || String::from_data(Datum::CIP68::from_data(get_datum(pfp_datum, ctx)).nft.get("image")) == ByteArray::from_data(pfp_image_data).decode_utf8()), "pfp_image doesn't match pfp_asset datum");
     
         true
 }

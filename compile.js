@@ -1,4 +1,4 @@
-import * as helios from "@hyperionbt/helios"
+import * as helios from "./helios.js"
 import fs from "fs";
 const OPTIMIZE = Boolean(process.env.OPTIMIZE || false);
 const REMOVE_ERRORS = Boolean(process.env.REMOVE_ERRORS || false);
