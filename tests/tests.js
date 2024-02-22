@@ -26,6 +26,7 @@ Promise.all([
         redeemer.designer.text_ribbon_colors = 'OutputDatum::new_inline([]ByteArray{#0a1fd3}).data',
         delete redeemer.designer.text_ribbon_gradient;
         delete redeemer.designer.font_color;
+        delete redeemer.designer.socials_color;
         delete redeemer.designer.font;
         delete redeemer.designer.qr_image;
         delete redeemer.designer.text_ribbon_colors;
@@ -84,6 +85,7 @@ Promise.all([
         const redeemer = new PzRedeemer();
         redeemer.designer.font = 'OutputDatum::new_inline(#).data';
         redeemer.designer.font_color = 'OutputDatum::new_inline(#).data';
+        redeemer.designer.socials_color = 'OutputDatum::new_inline(#).data';
         redeemer.designer.qr_inner_eye = 'OutputDatum::new_inline("square,,#0a1fd4").data';
         redeemer.designer.qr_outer_eye = 'OutputDatum::new_inline("square,,#0a1fd4").data';
         redeemer.designer.qr_dot = 'OutputDatum::new_inline("square,,#0a1fd4").data';

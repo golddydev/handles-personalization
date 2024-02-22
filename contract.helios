@@ -336,6 +336,7 @@ func propEqualsDesignerDefault(default: Option[Data], property: Option[Data], ex
 func exclusiveSettingsAreValid(defaults: Map[String]Data, designer: Map[String]Data, forced: Bool) -> Bool {
     assert(propEqualsDesignerDefault(defaults.get_safe("text_ribbon_gradient"), designer.get_safe("text_ribbon_gradient"), true, forced), "text_ribbon_gradient is not set correctly");
     assert(propEqualsDesignerDefault(defaults.get_safe("font_color"), designer.get_safe("font_color"), true, forced), "font_color is not set correctly");
+    assert(propEqualsDesignerDefault(defaults.get_safe("socials_color"), designer.get_safe("socials_color"), true, forced), "socials_color is not set correctly");
     assert(propEqualsDesignerDefault(defaults.get_safe("font"), designer.get_safe("font"), true, forced), "font is not set correctly");
     assert(propEqualsDesignerDefault(defaults.get_safe("qr_image"), designer.get_safe("qr_image"), true, forced), "qr_image is not set correctly");
 
@@ -390,7 +391,6 @@ func designerSettingsAreValid(pz_data:Map[String]Data, redeemer: Redeemer::PERSO
     assert(propInDesignerArray(defaults.get_safe("bg_border_colors"), designer.get_safe("bg_border_color"), forced), "bg_border_color is not set correctly");
     assert(propInDesignerArray(defaults.get_safe("bg_colors"), designer.get_safe("bg_color"), forced), "bg_color is not set correctly");
     assert(propInDesignerArray(defaults.get_safe("circuit_colors"), designer.get_safe("circuit_color"), forced), "circuit_color is not set correctly");
-    assert(propInDesignerArray(defaults.get_safe("socials_colors"), designer.get_safe("socials_color"), forced), "socials_color is not set correctly");
     assert(propInDesignerArray(defaults.get_safe("pfp_border_colors"), designer.get_safe("pfp_border_color"), forced), "pfp_border_color is not set correctly");
     assert(propInDesignerArray(defaults.get_safe("font_shadow_colors"), designer.get_safe("font_shadow_color"), forced), "font_shadow_color is not set correctly");
     assert(propEqualsDesignerDefault(defaults.get_safe("font_shadow_size"), font_shadow_size_opt, false, forced), "font_shadow_size is not set correctly");
