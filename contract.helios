@@ -390,6 +390,7 @@ func designerSettingsAreValid(pz_data:Map[String]Data, redeemer: Redeemer::PERSO
     assert(propInDesignerArray(defaults.get_safe("bg_border_colors"), designer.get_safe("bg_border_color"), forced), "bg_border_color is not set correctly");
     assert(propInDesignerArray(defaults.get_safe("bg_colors"), designer.get_safe("bg_color"), forced), "bg_color is not set correctly");
     assert(propInDesignerArray(defaults.get_safe("circuit_colors"), designer.get_safe("circuit_color"), forced), "circuit_color is not set correctly");
+    assert(propInDesignerArray(defaults.get_safe("socials_colors"), designer.get_safe("socials_color"), forced), "socials_color is not set correctly");
     assert(propInDesignerArray(defaults.get_safe("pfp_border_colors"), designer.get_safe("pfp_border_color"), forced), "pfp_border_color is not set correctly");
     assert(propInDesignerArray(defaults.get_safe("font_shadow_colors"), designer.get_safe("font_shadow_color"), forced), "font_shadow_color is not set correctly");
     assert(propEqualsDesignerDefault(defaults.get_safe("font_shadow_size"), font_shadow_size_opt, false, forced), "font_shadow_size is not set correctly");
@@ -508,6 +509,9 @@ func pzDatumIsValid(
         assert(pfp_asset_set == false || (
             pfp_datum: OutputDatum = getAssetDatum(pfp_asset, ctx);
             pfp_datum == OutputDatum::new_none() || String::from_data(Datum::CIP68::from_data(get_datum(pfp_datum, ctx)).nft.get("image")) == ByteArray::from_data(pfp_image_data).decode_utf8()), "pfp_image doesn't match pfp_asset datum");
+
+        resolved_addresses: Option[Data] = pz_data.get_safe("resolved_addresses");
+        assert(resolved_addresses == Option[Data]::None || Map[String]Data::from_data(resolved_addresses.unwrap()).get_safe("ada") == Option[Data]::None, "resolved_addresses can't contain 'ada'");
     
         true
 }
@@ -558,13 +562,25 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
             pz_data: Map[String]Data = get_extra(new_datum.extra);
             require_asset_valid: Bool = checkRequiredPfPs(reset.handle, pz_data.get_safe("pfp_asset"), bg_datum, owner_token.address.credential, ctx, false);
             signed_by_provider: Bool = ctx.tx.signatories.any((signer: PubKeyHash) -> Bool { settings.pz_providers.any((cred: ByteArray, _) -> Bool {signer == PubKeyHash::new(cred)})});
-            address_changed_with_socials: Bool = ((prev_datum_extra.get("last_update_address") != pz_data.get("last_update_address")) && String::from_data(prev_datum_extra.get("socials")) != "");
+            holder_changed: Bool = Address::from_bytes(ByteArray::from_data(prev_datum_extra.get("last_update_address"))).staking_credential != Address::from_bytes(ByteArray::from_data(pz_data.get("last_update_address"))).staking_credential;
+            has_socials: Bool = prev_datum_extra.get_safe("socials") != Option[Data]::None && String::from_data(prev_datum_extra.get("socials")) != "";
 
-            // Only allow reset if designer settings are off or last_update_address doesn't match or signed by a provider
-            // print(designer_assets_valid.show() + ", " + require_asset_valid.show() + ", " + address_changed_with_socials.show() + ", " + signed_by_provider.show());
-            if (designer_assets_valid == false || require_asset_valid == false || address_changed_with_socials || signed_by_provider) {
+            private_info_good: Bool = (
+                if (holder_changed) {
+                    assert(has_socials && (pz_data.get_safe("socials") == Option[Data]::None || String::from_data(pz_data.get("socials")) != ""), "Socials need to be reset");
+                    assert(pz_data.get_safe("resolved_addresses") == Option[Data]::None, "resolved_addresses need to be reset");
+                    true
+                }
+                else {
+                    assert(pz_data.get_safe("socials") == prev_datum_extra.get_safe("socials"), "Socials shouldn't be reset");
+                    assert(pz_data.get_safe("resolved_addresses") == prev_datum_extra.get_safe("resolved_addresses"), "resolved_addresses shouldn't be reset");
+                    true
+                });
 
-                pz_datum_is_reset: Bool = (
+            // Only allow reset if designer settings are off or signed by a provider
+            // print(designer_assets_valid.show() + ", " + require_asset_valid.show() + ", " + signed_by_provider.show());
+            if (designer_assets_valid == false || require_asset_valid == false || signed_by_provider) {
+                assert(
                     new_datum.nft.get("image") == pz_data.get("standard_image")
                     && pz_data.get("image_hash") == pz_data.get("standard_image_hash")
                     && pz_data.get_safe("pfp_asset") == Option[Data]::None
@@ -573,21 +589,11 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                     && pz_data.get_safe("bg_image") == Option[Data]::None
                     && pz_data.get_safe("designer") == Option[Data]::None
                     && Int::from_data(pz_data.get("trial")) == 0
-                    && Int::from_data(pz_data.get("nsfw")) == 0);
-
-                assert(pz_datum_is_reset, "Personalization properties not properly reset");
-
-                if (address_changed_with_socials) {
-                    assert(pz_data.get_safe("socials") == Option[Data]::None, "Socials need to be reset");
-                    true
-                }
-                else {
-                    assert(pz_data.get_safe("socials") == prev_datum_extra.get_safe("socials"), "Socials shouldn't be reset");
-                    true
-                }
+                    && Int::from_data(pz_data.get("nsfw")) == 0, "Personalization properties not properly reset");
+                    private_info_good
             }
             else {
-                error("Reset is not allowed or not authorized")
+                error("Reset is not allowed or not authorized")                
             }
         },
         RETURN_TO_SENDER => {

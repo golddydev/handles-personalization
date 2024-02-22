@@ -425,6 +425,27 @@ Promise.all([
         const program = tester.createProgram(contract, new Datum().render(), pzRedeemer.render(), context.render());
         return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
     }, "Personalization provider not found or fee unpaid"),
+    tester.testCase(false, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, wrong bg_color", () => {
+        const redeemer = new PzRedeemer();
+        redeemer.designer.bg_color = 'OutputDatum::new_inline(#dddddd).data';
+        const context = new ScriptContext().initPz(redeemer.calculateCid());
+        const program = tester.createProgram(contract, new Datum().render(), redeemer.render(), context.render());
+        return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
+    }, "bg_color is not set correctly"),
+    tester.testCase(false, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, wrong circuit_color", () => {
+        const redeemer = new PzRedeemer();
+        redeemer.designer.circuit_color = 'OutputDatum::new_inline(#dddddd).data';
+        const context = new ScriptContext().initPz(redeemer.calculateCid());
+        const program = tester.createProgram(contract, new Datum().render(), redeemer.render(), context.render());
+        return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
+    }, "circuit_color is not set correctly"),
+    tester.testCase(false, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, wrong socials_color", () => {
+        const redeemer = new PzRedeemer();
+        redeemer.designer.socials_color = 'OutputDatum::new_inline(#dddddd).data';
+        const context = new ScriptContext().initPz(redeemer.calculateCid());
+        const program = tester.createProgram(contract, new Datum().render(), redeemer.render(), context.render());
+        return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
+    }, "socials_color is not set correctly"),
     tester.testCase(false, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, wrong bg_border", () => {
         const redeemer = new PzRedeemer();
         redeemer.designer.bg_border_color = 'OutputDatum::new_inline(#dddddd).data';
