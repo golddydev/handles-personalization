@@ -21,7 +21,10 @@ export async function testCase(shouldApprove, testGroup, testName, setup, messag
       testCount++;
       const {contract, params} = setup();
       await contract.runWithPrint(params).then((res) => {
-        logTest(shouldApprove, testGroup, testName, message, res);
+        try {
+          logTest(shouldApprove, testGroup, testName, message, res);
+        }
+        catch (e) {console.log('ERROR during logging:\n', e.message, e.stack, res)}
       })
       .catch((err) => {
         logTest(shouldApprove, testGroup, testName, message, err);

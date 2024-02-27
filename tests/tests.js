@@ -755,23 +755,16 @@ Promise.all([
     }, "Required admin signer(s) not present"),
 
     // RESET ENDPOINT - SHOULD APPROVE
-    tester.testCase(true, "RESET", "no pz signer, pfp mismatch", () => {
-        const context = new ScriptContext().initReset(resetRedeemer);
+    tester.testCase(true, "RESET", "no admin signer, pfp mismatch", () => {
+        const context = new ScriptContext().initReset();
         context.referenceInputs.find(input => input.output.asset == '"pfp"' && input.output.label == 'LBL_222').output.hash = '#123456789012345678901234567890123456789012345678901234af';
-        context.signers = [];
         const program = tester.createProgram(contract, new Datum().render(), resetRedeemer.render(), context.render());
         return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
     }),
 
     // RESET ENDPOINT - SHOULD DENY
     tester.testCase(false, "RESET", "reset not allowed because all good", () => {
-        const context = new ScriptContext().initReset(resetRedeemer);
-        context.signers = [];
-        const datum = new Datum();
-        datum.extra.bg_asset = `OutputDatum::new_inline(${bg_policy}001bc2806267).data`;
-        datum.extra.pfp_asset = `OutputDatum::new_inline(${pfp_policy}000de140706670).data`;
-        delete datum.extra.validated_by;
-        context.outputs.find(output => output.asset == `"${handle}"` && output.label == 'LBL_100').datum = datum.render();
+        const context = new ScriptContext().initReset();
         const program = tester.createProgram(contract, new Datum().render(), resetRedeemer.render(), context.render());
         return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
     }, 'Reset is not allowed or not authorized'),
