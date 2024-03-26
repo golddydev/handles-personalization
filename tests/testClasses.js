@@ -57,29 +57,30 @@ export class ScriptContext {
       this.outputs.push(goodProviderOutput);
     }
 
-    addPzInputs() {
+    addPzInputs(asReference=false) {
+      const goodBgOutput =  new TxOutput(`${owner_bytes}`, 'LBL_444', '"bg"');
+      const goodBgInput = new TxInput(`${handles_tx_hash}`, goodBgOutput);
+      goodBgInput.output.hashType = 'pubkey';
+      goodBgInput.output.policy = `MintingPolicyHash::new(${bg_policy})`;
+      const goodPfpOutput =  new TxOutput(`${owner_bytes}`, 'LBL_222', '"pfp"');
+      const goodPfpInput = new TxInput(`${handles_tx_hash}`, goodPfpOutput);
+      goodPfpInput.output.hashType = 'pubkey';
+      goodPfpInput.output.policy = `MintingPolicyHash::new(${pfp_policy})`;
       const goodOwnerOutput = new TxOutput(`${owner_bytes}`, 'LBL_222', `"${handle}"`)
       goodOwnerOutput.hashType = 'pubkey';
       const goodOwnerInput = new TxInput(`${owner_tx_hash}`, goodOwnerOutput);
-      this.inputs = [new TxInput(`${script_tx_hash}`, new TxOutput(`${script_creds_bytes}`)), goodOwnerInput];
-      this.outputs.push(goodOwnerOutput);
+      this.inputs = [new TxInput(`${script_tx_hash}`, new TxOutput(`${script_creds_bytes}`))];
   
-      const goodBgInput = new TxInput(`${handles_tx_hash}`, new TxOutput(`${owner_bytes}`, 'LBL_444', '"bg"'));
-      goodBgInput.output.hashType = 'pubkey';
-      goodBgInput.output.policy = `MintingPolicyHash::new(${bg_policy})`;
-      const goodBgInputRef = new TxInput(`${handles_tx_hash}`, new TxOutput(`${owner_bytes}`, 'LBL_100', '"bg"'));
-      goodBgInputRef.output.hashType = 'pubkey';
-      goodBgInputRef.output.datumType = 'inline';
-      goodBgInputRef.output.datum = new BackgroundDefaults().render();
-      goodBgInputRef.output.policy = `MintingPolicyHash::new(${bg_policy})`;
-      const goodPfpInput = new TxInput(`${handles_tx_hash}`, new TxOutput(`${owner_bytes}`, 'LBL_222', '"pfp"'));
-      goodPfpInput.output.hashType = 'pubkey';
-      goodPfpInput.output.policy = `MintingPolicyHash::new(${pfp_policy})`;
       const goodPfpInputRef = new TxInput(`${handles_tx_hash}`, new TxOutput(`${owner_bytes}`, 'LBL_100', '"pfp"'));
       goodPfpInputRef.output.hashType = 'pubkey';
       goodPfpInputRef.output.datumType = 'inline';
       goodPfpInputRef.output.datum = new Datum().render();
       goodPfpInputRef.output.policy = `MintingPolicyHash::new(${pfp_policy})`;
+      const goodBgInputRef = new TxInput(`${handles_tx_hash}`, new TxOutput(`${owner_bytes}`, 'LBL_100', '"bg"'));
+      goodBgInputRef.output.hashType = 'pubkey';
+      goodBgInputRef.output.datumType = 'inline';
+      goodBgInputRef.output.datum = new BackgroundDefaults().render();
+      goodBgInputRef.output.policy = `MintingPolicyHash::new(${bg_policy})`;
       const goodBgListInput = new TxInput(`${handles_tx_hash}`, new TxOutput(`${ada_handles_bytes}`, 'LBL_222', '"bg_policy_ids"'));
       goodBgListInput.output.datumType = 'inline';
       goodBgListInput.output.datum = new ApprovedPolicyIds(bg_policy).render();
@@ -91,7 +92,16 @@ export class ScriptContext {
       const goodPzInput = new TxInput(`${handles_tx_hash}`, new TxOutput(`${ada_handles_bytes}`, 'LBL_222', '"pz_settings"'));
       goodPzInput.output.datumType = 'inline';
       goodPzInput.output.datum = new PzSettings().render();
-      this.referenceInputs = [goodBgInput, goodBgInputRef, goodPfpInput, goodPfpInputRef, goodBgListInput, goodPfpListInput, goodPzInput];
+      this.referenceInputs = [goodBgInputRef, goodPfpInputRef, goodBgListInput, goodPfpListInput, goodPzInput];
+
+      if (asReference) {
+        this.referenceInputs.push(goodOwnerInput, goodBgInput, goodPfpInput);
+      }
+      else {
+        this.inputs.push(goodOwnerInput, goodBgInput, goodPfpInput);
+        this.outputs.push(goodOwnerOutput, goodBgOutput, goodPfpOutput);
+
+      }
     }
 
     initMigrate() {
@@ -110,7 +120,7 @@ export class ScriptContext {
     }
 
     initReset() {
-      this.addPzInputs();
+      this.addPzInputs(true);
       const goodRefTokenOutput = new TxOutput(`${script_creds_bytes}`);
       goodRefTokenOutput.datumType = 'inline';
       const datum = new Datum();

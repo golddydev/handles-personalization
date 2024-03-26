@@ -76,40 +76,40 @@ func holderAddressesMatch(address1: Address, address2: Address) -> Bool {
     }
 }
 
-func policyAndAssetSearch(output: TxOutput, policy: MintingPolicyHash, name: ByteArray, amount: Int, starts_with: Bool, owner_creds: Option[Credential]) -> Option[AssetClass] {
+func policyAndAssetSearch(output: TxOutput, policy: MintingPolicyHash, name: ByteArray, amount: Int, starts_with: Bool) -> Option[AssetClass] {
     output.value.to_map().fold_lazy((key: MintingPolicyHash, value: Map[ByteArray]Int, next: () -> Option[AssetClass]) -> {
         asset_name: Option[ByteArray] = value.find_key_safe((k: ByteArray) -> Bool { if (starts_with) { k.starts_with(name) } else { k == name } });
-        if (owner_creds != Option[Credential]::None && owner_creds.unwrap() != output.address.credential) {
-            next()
-        }
-            else {
-            if (policy == key && asset_name != Option[ByteArray]::None && value.get(asset_name.unwrap()) >= amount) {
-                Option[AssetClass]::Some{AssetClass::new(key, asset_name.unwrap())}
-            } else { next() }
-        }
+        if (policy == key && asset_name != Option[ByteArray]::None && value.get(asset_name.unwrap()) >= amount) {
+            Option[AssetClass]::Some{AssetClass::new(key, asset_name.unwrap())}
+        } else { next() }
     }, Option[AssetClass]::None)
 }
 
-func findAsReferenceOrOutput(policy: MintingPolicyHash, name: ByteArray, amount: Int, ctx: ScriptContext, starts_with: Bool, owner_creds: Option[Credential]) -> (Option[TxOutput], Option[AssetClass]) {
-    (tx: Option[TxOutput], asset: Option[AssetClass]) = ctx.tx.ref_inputs.fold2_lazy(
+func findAsOutput(policy: MintingPolicyHash, name: ByteArray, amount: Int, ctx: ScriptContext, starts_with: Bool) -> (Option[TxOutput], Option[AssetClass]) {
+    ctx.tx.outputs.fold2_lazy(
+        (output: TxOutput, next: () -> (Option[TxOutput], Option[AssetClass])) -> {
+            a: Option[AssetClass] = policyAndAssetSearch(output, policy, name, amount, starts_with);
+            if (a != Option[AssetClass]::None) {
+                (Option[TxOutput]::Some{output}, a)
+            } else { next() }
+    }, Option[TxOutput]::None, Option[AssetClass]::None)
+    
+}
+
+func findAsReferenceOrOutput(policy: MintingPolicyHash, name: ByteArray, amount: Int, ctx: ScriptContext, starts_with: Bool) -> (Option[TxOutput], Option[AssetClass]) {
+    (output: Option[TxOutput], asset: Option[AssetClass]) = ctx.tx.ref_inputs.fold2_lazy(
         (input: TxInput, next: () -> (Option[TxOutput], Option[AssetClass])) -> {
-            a: Option[AssetClass] = policyAndAssetSearch(input.output, policy, name, amount, starts_with, owner_creds);
+            a: Option[AssetClass] = policyAndAssetSearch(input.output, policy, name, amount, starts_with);
             if (a != Option[AssetClass]::None) {
                 (Option[TxOutput]::Some{input.output}, a)
             } else { next() }
         }, 
         Option[TxOutput]::None, Option[AssetClass]::None
     );
-    tx.switch {
-        Some => (tx, asset), 
+    output.switch {
+        Some => (output, asset), 
         else => {
-            ctx.tx.outputs.fold2_lazy(
-                (output: TxOutput, next: () -> (Option[TxOutput], Option[AssetClass])) -> {
-                    a: Option[AssetClass] = policyAndAssetSearch(output, policy, name, amount, starts_with, owner_creds);
-                    if (a != Option[AssetClass]::None) {
-                        (Option[TxOutput]::Some{output}, a)
-                    } else { next() }
-            }, Option[TxOutput]::None, Option[AssetClass]::None)
+            findAsOutput(policy, name, amount, ctx, starts_with)
         }
     }
 }
@@ -122,9 +122,12 @@ func isValidContract(hash: ValidatorHash, settings: PzSettings) -> Bool {
     true
 }
 
-func getHandleTokens(handle: String, settings: PzSettings, ctx: ScriptContext) -> (TxOutput, TxOutput) {
-    (reference_token: Option[TxOutput], _) = findAsReferenceOrOutput(HANDLE_POLICY, LBL_100 + (handle.encode_utf8()), 1, ctx, false, Option[Credential]::None);
-    owner_token: Option[TxOutput] = ctx.tx.outputs.find_safe((output: TxOutput) -> Bool {output.value.contains(Value::new(AssetClass::new(HANDLE_POLICY, LBL_222 + handle.encode_utf8()), 1))});
+func getHandleTokens(handle: String, settings: PzSettings, ctx: ScriptContext, reset: Bool) -> (TxOutput, TxOutput) {
+    (reference_token: Option[TxOutput], _) = findAsReferenceOrOutput(HANDLE_POLICY, LBL_100 + (handle.encode_utf8()), 1, ctx, false);
+    owner_token: Option[TxOutput] = if (reset) {
+        (o: Option[TxOutput], _) = findAsReferenceOrOutput(HANDLE_POLICY, LBL_222 + (handle.encode_utf8()), 1, ctx, false);
+        o
+    } else { ctx.tx.outputs.find_safe((output: TxOutput) -> Bool {output.value.contains(Value::new(AssetClass::new(HANDLE_POLICY, LBL_222 + handle.encode_utf8()), 1))})};
     assert(owner_token != Option[TxOutput]::None, "Handle input not present");
     assert(reference_token != Option[TxOutput]::None, "Reference Token input not present");
     assert(isValidContract(reference_token.unwrap().address.credential.switch{v: Validator => v.hash, else => error("Invalid contract address")}, settings), "Reference Token not returned to contract");
@@ -178,13 +181,9 @@ func checkInputsAndLoadSettings(ctx: ScriptContext) -> (PzSettings, Map[String]M
 }
 
 func feesArePaid(ctx: ScriptContext, settings: PzSettings, handle: String) -> Bool {
-    // Treasury fee paid
-    assert(ctx.tx.outputs.any((output: TxOutput) -> Bool {
-        // Check that datum is attached so it can be spent (also guard against double satisfaction)
-        output.address.credential == Credential::new_validator(ValidatorHash::new(settings.treasury_cred))
-            && output.value.contains(Value::lovelace(settings.treasury_fee))
-            && output.datum.get_inline_data().switch{b: ByteArray => { b == handle.encode_utf8() }, else => {false}}
-    }), "Handle treasury fee unpaid");
+    // Treasury fee paid and datum is attached so it can be spent (also guard against double satisfaction)
+    treas: []TxOutput = ctx.tx.outputs_locked_by_datum(ValidatorHash::new(settings.treasury_cred), handle.encode_utf8(), true);
+    assert(treas.length > 0 && treas.get(0).value.contains(Value::lovelace(settings.treasury_fee)), "Handle treasury fee unpaid");
 
     // PZ provider fee paid
     assert(ctx.tx.outputs.any((output: TxOutput) -> Bool {
@@ -216,28 +215,28 @@ func parseAsset(asset_bytes: ByteArray) -> AssetClass {
     AssetClass::new(MintingPolicyHash::new(asset_bytes.slice(0, 28)), asset_bytes.slice(28, asset_bytes.length))
 }
 
-func getAssetDatum(asset: AssetClass, ctx: ScriptContext) -> OutputDatum {
+func getAssetDatum(asset: AssetClass, ctx: ScriptContext, reset: Bool) -> OutputDatum {
     output: Option[TxOutput] = (
         if (asset.token_name.starts_with(LBL_222) || asset.token_name.starts_with(LBL_444)) {
-            (tx: Option[TxOutput], _) = findAsReferenceOrOutput(asset.mph, LBL_100 + asset.token_name.slice(4, asset.token_name.length), 1, ctx, false, Option[Credential]::None);
+            (tx: Option[TxOutput], _) = findAsReferenceOrOutput(asset.mph, LBL_100 + asset.token_name.slice(4, asset.token_name.length), 1, ctx, false);
             assert(tx != Option[TxOutput]::None, "Asset not found in inputs");
             assert(tx.unwrap().datum != OutputDatum::new_none(), "CIP-68 tokens require inline datum");
             tx
         } 
         else {
-            (tx: Option[TxOutput], _) = findAsReferenceOrOutput(asset.mph, asset.token_name, 1, ctx, false, Option[Credential]::None);
+            (tx: Option[TxOutput], _) = if (reset) {findAsReferenceOrOutput(asset.mph, asset.token_name, 1, ctx, false)} else {findAsOutput(asset.mph, asset.token_name, 1, ctx, false)};
             tx
     });
     assert(output != Option[TxOutput]::None, "Asset not found in inputs");
     output.unwrap().datum
 }
 
-func assetIsValid(asset_type:String, pz_data: Map[String]Data, approvers: Map[String]Map[ByteArray]Map[ByteArray][]Int, ctx: ScriptContext, throw_errors:Bool) -> (Bool, Option[Address], OutputDatum) {
+func assetIsValid(asset_type:String, pz_data: Map[String]Data, approvers: Map[String]Map[ByteArray]Map[ByteArray][]Int, ctx: ScriptContext, throw_errors:Bool, reset: Bool) -> (Bool, Option[Address], OutputDatum) {
     if (pz_data.find_key_safe((key: String) -> { key == asset_type + "_asset" }) != Option[String]::None) {
         asset: AssetClass = parseAsset(ByteArray::from_data(pz_data.get(asset_type + "_asset")));
 
         // Is the asset passed in as an input/reference?
-        (asset_output: Option[TxOutput], _) = findAsReferenceOrOutput(asset.mph, asset.token_name, 1, ctx, false, Option[Credential]::None);
+        (asset_output: Option[TxOutput], _) = if (reset) {findAsReferenceOrOutput(asset.mph, asset.token_name, 1, ctx, false)} else {findAsOutput(asset.mph, asset.token_name, 1, ctx, false)};
         isNotMissing: Bool = asset_output != Option[TxOutput]::None;
         isApproved: Bool = approvers.get(asset_type + "_approvers").any((pol: ByteArray, pattern: Map[ByteArray][]Int) -> Bool {
             pol.serialize() == asset.mph.serialize() && pattern.any((p: ByteArray, _) -> Bool { asset.token_name.starts_with(p) })
@@ -245,11 +244,11 @@ func assetIsValid(asset_type:String, pz_data: Map[String]Data, approvers: Map[St
         if (throw_errors) {
             assert(isNotMissing, "Required " + asset_type + " input/reference missing");
             assert(isApproved, asset_type + " is not in the approved list");
-            (true, Option[Address]::Some{asset_output.unwrap().address}, getAssetDatum(asset, ctx))
+            (true, Option[Address]::Some{asset_output.unwrap().address}, getAssetDatum(asset, ctx, reset))
         }
         else {
             if (isNotMissing) {
-                (isApproved, Option[Address]::Some{asset_output.unwrap().address}, getAssetDatum(asset, ctx))
+                (isApproved, Option[Address]::Some{asset_output.unwrap().address}, getAssetDatum(asset, ctx, reset))
             }
             else {
                 (false, Option[Address]::None, OutputDatum::new_none())
@@ -261,14 +260,13 @@ func assetIsValid(asset_type:String, pz_data: Map[String]Data, approvers: Map[St
     }
 }
 
-func getAndValidateDesignerAssets(pz_data: Map[String]Data, owner_address: Address, approvers: Map[String]Map[ByteArray]Map[ByteArray][]Int, ctx: ScriptContext, throw_errors:Bool) -> (OutputDatum, Bool) {
-    // handle, pfp, and bg can be ref_input or output
+func getAndValidateDesignerAssets(pz_data: Map[String]Data, owner_address: Address, approvers: Map[String]Map[ByteArray]Map[ByteArray][]Int, ctx: ScriptContext, throw_errors:Bool, reset: Bool) -> (OutputDatum, Bool) {
     // handle determines the address creds, all others must match 
     // We know we have a signature from the owner.
 
     // print("REDEEMER: " + pz_data.serialize().show());
-    (pfp_valid: Bool, pfp_address: Option[Address], _) = assetIsValid("pfp", pz_data, approvers, ctx, throw_errors);
-    (bg_valid: Bool, bg_address: Option[Address], bg_datum_opt: OutputDatum) = assetIsValid("bg", pz_data, approvers, ctx, throw_errors);
+    (pfp_valid: Bool, pfp_address: Option[Address], _) = assetIsValid("pfp", pz_data, approvers, ctx, throw_errors, reset);
+    (bg_valid: Bool, bg_address: Option[Address], bg_datum_opt: OutputDatum) = assetIsValid("bg", pz_data, approvers, ctx, throw_errors, reset);
     pfp_cred_valid: Bool = pfp_address == Option[Address]::None || holderAddressesMatch(pfp_address.unwrap(), owner_address);
     bg_cred_valid: Bool = bg_address == Option[Address]::None || holderAddressesMatch(bg_address.unwrap(), owner_address);
     // print("pfp_address == " + pfp_cred_valid.show());
@@ -283,7 +281,7 @@ func getAndValidateDesignerAssets(pz_data: Map[String]Data, owner_address: Addre
     }
 }
 
-func checkRequiredPfPs(handle: String, pfp_asset: Option[Data], bg_datum_opt :OutputDatum, owner_address: Address, ctx: ScriptContext, throw_errors: Bool) -> Bool {
+func checkRequiredPfPs(handle: String, pfp_asset: Option[Data], bg_datum_opt :OutputDatum, owner_address: Address, ctx: ScriptContext, throw_errors: Bool, reset: Bool) -> Bool {
     if (bg_datum_opt != OutputDatum::new_none()) {
         defaults: Map[String]Data = get_extra(Datum::CIP68::from_data(get_datum(bg_datum_opt, ctx)).extra);
         required_sig_opt: Option[Data] = defaults.get_safe("required_signature");
@@ -293,7 +291,7 @@ func checkRequiredPfPs(handle: String, pfp_asset: Option[Data], bg_datum_opt :Ou
         require_asset_displayed_opt: Option[Data] = defaults.get_safe("require_asset_displayed");
         require_asset_valid: Bool = require_asset_collections_opt == Option[Data]::None ||
             []ByteArray::from_data(require_asset_collections_opt.unwrap()).any((asset_bytes: ByteArray) -> Bool {
-                (output: Option[TxOutput], asset_opt: Option[AssetClass]) = findAsReferenceOrOutput(MintingPolicyHash::new(asset_bytes.slice(0, 28)), asset_bytes.slice(28, asset_bytes.length), 1, ctx, true, Option[Credential]::None);
+                (output: Option[TxOutput], asset_opt: Option[AssetClass]) = if (reset) {findAsReferenceOrOutput(MintingPolicyHash::new(asset_bytes.slice(0, 28)), asset_bytes.slice(28, asset_bytes.length), 1, ctx, true)} else {findAsOutput(MintingPolicyHash::new(asset_bytes.slice(0, 28)), asset_bytes.slice(28, asset_bytes.length), 1, ctx, true)};
                 output != Option[TxOutput]::None
                 && holderAddressesMatch(output.unwrap().address, owner_address)
                 && (asset: AssetClass = asset_opt.unwrap();
@@ -301,7 +299,7 @@ func checkRequiredPfPs(handle: String, pfp_asset: Option[Data], bg_datum_opt :Ou
                     || (if (asset.token_name.starts_with(LBL_222) || asset.token_name.starts_with(LBL_444)) {
                         []ByteArray::from_data(require_asset_attributes_opt.unwrap()).all((attr_bytes: ByteArray) -> Bool {
                             attr: String = attr_bytes.decode_utf8();
-                            nft: Map[String]Data = Datum::CIP68::from_data(get_datum(getAssetDatum(asset, ctx), ctx)).nft;
+                            nft: Map[String]Data = Datum::CIP68::from_data(get_datum(getAssetDatum(asset, ctx, reset), ctx)).nft;
                             attributes: Map[String]Data = nft.get_safe("attributes").switch{ att: Some => Map[String]Data::from_data(att.some), else => nft };
                             found_att: Option[String] = attributes.find_key_safe((key: String) -> Bool { attr.starts_with(key + ":") });
                             found_att != Option[String]::None && attr.ends_with(":" + attributes.get(found_att.unwrap()).switch{
@@ -386,7 +384,7 @@ func exclusiveSettingsAreValid(defaults: Map[String]Data, designer: Map[String]D
     true
 }
 
-func designerSettingsAreValid(pz_data: Map[String]Data, redeemer: Redeemer::PERSONALIZE, bg_datum_opt: OutputDatum, owner_address: Address, ctx: ScriptContext) -> Bool {
+func designerSettingsAreValid(pz_data: Map[String]Data, redeemer: Redeemer::PERSONALIZE, bg_datum_opt: OutputDatum, owner_address: Address, ctx: ScriptContext, reset: Bool) -> Bool {
     designer: Map[String]Data = redeemer.designer;
     defaults: Map[String]Data = (
         if (bg_datum_opt != OutputDatum::new_none()) {
@@ -402,7 +400,7 @@ func designerSettingsAreValid(pz_data: Map[String]Data, redeemer: Redeemer::PERS
     pfp_offset_opt: Option[Data] = designer.get_safe("pfp_offset");
     pfp_zoom_opt: Option[Data] = designer.get_safe("pfp_zoom");
     font_shadow_size_opt: Option[Data] = designer.get_safe("font_shadow_size");
-    areRequiredPfpsPresent: Bool = checkRequiredPfPs(redeemer.handle, pz_data.get_safe("pfp_asset"), bg_datum_opt, owner_address, ctx, true);
+    areRequiredPfpsPresent: Bool = checkRequiredPfPs(redeemer.handle, pz_data.get_safe("pfp_asset"), bg_datum_opt, owner_address, ctx, true, reset);
     assert(areRequiredPfpsPresent, "Background doesn't pass required asset settings");
     assert(propInDesignerArray(defaults.get_safe("bg_border_colors"), designer.get_safe("bg_border_color"), forced), "bg_border_color is not set correctly");
     assert(propInDesignerArray(defaults.get_safe("bg_colors"), designer.get_safe("bg_color"), forced), "bg_color is not set correctly");
@@ -472,7 +470,8 @@ func pzDatumIsValid(
     owner_token: TxOutput, 
     reference_token: TxOutput,
     approvers: Map[String]Map[ByteArray]Map[ByteArray][]Int, 
-    ctx: ScriptContext) -> Bool {
+    ctx: ScriptContext,
+    reset: Bool) -> Bool {
         // check last_update_address == owner_222.address
         pz_data: Map[String]Data = get_extra(Datum::CIP68::from_data(reference_token.datum.get_inline_data()).extra);
         assert(Address::from_bytes(ByteArray::from_data(pz_data.get("last_update_address"))) == owner_token.address, "last_update_address does not match Handle address");
@@ -510,13 +509,13 @@ func pzDatumIsValid(
         (bg_image_set: Bool, bg_image_data: Data) = hasValueUnWrapped(pz_data.get_safe("bg_image"));
         assert((bg_asset_set && bg_image_set) || (bg_asset_set == false && bg_image_set == false), "bg_asset/bg_image mismatch");
         assert(bg_asset_set == false || (
-            bg_datum: OutputDatum = getAssetDatum(bg_asset, ctx);
+            bg_datum: OutputDatum = getAssetDatum(bg_asset, ctx, reset);
             bg_datum == OutputDatum::new_none() || String::from_data(Datum::CIP68::from_data(get_datum(bg_datum, ctx)).nft.get("image")) == ByteArray::from_data(bg_image_data).decode_utf8()), "bg_image doesn't match bg_asset datum");
 
         (pfp_image_set: Bool, pfp_image_data: Data) = hasValueUnWrapped(pz_data.get_safe("pfp_image"));
         assert((pfp_asset_set && pfp_image_set) || (pfp_asset_set == false && pfp_image_set == false), "pfp_asset/pfp_image mismatch");
         assert(pfp_asset_set == false || (
-            pfp_datum: OutputDatum = getAssetDatum(pfp_asset, ctx);
+            pfp_datum: OutputDatum = getAssetDatum(pfp_asset, ctx, reset);
             pfp_datum == OutputDatum::new_none() || String::from_data(Datum::CIP68::from_data(get_datum(pfp_datum, ctx)).nft.get("image")) == ByteArray::from_data(pfp_image_data).decode_utf8()), "pfp_image doesn't match pfp_asset datum");
 
         resolved_addresses: Option[Data] = pz_data.get_safe("resolved_addresses");
@@ -533,7 +532,7 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
     redeemer.switch {
         pz: PERSONALIZE => {
             (settings: PzSettings, approvers: Map[String]Map[ByteArray]Map[ByteArray][]Int) = checkInputsAndLoadSettings(ctx);
-            (owner_token: TxOutput, reference_token: TxOutput) = getHandleTokens(pz.handle, settings, ctx);
+            (owner_token: TxOutput, reference_token: TxOutput) = getHandleTokens(pz.handle, settings, ctx, false);
             new_datum: Datum::CIP68 = Datum::CIP68::from_data(reference_token.datum.get_inline_data());
             assert(isValidContract(ctx.get_current_validator_hash(), settings) 
                 && feesArePaid(ctx, settings, pz.handle) 
@@ -541,14 +540,14 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                 && immutablesAreUnchanged(old_datum, new_datum)
                 , "Contract failed validation");
             new_extra: Map[String]Data = get_extra(new_datum.extra);
-            (bg_datum:OutputDatum, _) = getAndValidateDesignerAssets(new_extra, owner_token.address, approvers, ctx, true);
-            assert(pzDatumIsValid(owner_token, reference_token, approvers, ctx)
-                && designerSettingsAreValid(new_extra, pz, bg_datum, owner_token.address, ctx), "Personalization settings checks failed");
+            (bg_datum:OutputDatum, _) = getAndValidateDesignerAssets(new_extra, owner_token.address, approvers, ctx, true, false);
+            assert(pzDatumIsValid(owner_token, reference_token, approvers, ctx, false)
+                && designerSettingsAreValid(new_extra, pz, bg_datum, owner_token.address, ctx, false), "Personalization settings checks failed");
             true
         },
         migrate: MIGRATE => {
             settings: PzSettings = loadPzSettings(ctx);
-            (reference_token: Option[TxOutput], _) = findAsReferenceOrOutput(HANDLE_POLICY, LBL_100 + (migrate.handle.encode_utf8()), 1, ctx, false, Option[Credential]::None);
+            (reference_token: Option[TxOutput], _) = findAsReferenceOrOutput(HANDLE_POLICY, LBL_100 + (migrate.handle.encode_utf8()), 1, ctx, false);
             //print(reference_token.serialize().show());
             new_datum: Datum::CIP68 = Datum::CIP68::from_data(reference_token.unwrap().datum.get_inline_data());
             assert(old_datum == new_datum
@@ -558,19 +557,19 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
         },
         reset: RESET => {
             (settings: PzSettings, approvers: Map[String]Map[ByteArray]Map[ByteArray][]Int) = checkInputsAndLoadSettings(ctx);
-            (owner_token: TxOutput, reference_token: TxOutput) = getHandleTokens(reset.handle, settings, ctx);
+            (owner_token: TxOutput, reference_token: TxOutput) = getHandleTokens(reset.handle, settings, ctx, true);
             assert(isValidContract(ctx.get_current_validator_hash(), settings) 
                 && immutablesAreUnchanged(old_datum, Datum::CIP68::from_data(reference_token.datum.get_inline_data()))
                 , "Contract failed validation");
             
             prev_datum_extra: Map[String]Data = get_extra(old_datum.extra);
-            assert(pzDatumIsValid(owner_token, reference_token, approvers, ctx), "Personalization settings checks failed");
+            assert(pzDatumIsValid(owner_token, reference_token, approvers, ctx, true), "Personalization settings checks failed");
 
             new_datum: Datum::CIP68 = Datum::CIP68::from_data(reference_token.datum.get_inline_data());
             pz_data: Map[String]Data = get_extra(new_datum.extra);
-            (bg_datum:OutputDatum, designer_assets_valid:Bool) = getAndValidateDesignerAssets(prev_datum_extra, owner_token.address, approvers, ctx, false);
+            (bg_datum:OutputDatum, designer_assets_valid:Bool) = getAndValidateDesignerAssets(prev_datum_extra, owner_token.address, approvers, ctx, false, true);
             
-            require_asset_valid: Bool = checkRequiredPfPs(reset.handle, prev_datum_extra.get_safe("pfp_asset"), bg_datum, owner_token.address, ctx, false);
+            require_asset_valid: Bool = checkRequiredPfPs(reset.handle, prev_datum_extra.get_safe("pfp_asset"), bg_datum, owner_token.address, ctx, false, true);
             signed_by_provider: Bool = ctx.tx.signatories.any((signer: PubKeyHash) -> Bool { settings.pz_providers.any((cred: ByteArray, _) -> Bool {signer == PubKeyHash::new(cred)})});
             has_socials: Bool = prev_datum_extra.get_safe("socials") != Option[Data]::None && String::from_data(prev_datum_extra.get("socials")) != "";
 

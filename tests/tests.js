@@ -37,10 +37,10 @@ Promise.all([
         const pfpApproverList = new ApprovedPolicyIds(pfp_policy);
         pfpApproverList.map[`${pfp_policy}`] = {'#706670': [0,0,0], '#000de140706670': [0,0,0]}
         context.referenceInputs.find(input => input.output.asset == '"pfp_policy_ids"' && input.output.label == 'LBL_222').output.datum = pfpApproverList.render();
-        const bgInput = context.referenceInputs.find(input => input.output.asset == '"bg"' && input.output.label == 'LBL_444');
-        bgInput.output.label = '';
-        bgInput.output.asset = '"pfp"';
-        bgInput.output.policy = `MintingPolicyHash::new(${pfp_policy})`;
+        const bgInput = context.outputs.find(output => output.asset == '"bg"' && output.label == 'LBL_444');
+        bgInput.label = '';
+        bgInput.asset = '"pfp"';
+        bgInput.policy = `MintingPolicyHash::new(${pfp_policy})`;
         const datum = new Datum(redeemer.calculateCid());
         datum.extra.bg_asset = `OutputDatum::new_inline(${pfp_policy}706670).data`;
         context.outputs.find(output => output.asset == `"${handle}"` && output.label == 'LBL_100').datum = datum.render();
@@ -49,7 +49,7 @@ Promise.all([
     }),
     tester.testCase(true, "PERSONALIZE", "reference inputs, pfp CIP-25, defaults forced", () => {
         const context = new ScriptContext().initPz(pzRedeemer.calculateCid());
-        context.referenceInputs.find(input => input.output.asset == '"pfp"' && input.output.label == 'LBL_222').output.label = '';
+        context.outputs.find(output => output.asset == '"pfp"' && output.label == 'LBL_222').label = '';
         context.referenceInputs.splice(context.referenceInputs.indexOf(context.referenceInputs.find(input => input.output.asset == '"pfp"' && input.output.label == 'LBL_100')), 1);
         const datum = new Datum(pzRedeemer.calculateCid());
         datum.extra.pfp_asset = `OutputDatum::new_inline(${pfp_policy}706670).data`;
