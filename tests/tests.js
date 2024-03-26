@@ -264,7 +264,7 @@ Promise.all([
     }, "Required asset not found/displayed"),
     tester.testCase(false, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, wrong handle name", () => {
         const context = new ScriptContext().initPz(pzRedeemer.calculateCid());
-        context.referenceInputs.find(input => input.output.asset == `"${handle}"` && input.output.label == 'LBL_222').output.asset = '"xar12346"'
+        context.outputs.find(output => output.asset == `"${handle}"` && output.label == 'LBL_222').asset = '"xar12346"'
         const program = tester.createProgram(contract, new Datum().render(), pzRedeemer.render(), context.render());
         return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
     }, "Handle input not present"),
@@ -301,13 +301,13 @@ Promise.all([
     }, "pfp_zoom is out of bounds"),
     tester.testCase(false, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, wrong handle label", () => {
         const context = new ScriptContext().initPz(pzRedeemer.calculateCid());
-        context.referenceInputs.find(input => input.output.asset == `"${handle}"` && input.output.label == 'LBL_222').output.label = '#000653b0'
+        context.outputs.find(output => output.asset == `"${handle}"` && output.label == 'LBL_222').label = '#000653b0'
         const program = tester.createProgram(contract, new Datum().render(), pzRedeemer.render(), context.render());
         return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
     }, "Handle input not present"),
     tester.testCase(false, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, wrong handle policy", () => {
         const context = new ScriptContext().initPz(pzRedeemer.calculateCid());
-        context.referenceInputs.find(input => input.output.asset == `"${handle}"` && input.output.label == 'LBL_222').output.policy = 'MintingPolicyHash::new(#f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9b)'
+        context.outputs.find(output => output.asset == `"${handle}"` && output.label == 'LBL_222').policy = 'MintingPolicyHash::new(#f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9b)'
         const program = tester.createProgram(contract, new Datum().render(), pzRedeemer.render(), context.render());
         return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
     }, "Handle input not present"),
@@ -337,13 +337,13 @@ Promise.all([
     }, "Contract not found in valid contracts list"),
     tester.testCase(false, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, handle sig mismatch", () => {
         const context = new ScriptContext().initPz(pzRedeemer.calculateCid());
-        context.referenceInputs.find(input => input.output.asset == `"${handle}"` && input.output.label == 'LBL_222').output.hash = '#123456789012345678901234567890123456789012345678901234af'
+        context.outputs.find(output => output.asset == `"${handle}"` && output.label == 'LBL_222').hash = '#123456789012345678901234567890123456789012345678901234af'
         const program = tester.createProgram(contract, new Datum().render(), pzRedeemer.render(), context.render());
         return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
-    }, "Handle input not present"),
+    }, "PFP address not the same as handle"),
     tester.testCase(false, "PERSONALIZE", "reference inputs, CIP-68, defaults forced, handle missing", () => {
         const context = new ScriptContext().initPz(pzRedeemer.calculateCid());
-        context.referenceInputs.splice(context.referenceInputs.indexOf(context.referenceInputs.find(input => input.output.asset == `"${handle}"` && input.output.label == 'LBL_222')), 1);
+        context.outputs.splice(context.outputs.indexOf(context.outputs.find(output => output.asset == `"${handle}"` && output.label == 'LBL_222')), 1);
         const program = tester.createProgram(contract, new Datum().render(), pzRedeemer.render(), context.render());
         return { contract: program.compile(), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
     }, "Handle input not present"),

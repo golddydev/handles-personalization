@@ -58,7 +58,11 @@ export class ScriptContext {
     }
 
     addPzInputs() {
-      this.inputs = [new TxInput(`${script_tx_hash}`, new TxOutput(`${script_creds_bytes}`))];
+      const goodOwnerOutput = new TxOutput(`${owner_bytes}`, 'LBL_222', `"${handle}"`)
+      goodOwnerOutput.hashType = 'pubkey';
+      const goodOwnerInput = new TxInput(`${owner_tx_hash}`, goodOwnerOutput);
+      this.inputs = [new TxInput(`${script_tx_hash}`, new TxOutput(`${script_creds_bytes}`)), goodOwnerInput];
+      this.outputs.push(goodOwnerOutput);
   
       const goodBgInput = new TxInput(`${handles_tx_hash}`, new TxOutput(`${owner_bytes}`, 'LBL_444', '"bg"'));
       goodBgInput.output.hashType = 'pubkey';
@@ -87,9 +91,7 @@ export class ScriptContext {
       const goodPzInput = new TxInput(`${handles_tx_hash}`, new TxOutput(`${ada_handles_bytes}`, 'LBL_222', '"pz_settings"'));
       goodPzInput.output.datumType = 'inline';
       goodPzInput.output.datum = new PzSettings().render();
-      const goodOwnerInput = new TxInput(`${owner_tx_hash}`, new TxOutput(`${owner_bytes}`, 'LBL_222', `"${handle}"`));
-      goodOwnerInput.output.hashType = 'pubkey';
-      this.referenceInputs = [goodBgInput, goodBgInputRef, goodPfpInput, goodPfpInputRef, goodBgListInput, goodPfpListInput, goodPzInput, goodOwnerInput];
+      this.referenceInputs = [goodBgInput, goodBgInputRef, goodPfpInput, goodPfpInputRef, goodBgListInput, goodPfpListInput, goodPzInput];
     }
 
     initMigrate() {
