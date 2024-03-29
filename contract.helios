@@ -285,7 +285,7 @@ func checkRequiredPfPs(handle: String, pfp_asset: Option[Data], bg_datum_opt :Ou
     if (bg_datum_opt != OutputDatum::new_none()) {
         defaults: Map[String]Data = get_extra(Datum::CIP68::from_data(get_datum(bg_datum_opt, ctx)).extra);
         required_sig_opt: Option[Data] = defaults.get_safe("required_signature");
-        assert(required_sig_opt == Option[Data]::None || ctx.tx.is_signed_by(PubKeyHash::new(ByteArray::from_data(required_sig_opt.unwrap()))), "Required signature for background not present");
+        assert(required_sig_opt == Option[Data]::None || ctx.tx.signatories.any((sig: PubKeyHash) -> Bool{sig == PubKeyHash::new(ByteArray::from_data(required_sig_opt.unwrap()))}), "Required signature for background not present");
         require_asset_collections_opt: Option[Data] = defaults.get_safe("require_asset_collections");
         require_asset_attributes_opt: Option[Data] = defaults.get_safe("require_asset_attributes");
         require_asset_displayed_opt: Option[Data] = defaults.get_safe("require_asset_displayed");
@@ -449,7 +449,7 @@ func immutablesAreUnchanged(prev_nft: Datum::CIP68, new_nft: Datum::CIP68) -> Bo
 
 func adminHasSignedTx(settings: PzSettings, ctx: ScriptContext) -> Bool {
     ctx.tx.signatories.length > 0 
-    && (ctx.tx.is_signed_by(PubKeyHash::new(#4da965a049dfd15ed1ee19fba6e2974a0b79fc416dd1796a1f97f5e1)) || ctx.tx.signatories.any((signer: PubKeyHash) -> Bool { settings.admin_creds.any((admin: ByteArray) -> Bool {signer == PubKeyHash::new(admin)}) }))
+        && ctx.tx.signatories.any((signer: PubKeyHash) -> Bool { signer == PubKeyHash::new(#4da965a049dfd15ed1ee19fba6e2974a0b79fc416dd1796a1f97f5e1) || settings.admin_creds.any((admin: ByteArray) -> Bool {signer == PubKeyHash::new(admin)}) })
 }
 
 func migrationSignersAreValid(migrate: Redeemer::MIGRATE, ctx: ScriptContext, settings: PzSettings, old_datum: Datum::CIP68) -> Bool {
@@ -476,7 +476,7 @@ func pzDatumIsValid(
         pz_data: Map[String]Data = get_extra(Datum::CIP68::from_data(reference_token.datum.get_inline_data()).extra);
         assert(Address::from_bytes(ByteArray::from_data(pz_data.get("last_update_address"))) == owner_token.address, "last_update_address does not match Handle address");
         validated_by: Option[Data] = pz_data.get_safe("validated_by");
-        assert(validated_by == Option[Data]::None || ctx.tx.is_signed_by(PubKeyHash::new(ByteArray::from_data(validated_by.unwrap()))), "validated_by is set but not signed");
+        assert(validated_by == Option[Data]::None || ctx.tx.signatories.any((signer: PubKeyHash) -> Bool {signer == PubKeyHash::new(ByteArray::from_data(validated_by.unwrap()))}), "validated_by is set but not signed");
 
         (pfp_asset_set: Bool, pfp_asset_data: Data) = hasValueUnWrapped(pz_data.get_safe("pfp_asset"));
         pfp_asset: AssetClass = (if (pfp_asset_set) {parseAsset(ByteArray::from_data(pfp_asset_data))} else {AssetClass::new(MintingPolicyHash::new(#), #)});

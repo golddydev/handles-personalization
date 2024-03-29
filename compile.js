@@ -2,6 +2,7 @@ import * as helios from "./helios.js"
 import fs from "fs";
 const OPTIMIZE = Boolean(process.env.OPTIMIZE || false);
 const REMOVE_ERRORS = Boolean(process.env.REMOVE_ERRORS || false);
+//helios.config.set({IS_TESTNET: false})
 let contractHelios = fs.readFileSync("./contract.helios").toString();
 if (REMOVE_ERRORS) {
     contractHelios = contractHelios.replace(/assert\(((?:.|\n)*?), ".*?\);/gm, 'assert($1, "");')
