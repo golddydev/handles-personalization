@@ -31432,7 +31432,6 @@ export class ChainExpr extends Expr {
 				}
 			}
 		}
-
 		return this.downstreamExpr.eval(scope);
 	}
 
@@ -50938,7 +50937,6 @@ export class TxWitnesses extends CborData {
 			const scriptContext = body.toScriptContextData(networkParams, this.#redeemers, this.#datums, i, txId);
 
 			const cost = await this.executeRedeemer(networkParams, body, redeemer, scriptContext);
-
 			if (redeemer.memCost < cost.mem) {
 				throw new Error(`internal finalization error, redeemer mem budget too low (${redeemer.memCost} < ${cost.mem})`);
 			} else if (redeemer.cpuCost < cost.cpu) {

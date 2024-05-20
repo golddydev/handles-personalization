@@ -9,6 +9,7 @@ if (REMOVE_ERRORS) {
     fs.writeFileSync("./contract/contract_no_asserts.helios", contractHelios);
 }
 let program = helios.Program.new(contractHelios);
+console.log(`OPTIMIZE is set to ${OPTIMIZE}`);
 const contract = program.compile(OPTIMIZE);
 const address = helios.Address.fromValidatorHash(contract.validatorHash);
 

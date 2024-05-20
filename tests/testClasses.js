@@ -6,7 +6,7 @@ export const handle = 'xar12345'
 
 // HASHES
 export const admin_bytes = '#01234567890123456789012345678901234567890123456789000007';
-const script_creds_bytes = '#01234567890123456789012345678901234567890123456789000001';
+export const script_creds_bytes = '#01234567890123456789012345678901234567890123456789000001';
 export const owner_bytes = '#12345678901234567890123456789012345678901234567890123456';
 const script_hash = `ValidatorHash::new(${script_creds_bytes})`;
 const treasury_bytes = '#01234567890123456789012345678901234567890123456789000002';
@@ -17,7 +17,7 @@ export const bg_policy = '#f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0f
 export const pfp_policy = '#f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9c';
 
 // TRANSACTION HASHES
-const script_tx_hash = 'TxId::new(#0123456789012345678901234567890123456789012345678901234567891234)';
+export const script_tx_hash = 'TxId::new(#0123456789012345678901234567890123456789012345678901234567891234)';
 const owner_tx_hash = 'TxId::new(#0123456789012345678901234567890123456789012345678901234567891235)';
 export const handles_tx_hash = 'TxId::new(#0123456789012345678901234567890123456789012345678901234567891236)';
 
@@ -45,11 +45,11 @@ export class ScriptContext {
     }
 
     addFeeOutputs() {
-      const goodTreasuryOutput = new TxOutput(`${treasury_bytes}`, null, null, '');
+      const goodTreasuryOutput = new TxOutput(`${treasury_bytes}`, [], '');
       goodTreasuryOutput.datumType = 'inline';
       goodTreasuryOutput.datum = `"${handle}".encode_utf8()`;
       goodTreasuryOutput.lovelace = 1500000;
-      const goodProviderOutput = new TxOutput(`${pz_provider_bytes}`, null, null, '');
+      const goodProviderOutput = new TxOutput(`${pz_provider_bytes}`, [], '');
       goodProviderOutput.datumType = 'inline';
       goodProviderOutput.datum = `"${handle}".encode_utf8()`;
       goodProviderOutput.lovelace = 3500000;
@@ -58,49 +58,37 @@ export class ScriptContext {
     }
 
     addPzInputs(asReference=false) {
-      const goodBgOutput =  new TxOutput(`${owner_bytes}`, 'LBL_444', '"bg"');
-      const goodBgInput = new TxInput(`${handles_tx_hash}`, goodBgOutput);
-      goodBgInput.output.hashType = 'pubkey';
-      goodBgInput.output.policy = `MintingPolicyHash::new(${bg_policy})`;
-      const goodPfpOutput =  new TxOutput(`${owner_bytes}`, 'LBL_222', '"pfp"');
-      const goodPfpInput = new TxInput(`${handles_tx_hash}`, goodPfpOutput);
-      goodPfpInput.output.hashType = 'pubkey';
-      goodPfpInput.output.policy = `MintingPolicyHash::new(${pfp_policy})`;
-      const goodOwnerOutput = new TxOutput(`${owner_bytes}`, 'LBL_222', `"${handle}"`)
-      goodOwnerOutput.hashType = 'pubkey';
-      const goodOwnerInput = new TxInput(`${owner_tx_hash}`, goodOwnerOutput);
+      const goodpzAssetsOutput = new TxOutput(`${owner_bytes}`, [['HANDLE_POLICY', 'LBL_222',  `"${handle}"`], [`MintingPolicyHash::new(${pfp_policy})`, 'LBL_222', '"pfp"'], [`MintingPolicyHash::new(${bg_policy})`, 'LBL_444', '"bg"']])
+      goodpzAssetsOutput.hashType = 'pubkey';
+      const goodOwnerInput = new TxInput(`${owner_tx_hash}`, goodpzAssetsOutput);
       this.inputs = [new TxInput(`${script_tx_hash}`, new TxOutput(`${script_creds_bytes}`))];
-  
-      const goodPfpInputRef = new TxInput(`${handles_tx_hash}`, new TxOutput(`${owner_bytes}`, 'LBL_100', '"pfp"'));
+      const goodPfpInputRef = new TxInput(`${handles_tx_hash}`, new TxOutput(`${owner_bytes}`, [[`MintingPolicyHash::new(${pfp_policy})`, 'LBL_100', '"pfp"']]));
       goodPfpInputRef.output.hashType = 'pubkey';
       goodPfpInputRef.output.datumType = 'inline';
       goodPfpInputRef.output.datum = new Datum().render();
-      goodPfpInputRef.output.policy = `MintingPolicyHash::new(${pfp_policy})`;
-      const goodBgInputRef = new TxInput(`${handles_tx_hash}`, new TxOutput(`${owner_bytes}`, 'LBL_100', '"bg"'));
+      const goodBgInputRef = new TxInput(`${handles_tx_hash}`, new TxOutput(`${owner_bytes}`, [[`MintingPolicyHash::new(${bg_policy})`, 'LBL_100', '"bg"']]));
       goodBgInputRef.output.hashType = 'pubkey';
       goodBgInputRef.output.datumType = 'inline';
       goodBgInputRef.output.datum = new BackgroundDefaults().render();
-      goodBgInputRef.output.policy = `MintingPolicyHash::new(${bg_policy})`;
-      const goodBgListInput = new TxInput(`${handles_tx_hash}`, new TxOutput(`${ada_handles_bytes}`, 'LBL_222', '"bg_policy_ids"'));
+      const goodBgListInput = new TxInput(`${handles_tx_hash}`, new TxOutput(`${ada_handles_bytes}`, [['HANDLE_POLICY', 'LBL_222', '"bg_policy_ids"']]));
       goodBgListInput.output.datumType = 'inline';
       goodBgListInput.output.datum = new ApprovedPolicyIds(bg_policy).render();
-      const goodPfpListInput = new TxInput(`${handles_tx_hash}`, new TxOutput(`${ada_handles_bytes}`, 'LBL_222', '"pfp_policy_ids"'));
+      const goodPfpListInput = new TxInput(`${handles_tx_hash}`, new TxOutput(`${ada_handles_bytes}`, [['HANDLE_POLICY', 'LBL_222', '"pfp_policy_ids"']]));
       goodPfpListInput.output.datumType = 'inline';
       const pfpApproverList = new ApprovedPolicyIds(pfp_policy); 
       pfpApproverList.map[`${pfp_policy}`] = {'#000de140706670': [0,0,0],'#706670706670': [0,0,0]}
       goodPfpListInput.output.datum = pfpApproverList.render();
-      const goodPzInput = new TxInput(`${handles_tx_hash}`, new TxOutput(`${ada_handles_bytes}`, 'LBL_222', '"pz_settings"'));
+      const goodPzInput = new TxInput(`${handles_tx_hash}`, new TxOutput(`${ada_handles_bytes}`, [['HANDLE_POLICY', 'LBL_222', '"pz_settings"']]));
       goodPzInput.output.datumType = 'inline';
       goodPzInput.output.datum = new PzSettings().render();
       this.referenceInputs = [goodBgInputRef, goodPfpInputRef, goodBgListInput, goodPfpListInput, goodPzInput];
 
       if (asReference) {
-        this.referenceInputs.push(goodOwnerInput, goodBgInput, goodPfpInput);
+        this.referenceInputs.push(goodOwnerInput);
       }
       else {
-        this.inputs.push(goodOwnerInput, goodBgInput, goodPfpInput);
-        this.outputs.push(goodOwnerOutput, goodBgOutput, goodPfpOutput);
-
+        this.inputs.push(goodOwnerInput);
+        this.outputs.push(goodpzAssetsOutput);
       }
     }
 
@@ -111,7 +99,7 @@ export class ScriptContext {
       goodRefTokenOutput.datumType = 'inline';
       goodRefTokenOutput.datum = new Datum().render();
       this.outputs = [goodRefTokenOutput];
-      const goodPzInput = new TxInput(`${handles_tx_hash}`, new TxOutput(`${ada_handles_bytes}`, 'LBL_222', '"pz_settings"'));
+      const goodPzInput = new TxInput(`${handles_tx_hash}`, new TxOutput(`${ada_handles_bytes}`, [['HANDLE_POLICY', 'LBL_222', '"pz_settings"']]));
       goodPzInput.output.datumType = 'inline';
       goodPzInput.output.datum = new PzSettings().render();
       this.referenceInputs = [goodPzInput];
@@ -140,15 +128,13 @@ export class ScriptContext {
     }
 
     initReturnToSender() {
-      const utxoToReturn = new TxInput(`${script_tx_hash}`, new TxOutput(`${script_creds_bytes}`));
-      utxoToReturn.output.policy = 'MintingPolicyHash::new(#f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9b)';
+      const utxoToReturn = new TxInput(`${script_tx_hash}`, new TxOutput(`${script_creds_bytes}`, [['MintingPolicyHash::new(#f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9b)', 'LBL_222', `"${handle}"`]]));
       this.inputs = [utxoToReturn];
-      const goodPzInput = new TxInput(`${handles_tx_hash}`, new TxOutput(`${ada_handles_bytes}`, 'LBL_222', '"pz_settings"'));
+      const goodPzInput = new TxInput(`${handles_tx_hash}`, new TxOutput(`${ada_handles_bytes}`, [['HANDLE_POLICY', 'LBL_222', '"pz_settings"']]));
       goodPzInput.output.datumType = 'inline';
       goodPzInput.output.datum = new PzSettings().render();
       this.referenceInputs = [goodPzInput];
-      const utxoOutput = new TxOutput(`${script_creds_bytes}`);
-      utxoOutput.policy = 'MintingPolicyHash::new(#f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9b)';
+      const utxoOutput = new TxOutput(`${script_creds_bytes}`, [['MintingPolicyHash::new(#f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9b)', 'LBL_222', `"${handle}"`]]);
       this.outputs = [utxoOutput];
       this.signers = [`${admin_bytes}`];
       return this; 
@@ -212,29 +198,36 @@ export class ScriptContext {
     hashType = 'validator';
     datumType = 'none';
     hash = '';
-    label = '';
-    asset = '';
+    assets = [];
     lovelace = '10000000';
     datum = 'good_datum';
-    policy = 'HANDLE_POLICY';
     value = '';
     
-    constructor(hash=`${pz_provider_bytes}`, label='LBL_100', asset=`"${handle}"`, value=null) {
+    constructor(hash=`${pz_provider_bytes}`, assets=[['HANDLE_POLICY', 'LBL_100', `"${handle}"`]], value=null) {
       if (hash != null) {
         this.hash = hash;
       }
-      if (label != null) {
-        this.label = label;
-      }
-      if (asset != null) {
-        this.asset = asset;
+      if (assets != null) {
+        this.assets = assets;
       }
       this.value = value;
      }
-  
+    
+     has(asset) {
+       return this.assets.some(a => JSON.stringify(a) == JSON.stringify(asset));
+     }
+    
+     replace(oldAsset, newAsset) {
+       this.assets.splice(this.assets.findIndex(a => JSON.stringify(a) == JSON.stringify(oldAsset)), 1);
+       this.assets.push(newAsset);
+     }
+
     render() {
-      if (this.asset != null && this.value == null) {
-        this.value = `+ Value::new(AssetClass::new(${this.policy}, ${this.label}${this.label ? ' + ' : ''}(${this.asset}.encode_utf8())), 1)`;
+      if (this.assets != [] && this.value == null) {
+        this.value = '';
+        for (let i=0;i<this.assets.length;i++) {
+          this.value += `+ Value::new(AssetClass::new(${this.assets[i][0]}, ${this.assets[i][1] ? `${this.assets[i][1]} + ` : ''}${this.assets[i][2]}.encode_utf8()), 1)`;
+        }
       }
       let hashString = 'validator(Validator';
       if (this.hashType == 'pubkey') {
@@ -255,6 +248,9 @@ export class ScriptContext {
   
   export class PzRedeemer {
     handle = `"${handle}"`;
+    rootHandle = `""`;
+    type = "HandleType::HANDLE{}";
+    indexes = 'PzIndexes { pfp_approver: 3, bg_approver: 2, pfp_datum: 1, bg_datum: 0, pz_settings: 4, required_asset: 1, owner_settings: 6, contract_output: 3, pz_assets: 0, provider_fee: 2 }';
     designer = {
       pfp_border_color: 'OutputDatum::new_inline(#22d1af).data',
       qr_inner_eye: 'OutputDatum::new_inline("dots,#0a1fd4").data',
@@ -278,8 +274,15 @@ export class ScriptContext {
       socials: 'OutputDatum::new_inline([]String{}).data',
       svg_version: 'OutputDatum::new_inline(1).data'
     };
+    reset = false;
   
-    constructor() { }
+    constructor(reset=false) {
+      this.reset = reset;
+      if (reset) {
+        this.indexes = 'PzIndexes { pfp_approver: 3, bg_approver: 2, pfp_datum: 1, bg_datum: 0, pz_settings: 4, required_asset: 1, owner_settings: 6, contract_output: 0, pz_assets: 5, provider_fee: 0 }';
+        this.designer = {};
+      }
+    }
   
     calculateCid() {
         const designer = this.renderDesigner();
@@ -314,21 +317,23 @@ export class ScriptContext {
     }
   
     render() {
-        return `Redeemer::PERSONALIZE { handle: ${this.handle}, designer: ${this.renderDesigner()}}\n`;
+        return `Redeemer::PERSONALIZE { handle: Handle {name: ${this.handle}, type: ${this.type}}, root_handle: ${this.rootHandle}, indexes: ${this.indexes}, designer: ${this.renderDesigner()}, reset: ${this.reset}}\n`;
     }
   
   }
 
   export class MigrateRedeemer {
     variant = '';
+    type = "HandleType::HANDLE{}";
     handle = `"${handle}"`;
-  
+    indexes = 'PzIndexes { pfp_approver: 0, bg_approver: 0, pfp_datum: 0, bg_datum: 0, pz_settings: 0, required_asset: 0, owner_settings: 0, contract_output: 0, pz_assets: 0, provider_fee: 0 }';
+
     constructor(variant='MIGRATE') {
       this.variant = variant;
     }
   
     render() {
-        return `Redeemer::${this.variant} { ${this.handle} }`;
+        return `Redeemer::MIGRATE { handle: Handle {name: ${this.handle}, type: ${this.type}}, indexes: ${this.indexes} }`;
     }
   
   }
@@ -338,14 +343,14 @@ export class ScriptContext {
     constructor() {}
   
     render() {
-        return `Redeemer::RETURN_TO_SENDER`;
+        return `Redeemer::RETURN_TO_SENDER {0}`;
     }
   
   }
   
   export class Datum {
     nft = {
-      name: `OutputDatum::new_inline("${handle}").data`,
+      name: `OutputDatum::new_inline("$${handle}").data`,
       image: 'OutputDatum::new_inline("ipfs://pfp").data',
       mediaType: 'OutputDatum::new_inline("image/jpeg").data',
       og: 'OutputDatum::new_inline(0).data',
@@ -410,6 +415,8 @@ export class ScriptContext {
     treasury_fee = '1500000'
     treasury_cred = `${treasury_bytes}`
     pz_min_fee = '3500000'
+    grace_period = '3600'
+    subhandle_share_percent = '50'
     pz_providers = `Map[ByteArray]ByteArray{${ada_handles_bytes}: ${ada_handles_bytes}, ${pz_provider_bytes}: ${pz_provider_bytes}}`
     valid_contracts = `[]ByteArray{${script_creds_bytes}}`
     admin_creds = `[]ByteArray{${admin_bytes}}`
@@ -424,7 +431,9 @@ export class ScriptContext {
             pz_providers: ${this.pz_providers},
             valid_contracts: ${this.valid_contracts},
             admin_creds: ${this.admin_creds},
-            settings_cred: ${this.settings_cred}
+            settings_cred: ${this.settings_cred},
+            grace_period:  ${this.grace_period},
+            subhandle_share_percent:  ${this.subhandle_share_percent}
         }`
     }
   }
@@ -452,7 +461,7 @@ export class ScriptContext {
 
   export class BackgroundDefaults {
     nft = {
-      name: `OutputDatum::new_inline("${handle}").data`,
+      name: `OutputDatum::new_inline("$${handle}").data`,
       image: 'OutputDatum::new_inline("ipfs://image_cid").data',
       mediaType: 'OutputDatum::new_inline("image/jpeg").data',
       og: 'OutputDatum::new_inline(0).data',
