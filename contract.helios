@@ -792,7 +792,7 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                     assignee_signed_pay: Bool = signatories.any((sig: PubKeyHash) -> Bool{Credential::new_pubkey(sig) == old_address.credential});
                     root_signed: Bool = outputs.get(root_hndl_index).value.contains(Value::new(AssetClass::new(HANDLE_POLICY, LBL_222 + name.encode_utf8()), 1));
                     MainSubHandleSettings {_, _, main_virt_price, _, _, main_pay_addr, expiry_duration} = MainSubHandleSettings::from_data(ref_inputs.get(admn_sett_index).datum.get_inline_data());
-                    OwnerSettings {_, _, root_virt_price, _, _, _, root_pay_addr } = OwnerSettings::from_data(ref_inputs.get(root_sett_index).datum.get_inline_data());
+                    OwnerSettings {_, _, root_virt_price, _, _, _, _, root_pay_addr } = OwnerSettings::from_data(ref_inputs.get(root_sett_index).datum.get_inline_data());
                     assert(old_pz == new_pz && old_datum.nft == new_datum.nft, "Restricted changes are not allowed");
                     is_public: Bool = (public != Option[Data]::None && Bool::from_data(public.unwrap()));
                     main_payment_address: Address = Address::from_bytes(main_pay_addr);
