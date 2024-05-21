@@ -42,7 +42,7 @@ enum Redeemer {
         root_handle: String
         indexes: PzIndexes
         designer: Map[String]Data
-        reset: Bool
+        reset: Int
     }
     MIGRATE { 
         handle: Handle
@@ -619,7 +619,8 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
     old_extra: Map[String]Data = get_extra(old_datum.extra);
     redeemer.switch {
         pz: PERSONALIZE => {
-            Redeemer::PERSONALIZE{ Handle{type, name}, root_handle, indexes, designer, reset } = pz;
+            Redeemer::PERSONALIZE{ Handle{type, name}, root_handle, indexes, designer, rst } = pz;
+            reset: Bool = rst.to_bool();
             PzIndexes { pfp_appr_index, bg_appr_index, pfp_dat_index, bg_dat_index, pz_sett_index, req_asset_index, root_sett_index, contr_outp_index, pz_asset_index, prov_fee_index } = indexes;
             encoded_handle: ByteArray = name.encode_utf8();
             pz_asset_output: TxOutput = if (reset) {ref_inputs.get(pz_asset_index).output} else {outputs.get(pz_asset_index)};
