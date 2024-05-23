@@ -3,11 +3,20 @@
     "version": "1.0.0",
     "description": "",
     "type": "module",
-    "scripts": {},
+    "scripts": {
+        "test": "npm run test:old && npm run test:new",
+        "test:old": "node --es-module-specifier-resolution=node tests/tests.js",
+        "test:new": "tsx -r dotenv/config tests/txTests.ts"
+    },
     "author": "et",
     "license": "MIT",
-    "dependencies": {
-        "@hyperionbt/helios": "0.16.6",
-        "bs58": "^5.0.0"
+    "devDependencies": {
+        "@koralabs/helios": "0.16.8-1",
+        "@koralabs/kora-labs-common": "^4.0.7",
+        "@koralabs/kora-labs-contract-testing": "0.0.2",
+        "@types/node": "^20.0",
+        "bs58": "^5.0.0",
+        "dotenv": "^16.4.5",
+        "tsx": "^4.7.0"
     }
 }

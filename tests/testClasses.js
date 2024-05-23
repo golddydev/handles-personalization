@@ -1,5 +1,5 @@
-import * as helios from "@hyperionbt/helios";
-import base58 from "bs58";
+import * as helios from "@koralabs/helios";
+import base58 from 'bs58';
 
 // STRINGS
 export const handle = 'xar12345'
@@ -274,10 +274,10 @@ export class ScriptContext {
       socials: 'OutputDatum::new_inline([]String{}).data',
       svg_version: 'OutputDatum::new_inline(1).data'
     };
-    reset = false;
+    reset = 0;
   
     constructor(reset=false) {
-      this.reset = reset;
+      this.reset = reset ? 1 : 0;
       if (reset) {
         this.indexes = 'PzIndexes { pfp_approver: 3, bg_approver: 2, pfp_datum: 1, bg_datum: 0, pz_settings: 4, required_asset: 1, owner_settings: 6, contract_output: 0, pz_assets: 5, provider_fee: 0 }';
         this.designer = {};

@@ -1,4 +1,4 @@
-import * as helios from "./helios.js"
+import * as helios from "@koralabs/helios";
 import fs from "fs";
 const OPTIMIZE = Boolean(process.env.OPTIMIZE || false);
 //helios.config.set({IS_TESTNET: false})

@@ -1,5 +1,5 @@
-import {Color} from './colors.js'
-import * as helios from "../helios.js"
+import {Color} from "@koralabs/kora-labs-contract-testing"
+import * as helios from "@koralabs/helios";
 import fs from "fs";
 
 let testCount;
@@ -14,6 +14,8 @@ const networkParams = new helios.NetworkParams(
         response.json()
     )
 );
+
+helios.config.set({IS_TESTNET: true});
 
 export function init(groupName=null, testName=null) {
   testCount = 0;
@@ -105,7 +107,10 @@ export function createProgram(contract, datum, redeemer, context) {
     const datum: Datum::CIP68 = ${datum}\n
     const redeemer: ${redeemer.split(' ')[0]} = ${redeemer}\n
     const context: ScriptContext = ${context}\n`;
-  if (test != null)
+  if (test != null) {
+    console.log('WRITING')
     fs.writeFileSync('testingCode.helios', testingCode);
+    console.log('DONE WRITING')
+  }
   return helios.Program.new(testingCode);
 }
