@@ -22,10 +22,10 @@
     cbor "^9.0.2"
     pluralize "^8.0.0"
 
-"@koralabs/kora-labs-contract-testing@0.0.3":
-  version "0.0.3"
-  resolved "https://registry.npmjs.org/@koralabs/kora-labs-contract-testing/-/kora-labs-contract-testing-0.0.3.tgz"
-  integrity sha512-Itw+Rze/4lr/dhQeoZHsARZlUdXVyb44zmrqk2EpDWajIXdTbdN0vGsiU7h3oSi6pHhHrI3e8z17DX3ZBK7aYw==
+"@koralabs/kora-labs-contract-testing@0.0.4":
+  version "0.0.4"
+  resolved "https://registry.npmjs.org/@koralabs/kora-labs-contract-testing/-/kora-labs-contract-testing-0.0.4.tgz"
+  integrity sha512-dOzGGGzilWf4KMXoox3k+LIKJ8TnJFVX9cCKOnycEqWllnxzWoLYKMzQrwaO9L04cEYpJG4yar+ol5NlPmHXZw==
   dependencies:
     "@koralabs/helios" "0.16.8-1"
     "@koralabs/kora-labs-common" "^4.0.7"
