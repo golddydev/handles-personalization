@@ -17,7 +17,7 @@ const runTests = async (file: string) => {
     Promise.all([
         // SHOULD APPROVE
         tester.test("PERSONALIZE", "main - test most things", new Test(program, () => fixtures)),
-        tester.test("PERSONALIZE", "unenforced defaults", new Test(program, () => {
+        tester.test("PERSONALIZE", "unenforced defaults", new Test(program, async () => {
             const fixtures = new PzFixtures(contract.validatorHash);
             (fixtures.bgDatum.constructor_0[2] as any) = {};
             (fixtures.pzRedeemer.constructor_0[3] as any) = {
@@ -38,14 +38,14 @@ const runTests = async (file: string) => {
                 qr_link: '',
                 socials: [],
                 svg_version: 1,}
-            return fixtures.initialize();
+            return await fixtures.initialize();
         })),
 
         // SHOULD DENY
-        tester.test("PERSONALIZE", "exclusives set, no creator", new Test(program, () => {
+        tester.test("PERSONALIZE", "exclusives set, no creator", new Test(program, async () => {
             const fixtures = new PzFixtures(contract.validatorHash);
             (fixtures.bgDatum.constructor_0[2] as any) = {};
-            return fixtures.initialize();
+            return await fixtures.initialize();
         }), false, 'qr_inner_eye is not set correctly'),
         // tester.test("GROUP", "example test 2", new Test(program, () => fixtures, () => {
         //     // custom tx setup
