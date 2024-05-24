@@ -1,9 +1,7 @@
 spending personalization
 
-// 100 (Pz) or 000 is (Vir) is always output[0]
-// Handle + Pz assets is always output[1]
-// treasury fee is always output[2], provider fee is always output[3], root owner will be output[5] (if a subhandle)
-// Refinput indexes are passed in the redeemer
+// 100 (Pz) or 000 is (Vir) are locked here
+// Refinput and output indexes are passed in the redeemer
 
 enum HandleType {
     HANDLE
@@ -351,8 +349,8 @@ func designer_settings_are_valid(designer: Map[String]Data, defaults: Map[String
         force != Option[Data]::None && Int::from_data(force.unwrap()).to_bool() == true
     );
     simple_props = []String{"bg_border_colors", "bg_colors", "circuit_colors", "pfp_border_colors", "font_shadow_colors"};
-    simp_equal_props = []String{"qr_bg_color"};
-    simp_excl_props = []String{"text_ribbon_gradient", "font_color", "socials_color", "font", "qr_image"};
+    simp_equal_props = []String{"qr_bg_color", "socials_color"};
+    simp_excl_props = []String{"text_ribbon_gradient", "font_color", "font", "qr_image"};
     qr_props = []String{"qr_inner_eye", "qr_outer_eye", "qr_dot"};
     defaults.for_each((key: String, value: Data) -> {
         if (simple_props.any((p: String) -> Bool {key == p})) {
