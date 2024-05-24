@@ -324,19 +324,19 @@ console.log(`${Color.FgMagenta}----------------------------TESTS START----------
         context.outputs.find(output => output.has(['HANDLE_POLICY', 'LBL_100', `"${handle}"`])).replace(['HANDLE_POLICY', 'LBL_222', `"${handle}"`], ['HANDLE_POLICY', 'LBL_222', '"xar12346"']); 
         const program = tester.createProgram(contract, new Datum().render(), pzRedeemer.render(), context.render());
         return { contract: program.compile(optimized), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
-    }, "Reference Token input not present")
+    }, "Contract output not present")
     await tester.testCase(false, "PERSONALIZE", "bad ref token label", () => {
         const context = new ScriptContext().initPz(pzRedeemer.calculateCid());
         context.outputs.find(output => output.has(['HANDLE_POLICY', 'LBL_100', `"${handle}"`])).replace(['HANDLE_POLICY', 'LBL_100', `"${handle}"`], ['HANDLE_POLICY', 'LBL_444', `"${handle}"`]);
         const program = tester.createProgram(contract, new Datum().render(), pzRedeemer.render(), context.render());
         return { contract: program.compile(optimized), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
-    }, "Reference Token input not present")
+    }, "Contract output not present")
     await tester.testCase(false, "PERSONALIZE", "bad ref token policy", () => {
         const context = new ScriptContext().initPz(pzRedeemer.calculateCid());
         context.outputs.find(output => output.has(['HANDLE_POLICY', 'LBL_100', `"${handle}"`])).replace(['HANDLE_POLICY', 'LBL_100', `"${handle}"`], ['MintingPolicyHash::new(#123456789012345678901234567890123456789012345678901234af)', 'LBL_100', `"${handle}"`]);
         const program = tester.createProgram(contract, new Datum().render(), pzRedeemer.render(), context.render());
         return { contract: program.compile(optimized), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
-    }, "Reference Token input not present")
+    }, "Contract output not present")
     await tester.testCase(false, "PERSONALIZE", "bad ref token output", () => {
         const context = new ScriptContext().initPz(pzRedeemer.calculateCid());
         context.outputs.find(output => output.has(['HANDLE_POLICY', 'LBL_100', `"${handle}"`])).hash = '#123456789012345678901234567890123456789012345678901234af'
@@ -655,7 +655,7 @@ console.log(`${Color.FgMagenta}----------------------------TESTS START----------
         context.referenceInputs.find(input => input.output.has([`MintingPolicyHash::new(${bg_policy})`, 'LBL_100', '"bg"'])).output.datum = bgDefaults.render();
         const program = tester.createProgram(contract, new Datum().render(), pzRedeemer.render(), context.render());
         return { contract: program.compile(optimized), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
-    }, "Required asset not correct")
+    }, "policy not found")
     await tester.testCase(false, "PERSONALIZE", "pfp not displayed", () => {
         const context = new ScriptContext().initPz(pzRedeemer.calculateCid());
         const datum = new Datum(pzRedeemer.calculateCid());

@@ -159,51 +159,6 @@ func holder_addresses_match(address1: Address, address2: Address) -> Bool {
     }
 }
 
-func find_output(index: Int, policy: MintingPolicyHash, name: ByteArray, amount: Int, ref_inputs: []TxInput, outputs: []TxOutput, reset: Bool) -> (Option[TxOutput], Option[AssetClass]) {
-    output_opt: Option[TxOutput] = if (reset) {
-            if (index >= ref_inputs.length) {
-                Option[TxOutput]::None
-            } else {
-                Option[TxOutput]::Some{ref_inputs.get(index).output}
-            }}
-        else { 
-            if (index >= outputs.length) {
-                Option[TxOutput]::None
-            } else {
-                Option[TxOutput]::Some{outputs.get(index)} 
-            }
-        };
-    if (output_opt == Option[TxOutput]::None) {
-        (Option[TxOutput]::None, Option[AssetClass]::None)
-    }
-    else {
-        value: Value = output_opt.unwrap().value;
-        if (value.contains_policy(policy)) {
-            if (name.length == 0) {
-                policy_map: Map[ByteArray]Int = value.get_policy(policy);
-                if (policy_map.fold((total:Int, _, amount: Int) -> Int {total + amount}, 0) >= amount) {
-                    (output_opt, Option[AssetClass]::Some{AssetClass::new(policy, policy_map.head_key)})
-                }
-                else {
-                    (Option[TxOutput]::None, Option[AssetClass]::None)
-                }
-            }
-            else {
-                asset: AssetClass = AssetClass::new(policy, name);
-                if (value.contains(Value::new(asset, amount))) {
-                    (output_opt, Option[AssetClass]::Some{asset})
-                }
-                else {                    
-                    (Option[TxOutput]::None, Option[AssetClass]::None)
-                }
-            }
-        }
-        else {
-            (Option[TxOutput]::None, Option[AssetClass]::None)
-        }
-    }
-}
-
 func is_valid_contract(output: TxOutput, valid_contracts: []ByteArray, ctx: ScriptContext) -> Bool {
     output_cred: Credential = output.address.credential;
     current_cred: Credential = Credential::new_validator(ctx.get_current_validator_hash());
@@ -290,6 +245,7 @@ func cbor_hashes_to_cid(designer: Map[String]Data, designer_hash: Option[Data]) 
     // This strips away "ipfs://z" (the z can be removed - see CID multiformats)
     multihash: ByteArray = Int::from_base58(ipfs.slice(8, ipfs.length).decode_utf8()).to_big_endian();
     // This strips away 0x01 0x70 0x12 0x20 (CIDv1, base58, sha2, 32 bytes)
+    //print(multihash.show() + " == " + designer.serialize().sha2().show());
     assert(multihash.slice(4, multihash.length) == designer.serialize().sha2(), "Personalization designer settings hash doesn't match CID multihash");
     true
 }
@@ -316,34 +272,13 @@ func get_asset_datum(asset: AssetClass, index: Int, ref_inputs: []TxInput) -> Ou
     }
 }
 
-func asset_is_valid(asset_index: Int, asset: AssetClass, approvers: Map[ByteArray]Map[ByteArray][]Int, ref_inputs: []TxInput, outputs: []TxOutput, reset: Bool) -> (Bool, Option[Address]) {
-    if (asset != EMPTY_ASSET) {
-        (asset_output: Option[TxOutput], _) = find_output(asset_index, asset.mph, asset.token_name, 1, ref_inputs, outputs, reset);
-        if (asset_output != Option[TxOutput]::None) {
-            (approvers.any((pol: ByteArray, pattern: Map[ByteArray][]Int) -> Bool {
-                pol.serialize() == asset.mph.serialize() && pattern.any((p: ByteArray, _) -> Bool { asset.token_name.starts_with(p) })
-            }), Option[Address]::Some{asset_output.unwrap().address})
-        }
-        else {
-            (false, Option[Address]::None)
-        }
-    }
-    else {
-        (true, Option[Address]::None)
-    }
+func asset_is_approved(pz_asset_output: TxOutput, asset: AssetClass, approvers: Map[ByteArray]Map[ByteArray][]Int) -> Bool {
+    asset == EMPTY_ASSET || (pz_asset_output.value.contains(Value::new(asset, 1)) && approvers.any((pol: ByteArray, pattern: Map[ByteArray][]Int) -> Bool {
+        pol.serialize() == asset.mph.serialize() && pattern.any((p: ByteArray, _) -> Bool { asset.token_name.starts_with(p) })
+    }))
 }
 
-func validate_designer_assets(new_bg_asset: AssetClass, new_pfp_asset: AssetClass, bg_approvers: Map[ByteArray]Map[ByteArray][]Int, pfp_approvers: Map[ByteArray]Map[ByteArray][]Int, pz_asset_index: Int, owner_address: Address, ref_inputs: []TxInput, outputs: []TxOutput, reset: Bool) -> Bool {
-    // Handle determines the address creds, all others must match 
-    // We know we have a signature from the owner.
-    (pfp_valid: Bool, pfp_address: Option[Address]) = asset_is_valid(pz_asset_index, new_pfp_asset, pfp_approvers, ref_inputs, outputs, reset);
-    (bg_valid: Bool, bg_address: Option[Address]) = asset_is_valid(pz_asset_index, new_bg_asset, bg_approvers + pfp_approvers, ref_inputs, outputs, reset);
-    pfp_cred_valid: Bool = pfp_address == Option[Address]::None || holder_addresses_match(pfp_address.unwrap(), owner_address);
-    bg_cred_valid: Bool = bg_address == Option[Address]::None || holder_addresses_match(bg_address.unwrap(), owner_address);
-    pfp_valid && bg_valid && pfp_cred_valid && bg_cred_valid
-}
-
-func check_required_assets(pz_asset_index: Int, req_asset_index: Int, handle: String, pfp_asset: AssetClass, defaults: Map[String]Data, owner_address: Address, ref_inputs: []TxInput, outputs: []TxOutput, signatories: []PubKeyHash, datums: Map[DatumHash]Data, reset: Bool) -> Bool {
+func check_required_assets(pz_asset_output: TxOutput, req_asset_index: Int, handle: String, pfp_asset: AssetClass, defaults: Map[String]Data, ref_inputs: []TxInput, signatories: []PubKeyHash, datums: Map[DatumHash]Data) -> Bool {
     if (defaults != Map[String]Data{}) {
         required_sig_opt: Option[Data] = defaults.get_safe("required_signature");
         assert(required_sig_opt == Option[Data]::None || signatories.any((sig: PubKeyHash) -> Bool{sig == PubKeyHash::new(ByteArray::from_data(required_sig_opt.unwrap()))}), "Required signature for background not present");
@@ -352,10 +287,14 @@ func check_required_assets(pz_asset_index: Int, req_asset_index: Int, handle: St
         require_asset_displayed_opt: Option[Data] = defaults.get_safe("require_asset_displayed");
         require_asset_collections_opt == Option[Data]::None ||
             []ByteArray::from_data(require_asset_collections_opt.unwrap()).any((asset_bytes: ByteArray) -> Bool {
-                (output: Option[TxOutput], asset_opt: Option[AssetClass]) = find_output(pz_asset_index, MintingPolicyHash::new(asset_bytes.slice(0, 28)), asset_bytes.slice(28, asset_bytes.length), 1, ref_inputs, outputs, reset);
-                output != Option[TxOutput]::None
-                && holder_addresses_match(output.unwrap().address, owner_address)
-                && (asset: AssetClass = asset_opt.unwrap();
+                p_hash: MintingPolicyHash = MintingPolicyHash::new(asset_bytes.slice(0, 28));
+                name_bytes: ByteArray = asset_bytes.slice(28, asset_bytes.length);
+                (res_asset: () -> (ByteArray, Int), is_found: Bool) = pz_asset_output.value.get_policy(p_hash).find_safe((n: ByteArray, _) -> Bool {
+                    n.starts_with(name_bytes)
+                });
+                is_found && (
+                    (name: ByteArray, _) = res_asset();
+                    asset: AssetClass = AssetClass::new(p_hash, name);
                     (require_asset_attributes_opt == Option[Data]::None
                     || (if (asset.token_name.starts_with(LBL_222) || asset.token_name.starts_with(LBL_444)) {
                         []ByteArray::from_data(require_asset_attributes_opt.unwrap()).all((attr_bytes: ByteArray) -> Bool {
@@ -596,15 +535,14 @@ func pz_datum_is_valid(
         bg_datum
 }
 
-func check_sub_handle_settings(handle: String, root_handle: String, root_sett_index: Int, pz_min_fee: Int, subhandle_share_percent: Int, ref_inputs: []TxInput, outputs: []TxOutput, tx: Tx) -> OwnerSettings {
+func check_sub_handle_settings(handle: String, root_handle: String, root_sett_index: Int, pz_min_fee: Int, subhandle_share_percent: Int, ref_inputs: []TxInput, tx: Tx) -> OwnerSettings {
     assert(handle.ends_with("@" + root_handle), "Incorrect root handle for SubHandle");
-    (owner_settings_opt: Option[TxOutput], _) = find_output(root_sett_index, HANDLE_POLICY, LBL_001 + (root_handle.encode_utf8()), 1, ref_inputs, outputs, false);
-    assert(owner_settings_opt != Option[TxOutput]::None, "SubHandle settings input not present");
-
-    owner_settings: OwnerSettings = OwnerSettings::from_data(owner_settings_opt.unwrap().datum.get_inline_data());
-    assert(tx.value_paid_to[OutputDatum::Inline](
-        Address::from_bytes(owner_settings.payment_address), 
-        OutputDatum::new_inline(handle.encode_utf8())).contains(Value::lovelace(calculate_shared_fee(pz_min_fee, subhandle_share_percent, true))), "Fee not paid to root Handle");
+    owner_output: TxOutput = ref_inputs.get(root_sett_index).output;
+    owner_settings: OwnerSettings = OwnerSettings::from_data(owner_output.datum.get_inline_data());
+    assert(owner_output.value.contains(Value::new(AssetClass::new(HANDLE_POLICY, LBL_001 + (root_handle.encode_utf8())), 1)) 
+        && tx.value_paid_to[OutputDatum::Inline](
+            Address::from_bytes(owner_settings.payment_address), 
+            OutputDatum::new_inline(handle.encode_utf8())).contains(Value::lovelace(calculate_shared_fee(pz_min_fee, subhandle_share_percent, true))), "Fee not paid to root Handle");
     owner_settings
 }
 
@@ -633,35 +571,35 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
             PzSettings { treasury_fee, treasury_cred, pz_min_fee, pz_providers, valid_contracts, _, settings_cred, grace_period, subhandle_share_percent } = load_pz_settings(pz_sett_index, ref_inputs);
             assert(reset || pz_asset_output.value.contains(Value::new(AssetClass::new(HANDLE_POLICY, LBL_222 + encoded_handle), 1)), "Handle input not present");
             new_output: TxOutput = outputs.get(contr_outp_index);
-            assert(new_output.value.contains(Value::new(AssetClass::new(HANDLE_POLICY, LBL_100 + encoded_handle), 1)), "Reference Token input not present");
             new_datum: Datum::CIP68 = Datum::CIP68::from_data(get_datum(new_output.datum, datums));
             new_extra: Map[String]Data = get_extra(new_datum.extra);
             old_res_opt: Option[Data] = old_extra.get_safe("resolved_addresses");
             new_res_opt: Option[Data] = new_extra.get_safe("resolved_addresses");
             new_resolved: Map[String]Data = if (new_res_opt == Option[Data]::None) {Map[String]Data{}} else {Map[String]Data::from_data(new_res_opt.unwrap())};
             resolved_ada: Option[Data] = new_resolved.get_safe("ada");
-            (address: Address, sub_check: Bool) = type.switch {
+            (address: Address, sub_check: Bool, LBL: ByteArray) = type.switch {
                 HANDLE => {
                     assert(resolved_ada == Option[Data]::None, "resolved_addresses can't contain 'ada'");
-                    (pz_asset_output.address, false)
+                    (pz_asset_output.address, false, LBL_100)
                 },
                 NFT_SUBHANDLE => {
-                    owner_settings: OwnerSettings = check_sub_handle_settings(name, root_handle, root_sett_index, pz_min_fee, subhandle_share_percent, ref_inputs, outputs, tx);
+                    owner_settings: OwnerSettings = check_sub_handle_settings(name, root_handle, root_sett_index, pz_min_fee, subhandle_share_percent, ref_inputs, tx);
                     assert(resolved_ada == Option[Data]::None, "resolved_addresses can't contain 'ada'");
                     assert(reset == false || owner_settings.nft.pz_enabled, "Root SubHandle settings prohibit Personalization");
-                    (pz_asset_output.address, if (reset) {owner_settings.nft.pz_enabled} else {true})
+                    (pz_asset_output.address, if (reset) {owner_settings.nft.pz_enabled} else {true}, LBL_100)
                 },
                 VIRTUAL_SUBHANDLE => {
-                    owner_settings: OwnerSettings = check_sub_handle_settings(name, root_handle, root_sett_index, pz_min_fee, subhandle_share_percent, ref_inputs, outputs, tx);
+                    owner_settings: OwnerSettings = check_sub_handle_settings(name, root_handle, root_sett_index, pz_min_fee, subhandle_share_percent, ref_inputs, tx);
                     old_ada_address: Address = Address::from_bytes(ByteArray::from_data(Map[String]Data::from_data(old_res_opt.unwrap()).get("ada")));
                     assert(reset == false || tx.is_signed_by(old_ada_address.credential.switch{p: PubKey => p.hash, else => error("Only PubKeyHashes are supported")}), "Tx not signed by virtual SubHandle holder");
                     new_ada_address: Address = Address::from_bytes(ByteArray::from_data(resolved_ada.unwrap()));
                     assert(new_ada_address == old_ada_address, "resolved_addresses.ada must not change");
                     assert(reset == false || owner_settings.virtual.pz_enabled, "Root SubHandle settings prohibit Personalization");
                     // add can't change expiry
-                    (new_ada_address,  if (reset) {owner_settings.virtual.pz_enabled} else {true})
+                    (new_ada_address,  if (reset) {owner_settings.virtual.pz_enabled} else {true}, LBL_000)
                 }
             };
+            assert(new_output.value.contains(Value::new(AssetClass::new(HANDLE_POLICY, LBL + encoded_handle), 1)), "Contract output not present");
             pfp_approvers: Map[ByteArray]Map[ByteArray][]Int = get_approver_datum("pfp", pfp_appr_index, pz_providers, settings_cred, ref_inputs);
             bg_approvers: Map[ByteArray]Map[ByteArray][]Int = get_approver_datum("bg", bg_appr_index, pz_providers, settings_cred, ref_inputs);
             old_image: Data = old_datum.nft.get("image");
@@ -689,10 +627,10 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
             assert(last_update_address == address, "last_update_address does not match Handle address");
             bg_datum: Datum::CIP68 = pz_datum_is_valid(new_extra, bg_approvers, pfp_approvers, bg_dat_index, pfp_dat_index, new_bg_asset, new_pfp_asset, ref_inputs, signatories, datums);
             assert(is_valid_contract(new_output, valid_contracts, ctx) && immutables_are_unchanged(old_datum, new_datum, old_extra, new_extra), "Contract failed validation");
-            designer_assets_valid: Bool = validate_designer_assets(check_bg, check_pfp, bg_approvers, pfp_approvers, pz_asset_index, address, ref_inputs, outputs, reset);
+            designer_assets_valid: Bool = asset_is_approved(pz_asset_output, check_bg, bg_approvers) && asset_is_approved(pz_asset_output, check_pfp, pfp_approvers);
             defaults: Map[String]Data = if (bg_datum == EMPTY_CIP_68) { Map[String]Data{} } else { get_extra(bg_datum.extra) };
             
-            require_asset_valid: Bool = check_required_assets(pz_asset_index, req_asset_index, name, check_pfp, defaults, address, ref_inputs, outputs, signatories, datums, reset);
+            require_asset_valid: Bool = check_required_assets(pz_asset_output, req_asset_index, name, check_pfp, defaults, ref_inputs, signatories, datums);
         
             if (reset == false) {
                 assert(require_asset_valid, "Required asset not correct");
@@ -757,13 +695,13 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
             PzIndexes { _, _, _, _, pz_sett_index, _, _, contr_outp_index, _, _ } = indexes;
             PzSettings { _, _, _, _, valid_contracts, admin_creds, _, _, _ } = load_pz_settings(pz_sett_index, ref_inputs);
             LBL: ByteArray = type.switch {
-                VIRTUAL_SUBHANDLE => LBL_001,
+                VIRTUAL_SUBHANDLE => LBL_000,
                 else => LBL_100
             };
-            (contract_output: Option[TxOutput], _) = find_output(contr_outp_index, HANDLE_POLICY, LBL + (name.encode_utf8()), 1, ref_inputs, outputs, false);
-            output: TxOutput = contract_output.unwrap();
+            output: TxOutput = outputs.get(contr_outp_index);
             new_datum: Datum::CIP68 = Datum::CIP68::from_data(output.datum.get_inline_data());
             assert(old_datum == new_datum
+                && output.value.contains(Value::new(AssetClass::new(HANDLE_POLICY, LBL + (name.encode_utf8())), 1))
                 && is_valid_contract(output, valid_contracts, ctx) 
                 && migration_signers_are_valid(name, outputs, signatories, admin_creds, old_datum), "Not a valid migration");
             true            

@@ -10,10 +10,11 @@ const BG_POLICY_ID = 'f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9b';
 const PFP_POLICY_ID = 'f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9c';
 export const adminKeyHash = helios.PubKeyHash.fromHex('01234567890123456789012345678901234567890123456789000007');
 export const ownerKeyHash = helios.PubKeyHash.fromHex('12345678901234567890123456789012345678901234567890123456');
+export const providerKeyHash = helios.PubKeyHash.fromHex('01234567890123456789012345678901234567890123456789000004');
 const lovelace = 10000000;
 const defaultNft = {
     name: '$<handle>',
-    image: "ipfs://pfp",
+    image: "ipfs://image",
     mediaType: "image/jpeg",
     og: 0,
     og_number: 1,
@@ -24,28 +25,25 @@ const defaultNft = {
     version: 1,
     attr: "rtta", 
 };
-const defaultPzDatum = {
-    pfp_border_color: '0x22d1af',
-    qr_inner_eye: "dots,#0a1fd4",
-    qr_outer_eye: "dots,#0a1fd5",
-    qr_dot: "dots,#0a1fd6",
-    qr_bg_color: '0x0a1fd3',
-    qr_image: "https://img",
-    pfp_zoom: 130,
-    pfp_offset: [60, 60],
-    font: "the font",
-    font_color: '0xffffff',
-    font_shadow_size: [12, 10, 8],
-    text_ribbon_colors: ['0x0a1fd3', '0x0a1fd4'],
-    text_ribbon_gradient: 'linear-45',
-    font_shadow_color: '0x22d1af',
-    socials_color: '0xffffff',
-    bg_border_color: '0x22d1af',
-    bg_color: '0x22d1af',
-    circuit_color: '0x22d1af',
-    qr_link: "",
-    socials: [],
-    svg_version: 1
+const defaultExtra = {
+    image_hash: "0x",
+    standard_image: "ipfs://image",
+    standard_image_hash: "0x",
+    bg_image: "ipfs://bg",
+    pfp_image: "ipfs://pfp",
+    designer: "ipfs://cid",
+    bg_asset: `0x${BG_POLICY_ID}001bc2806267`,
+    pfp_asset: `0x${PFP_POLICY_ID}000de140706670`,
+    portal: "ipfs://cid",
+    socials: "ipfs://cid",
+    vendor: "ipfs://cid",
+    default: 1,
+    last_update_address: `0x${helios.bytesToHex((await getAddressAtDerivation(0)).bytes)}`,
+    agreed_terms: "https://tou",
+    trial: 0,
+    nsfw: 0,
+    migrate_sig_required: 0,
+    validated_by: '0x01234567890123456789012345678901234567890123456789000004',
 }
 
 export class PzFixtures extends Fixtures {
@@ -59,16 +57,19 @@ export class PzFixtures extends Fixtures {
         constructor_0: [
             defaultNft,
             0,
-            defaultPzDatum
+            defaultExtra
         ]
     };
     oldCip68DatumCbor: string;
 
     newCip68Datum = {
         constructor_0: [
-            defaultNft,
+            {
+                ...defaultNft,
+                image: "ipfs://pfp"
+            },
             0,
-            defaultPzDatum
+            defaultExtra
         ]
     }
     newCip68DatumCbor: string;
@@ -77,8 +78,11 @@ export class PzFixtures extends Fixtures {
         1500000, //treasury_fee
         '0x01234567890123456789012345678901234567890123456789000002', //treasury_cred
         3500000, //pz_min_fee
-        ['0x01234567890123456789012345678901234567890123456789000004'], //pz_providers
-        [], //valid_contracts
+        { //pz_providers
+            '0x01234567890123456789012345678901234567890123456789000004': '0x01234567890123456789012345678901234567890123456789000004', 
+            '0x01234567890123456789012345678901234567890123456789000003': '0x01234567890123456789012345678901234567890123456789000003'
+        }, 
+        [] as string[], //valid_contracts
         '0x01234567890123456789012345678901234567890123456789000007', //admin_creds
         '0x01234567890123456789012345678901234567890123456789000003', //settings_cred
         60 * 60, //grace_period
@@ -88,7 +92,10 @@ export class PzFixtures extends Fixtures {
 
     bgDatum ={ // a.k.a. "Creator Defaults"
         constructor_0: [
-            defaultNft,
+            {
+                ...defaultNft,
+                image: "ipfs://bg"
+            },
             0,
             {
                 qr_inner_eye: "dots,#0a1fd4",
@@ -109,7 +116,7 @@ export class PzFixtures extends Fixtures {
                 socials_color: '0xffffff',
                 pfp_border_colors: ['0x0a1fd3', '0x22d1af', '0x31bc23'],
                 font_shadow_colors: ['0x0a1fd3', '0x22d1af', '0x31bc23'],
-                require_asset_collections: [ `${PFP_POLICY_ID}000de140706670`, `${PFP_POLICY_ID}706670` ],
+                require_asset_collections: [ `0x${PFP_POLICY_ID}000de140706670`, `0x${PFP_POLICY_ID}706670` ],
                 require_asset_attributes: ['attr:rtta'],
                 require_asset_displayed: 1,
                 price: 125,
@@ -122,9 +129,12 @@ export class PzFixtures extends Fixtures {
 
     pfpDatum = {
         constructor_0: [
-            defaultNft,
+            {
+                ...defaultNft,
+                image: "ipfs://pfp"
+            },
             0,
-            defaultPzDatum
+            defaultExtra
         ]
     }
     pfpDatumCbor: string;
@@ -145,7 +155,7 @@ export class PzFixtures extends Fixtures {
                 2, //pfp_datum
                 0, //bg_datum
                 3, //pz_settings
-                1, //required_asset
+                2, //required_asset
                 0, //owner_settings
                 0, //contract_output
                 1, //pz_assets
@@ -158,9 +168,9 @@ export class PzFixtures extends Fixtures {
                 qr_dot: 'dots,#0a1fd6',
                 qr_bg_color: '0x0a1fd3',
                 qr_image: 'https://img',
-                pfp_zoom: '130',
+                pfp_zoom: 130,
                 pfp_offset: [60, 60],
-                font: '"the font"',
+                font: 'the font',
                 font_color: '0xffffff',
                 font_shadow_size: [12, 10, 8],
                 text_ribbon_colors: ['0x0a1fd3', '0x0a1fd4'],
@@ -172,7 +182,7 @@ export class PzFixtures extends Fixtures {
                 circuit_color: '0x22d1af',
                 qr_link: '',
                 socials: [],
-                svg_version: '1',
+                svg_version: 1,
             },
             false
     ]
@@ -183,7 +193,7 @@ export class PzFixtures extends Fixtures {
         constructor_0: [
             defaultNft,
             0,
-            defaultPzDatum
+            defaultExtra
         ]
     };
     requiredAssetCbor: string;
@@ -191,7 +201,7 @@ export class PzFixtures extends Fixtures {
     constructor(validatorHash: helios.ValidatorHash) {
         super();
         (this.oldCip68Datum.constructor_0[0] as any)['name'] = (this.oldCip68Datum.constructor_0[0] as any)['name'].replace('<handle>', this.handleName);
-        (this.oldCip68Datum.constructor_0[0] as any)['name'] = (this.newCip68Datum.constructor_0[0] as any)['name'].replace('<handle>', this.handleName);
+        (this.newCip68Datum.constructor_0[0] as any)['name'] = (this.newCip68Datum.constructor_0[0] as any)['name'].replace('<handle>', this.handleName);
         this.scriptAddress = helios.Address.fromHash(validatorHash);
         this.latestScriptAddress = this.scriptAddress;
         this.validatorHash = validatorHash;
@@ -201,13 +211,14 @@ export class PzFixtures extends Fixtures {
     async initialize(): Promise<Fixtures> {
         const handleByteLength = this.handleName.length.toString(16);
         this.handleCbor = `4${handleByteLength}${Buffer.from(this.handleName).toString('hex')}`;
-        const designerCid = this.calculateCid(await convertJsontoCbor(this.pzRedeemer.constructor_0[3]));
+        const designerCbor = (await convertJsontoCbor(this.pzRedeemer.constructor_0[3])).replace('9fff', '80');
+        const designerCid = this.calculateCid(designerCbor);
         (this.oldCip68Datum.constructor_0[2] as any)['designer'] = `ipfs://${designerCid}`;
         (this.newCip68Datum.constructor_0[2] as any)['designer'] = `ipfs://${designerCid}`;
         this.oldCip68DatumCbor = await convertJsontoCbor(this.oldCip68Datum);
         this.newCip68DatumCbor = await convertJsontoCbor(this.newCip68Datum);
         this.pzSettingsCbor = await convertJsontoCbor(this.pzSettings);
-        this.pzRedeemerCbor = (await convertJsontoCbor(this.pzRedeemer)).replace('d8799fff', 'd87980');
+        this.pzRedeemerCbor = (await convertJsontoCbor(this.pzRedeemer));
         this.bgDatumCbor = await convertJsontoCbor(this.bgDatum);
         this.pfpDatumCbor = await convertJsontoCbor(this.pfpDatum);
         this.bgApproversCbor = await convertJsontoCbor(this.bgApprovers);
@@ -225,9 +236,10 @@ export class PzFixtures extends Fixtures {
                     this.scriptAddress,
                     new helios.Value(BigInt(lovelace), new helios.Assets([[POLICY_ID, [
                         [`${AssetNameLabel.LBL_100}${Buffer.from(this.handleName).toString('hex')}`, 1],
-                        [`${AssetNameLabel.LBL_222}${Buffer.from("bg").toString('hex')}`, 1], 
-                        [`${AssetNameLabel.LBL_222}${Buffer.from("pfp").toString('hex')}`, 1], 
+                        [`${AssetNameLabel.LBL_222}${Buffer.from("bg").toString('hex')}`, 1],  
                         [`${AssetNameLabel.LBL_222}${Buffer.from(this.handleName).toString('hex')}`, 1]
+                    ]],[PFP_POLICY_ID, [
+                        [`${AssetNameLabel.LBL_222}${Buffer.from("pfp").toString('hex')}`, 1]
                     ]]])),
                     helios.Datum.inline(helios.UplcData.fromCbor(this.oldCip68DatumCbor))
             ))
@@ -244,7 +256,7 @@ export class PzFixtures extends Fixtures {
                 new helios.TxOutputId(getNewFakeUtxoId()),
                 new helios.TxOutput(
                     await getAddressAtDerivation(0),
-                    new helios.Value(BigInt(1), new helios.Assets([[POLICY_ID, [[`${AssetNameLabel.LBL_222}${Buffer.from(this.handleName).toString('hex')}`, 1]]]])),
+                    new helios.Value(BigInt(1), new helios.Assets([[PFP_POLICY_ID, [[`${AssetNameLabel.LBL_222}${Buffer.from("pfp").toString('hex')}`, 1]]]])),
                     helios.Datum.inline(helios.UplcData.fromCbor(this.requiredAssetCbor))
             )),
             new helios.TxInput( // pfp_datum
@@ -257,21 +269,21 @@ export class PzFixtures extends Fixtures {
             new helios.TxInput( // pz_settings
                 new helios.TxOutputId(getNewFakeUtxoId()),
                 new helios.TxOutput(
-                    await getAddressAtDerivation(0),
+                    helios.Address.fromHash(helios.ValidatorHash.fromHex('01234567890123456789012345678901234567890123456789000003')),
                     new helios.Value(BigInt(1), new helios.Assets([[POLICY_ID, [[`${AssetNameLabel.LBL_222}${Buffer.from('pz_settings').toString('hex')}`, 1]]]])),
                     helios.Datum.inline(helios.UplcData.fromCbor(this.pzSettingsCbor))
             )),
             new helios.TxInput( // bg_approver
                 new helios.TxOutputId(getNewFakeUtxoId()),
                 new helios.TxOutput(
-                    await getAddressAtDerivation(0),
+                    helios.Address.fromHash(helios.ValidatorHash.fromHex('01234567890123456789012345678901234567890123456789000003')),
                     new helios.Value(BigInt(1), new helios.Assets([[POLICY_ID, [[`${AssetNameLabel.LBL_222}${Buffer.from('bg_policy_ids').toString('hex')}`, 1]]]])),
                     helios.Datum.inline(helios.UplcData.fromCbor(this.bgApproversCbor))
             )),
             new helios.TxInput( // pfp_approver
                 new helios.TxOutputId(getNewFakeUtxoId()),
                 new helios.TxOutput(
-                    await getAddressAtDerivation(0),
+                    helios.Address.fromHash(helios.ValidatorHash.fromHex('01234567890123456789012345678901234567890123456789000003')),
                     new helios.Value(BigInt(1), new helios.Assets([[POLICY_ID, [[`${AssetNameLabel.LBL_222}${Buffer.from('pfp_policy_ids').toString('hex')}`, 1]]]])),
                     helios.Datum.inline(helios.UplcData.fromCbor(this.pfpApproversCbor))
             ))
@@ -283,31 +295,32 @@ export class PzFixtures extends Fixtures {
                 helios.Datum.inline(helios.UplcData.fromCbor(this.newCip68DatumCbor))
             ),
             new helios.TxOutput( // Pz Assets
-                this.latestScriptAddress,
+                await getAddressAtDerivation(0),
                 new helios.Value(BigInt(1), new helios.Assets([[POLICY_ID, [
                     [`${AssetNameLabel.LBL_222}${Buffer.from("bg").toString('hex')}`, BigInt(1)],
-                    [`${AssetNameLabel.LBL_222}${Buffer.from("pfp").toString('hex')}`, BigInt(1)],
                     [`${AssetNameLabel.LBL_222}${Buffer.from(this.handleName).toString('hex')}`, BigInt(1)]
+                ]],[PFP_POLICY_ID, [
+                    [`${AssetNameLabel.LBL_222}${Buffer.from("pfp").toString('hex')}`, BigInt(1)]
                 ]]]))
             ),
             new helios.TxOutput( // Treasury Fee
-                this.latestScriptAddress,
+                helios.Address.fromHash(helios.ValidatorHash.fromHex('01234567890123456789012345678901234567890123456789000002')),
                 new helios.Value(BigInt(1500000)),
                 helios.Datum.inline(helios.UplcData.fromCbor(this.handleCbor))
             ),
             new helios.TxOutput( // Provider Fee
-                this.latestScriptAddress,
+                helios.Address.fromHash(helios.ValidatorHash.fromHex('01234567890123456789012345678901234567890123456789000004')),
                 new helios.Value(BigInt(3500000)),
                 helios.Datum.inline(helios.UplcData.fromCbor(this.handleCbor))
             )
         ];
-        this.signatories = [ adminKeyHash ]; // Provider or admin PubKeyHash
+        this.signatories = [ providerKeyHash ]; // Provider or admin PubKeyHash
         return this;        
     }
   
     calculateCid(designer: any) {
         const hash = '01701220' + helios.bytesToHex(helios.Crypto.sha2_256([...Buffer.from(designer, 'hex')]));
-        //console.log('CID = ' +  'z' + base58.encode([...Buffer.from(hash, 'hex')]));
+        // console.log('CID = ' +  'z' + base58.encode([...Buffer.from(hash, 'hex')]), hash);
         return 'z' + base58.encode([...Buffer.from(hash, 'hex')]);   
     }
 }

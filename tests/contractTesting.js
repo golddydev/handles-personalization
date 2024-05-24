@@ -108,9 +108,7 @@ export function createProgram(contract, datum, redeemer, context) {
     const redeemer: ${redeemer.split(' ')[0]} = ${redeemer}\n
     const context: ScriptContext = ${context}\n`;
   if (test != null) {
-    console.log('WRITING')
     fs.writeFileSync('testingCode.helios', testingCode);
-    console.log('DONE WRITING')
   }
   return helios.Program.new(testingCode);
 }
