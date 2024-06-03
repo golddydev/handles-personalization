@@ -19,48 +19,46 @@ const runTests = async (file: string) => {
         revokeTx.mintTokens(fixt.handlePolicyHex, [[`${AssetNameLabel.LBL_000}${Buffer.from(fixt.handleName).toString('hex')}`, -1]], null);
         return revokeTx;
     }
-    Promise.all([
-        // PERSONALIZE - SHOULD APPROVE
-        tester.test("PERSONALIZE", "main - test most things", new Test(program, async (hash) => {return await (new PzFixture(hash).initialize())})),
-        tester.test("PERSONALIZE", "unenforced defaults", new Test(program, async (hash) => {
-            const fixture = new PzFixture(hash);
-            (fixture.bgDatum.constructor_0[2] as any) = {};
-            (fixture.pzRedeemer.constructor_0[3] as any) = {
-                pfp_border_color: '0x22d1af',
-                qr_inner_eye: 'square,#0a1fd4',
-                qr_outer_eye: 'square,#0a1fd5',
-                qr_dot: 'square,#0a1fd6',
-                qr_bg_color: '0x0a1fd3',
-                pfp_zoom: 130,
-                pfp_offset: [60, 60],
-                font_shadow_size: [12, 10, 8],
-                text_ribbon_colors: ['0x0a1fd3'],
-                font_shadow_color: '0x22d1af',
-                socials_color: '0xffffff',
-                bg_border_color: '0x22d1af',
-                bg_color: '0x22d1af',
-                circuit_color: '0x22d1af',
-                qr_link: '',
-                socials: [],
-                svg_version: 1
-            }
-            return await fixture.initialize();
-        })),
+    // PERSONALIZE - SHOULD APPROVE
+    await tester.test("PERSONALIZE", "main - test most things", new Test(program, async (hash) => {return await (new PzFixture(hash).initialize())})),
+    await tester.test("PERSONALIZE", "unenforced defaults", new Test(program, async (hash) => {
+        const fixture = new PzFixture(hash);
+        (fixture.bgDatum.constructor_0[2] as any) = {};
+        (fixture.pzRedeemer.constructor_0[3] as any) = {
+            pfp_border_color: '0x22d1af',
+            qr_inner_eye: 'square,#0a1fd4',
+            qr_outer_eye: 'square,#0a1fd5',
+            qr_dot: 'square,#0a1fd6',
+            qr_bg_color: '0x0a1fd3',
+            pfp_zoom: 130,
+            pfp_offset: [60, 60],
+            font_shadow_size: [12, 10, 8],
+            text_ribbon_colors: ['0x0a1fd3'],
+            font_shadow_color: '0x22d1af',
+            socials_color: '0xffffff',
+            bg_border_color: '0x22d1af',
+            bg_color: '0x22d1af',
+            circuit_color: '0x22d1af',
+            qr_link: '',
+            socials: [],
+            svg_version: 1
+        }
+        return await fixture.initialize();
+    })),
 
-        // PERSONALIZE - SHOULD DENY
-        tester.test("PERSONALIZE", "exclusives set, no creator", new Test(program, async (hash) => {
-            const fixture = new PzFixture(hash);
-            (fixture.bgDatum.constructor_0[2] as any) = {};
-            return await fixture.initialize();
-        }), false, 'qr_inner_eye is not set correctly'),
+    // PERSONALIZE - SHOULD DENY
+    await tester.test("PERSONALIZE", "exclusives set, no creator", new Test(program, async (hash) => {
+        const fixture = new PzFixture(hash);
+        (fixture.bgDatum.constructor_0[2] as any) = {};
+        return await fixture.initialize();
+    }), false, 'qr_inner_eye is not set correctly'),
 
-        // REVOKE - SHOULD APPROVE
-        tester.test("REVOKE", "private mint", new Test(program, async (hash) => {return await (new RevokeFixture(hash).initialize())}, setupRevokeTx)),
+    // REVOKE - SHOULD APPROVE
+    await tester.test("REVOKE", "private mint", new Test(program, async (hash) => {return await (new RevokeFixture(hash).initialize())}, setupRevokeTx)),
 
-        // UPDATE - SHOULD APPROVE
-        tester.test("UPDATE", "private mint", new Test(program, async (hash) => {return await (new UpdateFixture(hash).initialize())})),
-    ]
-    ).then(() => {tester.displayStats()});
+    // UPDATE - SHOULD APPROVE
+    await tester.test("UPDATE", "private mint", new Test(program, async (hash) => {return await (new UpdateFixture(hash).initialize())}))
+    tester.displayStats();
 }
 
 (async()=> {
