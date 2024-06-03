@@ -564,7 +564,6 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
             pz_asset_output: TxOutput = if (reset) {ref_inputs.get(pz_asset_index).output} else {outputs.get(pz_asset_index)};
             datum_name: ByteArray = ByteArray::from_data(old_datum.nft.get("name"));
             assert(datum_name.slice(1, datum_name.length) == name, "Handle redeemer mismatch");
-            assert(reset || pz_asset_output.value.contains(Value::new(AssetClass::new(HANDLE_POLICY, LBL_222 + name), 1)), "Handle input not present");
             new_output: TxOutput = outputs.get(contr_outp_index);
             new_datum: Datum::CIP68 = Datum::CIP68::from_data(get_datum(new_output.datum, datums));
             new_extra: Map[String]Data = get_extra(new_datum.extra);
@@ -575,11 +574,13 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
             (address: Address, sub_check: Bool, LBL: ByteArray) = type.switch {
                 HANDLE => {
                     assert(resolved_ada == Option[Data]::None, "resolved_addresses can't contain 'ada'");
+                    assert(reset || pz_asset_output.value.contains(Value::new(AssetClass::new(HANDLE_POLICY, LBL_222 + name), 1)), "Handle input not present");
                     (pz_asset_output.address, false, LBL_100)
                 },
                 NFT_SUBHANDLE => {
                     owner_settings: OwnerSettings = check_sub_handle_settings(name, root_handle, root_sett_index, pz_min_fee, subhandle_share_percent, ref_inputs, tx);
                     assert(resolved_ada == Option[Data]::None, "resolved_addresses can't contain 'ada'");
+                    assert(reset || pz_asset_output.value.contains(Value::new(AssetClass::new(HANDLE_POLICY, LBL_222 + name), 1)), "Handle input not present");
                     assert(reset == false || owner_settings.nft.pz_enabled, "Root SubHandle settings prohibit Personalization");
                     (pz_asset_output.address, if (reset) {owner_settings.nft.pz_enabled} else {true}, LBL_100)
                 },
