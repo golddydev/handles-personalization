@@ -13,7 +13,7 @@
     "devDependencies": {
         "@koralabs/helios": "0.16.8-1",
         "@koralabs/kora-labs-common": "^4.0.7",
-        "@koralabs/kora-labs-contract-testing": "0.0.4",
+        "@koralabs/kora-labs-contract-testing": "0.0.7",
         "@types/node": "^20.0",
         "bs58": "^5.0.0",
         "dotenv": "^16.4.5" ,

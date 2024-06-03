@@ -1,6 +1,6 @@
 
 import * as helios from "@koralabs/helios";
-import { Fixtures, convertJsontoCbor, getAddressAtDerivation, getNewFakeUtxoId } from '@koralabs/kora-labs-contract-testing'
+import { Fixture, convertJsontoCbor, getAddressAtDerivation, getNewFakeUtxoId } from '@koralabs/kora-labs-contract-testing'
 import { AssetNameLabel } from '@koralabs/kora-labs-common'
 import base58 from "bs58";
 helios.config.set({ IS_TESTNET: false, AUTO_SET_VALIDITY_RANGE: true });
@@ -8,11 +8,11 @@ helios.config.set({ IS_TESTNET: false, AUTO_SET_VALIDITY_RANGE: true });
 const POLICY_ID = 'f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9a';
 const BG_POLICY_ID = 'f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9b';
 const PFP_POLICY_ID = 'f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9c';
-export const adminKeyHash = helios.PubKeyHash.fromHex('01234567890123456789012345678901234567890123456789000007');
-export const ownerKeyHash = helios.PubKeyHash.fromHex('12345678901234567890123456789012345678901234567890123456');
+export const adminKeyBytes = '01234567890123456789012345678901234567890123456789000007';
+export const adaHandleBytes = '01234567890123456789012345678901234567890123456789000003';
 export const providerKeyHash = helios.PubKeyHash.fromHex('01234567890123456789012345678901234567890123456789000004');
-const lovelace = 10000000;
-const defaultNft = {
+export const lovelace = 10000000;
+export const defaultNft = {
     name: '$<handle>',
     image: "ipfs://image",
     mediaType: "image/jpeg",
@@ -25,7 +25,8 @@ const defaultNft = {
     version: 1,
     attr: "rtta", 
 };
-const defaultExtra = {
+
+export const defaultExtra = {
     image_hash: "0x",
     standard_image: "ipfs://image",
     standard_image_hash: "0x",
@@ -44,14 +45,31 @@ const defaultExtra = {
     nsfw: 0,
     migrate_sig_required: 0,
     validated_by: '0x01234567890123456789012345678901234567890123456789000004',
-}
+};
 
-export class PzFixtures extends Fixtures {
+export const defaultPzSettings = [
+    1500000, //treasury_fee
+    '0x01234567890123456789012345678901234567890123456789000002', //treasury_cred
+    3500000, //pz_min_fee
+    { //pz_providers
+        '0x01234567890123456789012345678901234567890123456789000004': '0x01234567890123456789012345678901234567890123456789000004', 
+        [`0x${adaHandleBytes}`]: `0x${adaHandleBytes}`
+    }, 
+    [] as string[], //valid_contracts
+    [`0x${adminKeyBytes}`], //admin_creds
+    `0x${adaHandleBytes}`, //settings_cred
+    60 * 60, //grace_period
+    50, //subhandle_share_percent
+];
+
+
+export const defaultAssigneeHash: string = '4da965a049dfd15ed1ee19fba6e2974a0b79fc416dd1796a1f97f5e2';
+export const defaultResolvedAddress = helios.Address.fromHash(helios.PubKeyHash.fromHex(defaultAssigneeHash));
+
+export class PzFixture extends Fixture {
     handleName = 'xar123456';
     handleCbor: string;
-    scriptAddress: helios.Address;
     latestScriptAddress: helios.Address;
-    validatorHash: helios.ValidatorHash;
 
     oldCip68Datum = {
         constructor_0: [
@@ -74,20 +92,7 @@ export class PzFixtures extends Fixtures {
     }
     newCip68DatumCbor: string;
 
-    pzSettings = [
-        1500000, //treasury_fee
-        '0x01234567890123456789012345678901234567890123456789000002', //treasury_cred
-        3500000, //pz_min_fee
-        { //pz_providers
-            '0x01234567890123456789012345678901234567890123456789000004': '0x01234567890123456789012345678901234567890123456789000004', 
-            '0x01234567890123456789012345678901234567890123456789000003': '0x01234567890123456789012345678901234567890123456789000003'
-        }, 
-        [] as string[], //valid_contracts
-        '0x01234567890123456789012345678901234567890123456789000007', //admin_creds
-        '0x01234567890123456789012345678901234567890123456789000003', //settings_cred
-        60 * 60, //grace_period
-        50, //subhandle_share_percent
-    ]
+    pzSettings = defaultPzSettings;
     pzSettingsCbor: string;
 
     bgDatum ={ // a.k.a. "Creator Defaults"
@@ -154,7 +159,6 @@ export class PzFixtures extends Fixtures {
                 4, //bg_approver
                 2, //pfp_datum
                 0, //bg_datum
-                3, //pz_settings
                 2, //required_asset
                 0, //owner_settings
                 0, //contract_output
@@ -199,16 +203,14 @@ export class PzFixtures extends Fixtures {
     requiredAssetCbor: string;
     
     constructor(validatorHash: helios.ValidatorHash) {
-        super();
+        super(validatorHash);
         (this.oldCip68Datum.constructor_0[0] as any)['name'] = (this.oldCip68Datum.constructor_0[0] as any)['name'].replace('<handle>', this.handleName);
         (this.newCip68Datum.constructor_0[0] as any)['name'] = (this.newCip68Datum.constructor_0[0] as any)['name'].replace('<handle>', this.handleName);
-        this.scriptAddress = helios.Address.fromHash(validatorHash);
         this.latestScriptAddress = this.scriptAddress;
-        this.validatorHash = validatorHash;
         this.pzSettings[4] = [`0x${validatorHash.hex}`];
     }
     
-    async initialize(): Promise<Fixtures> {
+    async initialize(): Promise<PzFixture> {
         const handleByteLength = this.handleName.length.toString(16);
         this.handleCbor = `4${handleByteLength}${Buffer.from(this.handleName).toString('hex')}`;
         const designerCbor = (await convertJsontoCbor(this.pzRedeemer.constructor_0[3])).replace('9fff', '80');
@@ -269,21 +271,21 @@ export class PzFixtures extends Fixtures {
             new helios.TxInput( // pz_settings
                 new helios.TxOutputId(getNewFakeUtxoId()),
                 new helios.TxOutput(
-                    helios.Address.fromHash(helios.ValidatorHash.fromHex('01234567890123456789012345678901234567890123456789000003')),
+                    helios.Address.fromHash(helios.ValidatorHash.fromHex(adaHandleBytes)),
                     new helios.Value(BigInt(1), new helios.Assets([[POLICY_ID, [[`${AssetNameLabel.LBL_222}${Buffer.from('pz_settings').toString('hex')}`, 1]]]])),
                     helios.Datum.inline(helios.UplcData.fromCbor(this.pzSettingsCbor))
             )),
             new helios.TxInput( // bg_approver
                 new helios.TxOutputId(getNewFakeUtxoId()),
                 new helios.TxOutput(
-                    helios.Address.fromHash(helios.ValidatorHash.fromHex('01234567890123456789012345678901234567890123456789000003')),
+                    helios.Address.fromHash(helios.ValidatorHash.fromHex(adaHandleBytes)),
                     new helios.Value(BigInt(1), new helios.Assets([[POLICY_ID, [[`${AssetNameLabel.LBL_222}${Buffer.from('bg_policy_ids').toString('hex')}`, 1]]]])),
                     helios.Datum.inline(helios.UplcData.fromCbor(this.bgApproversCbor))
             )),
             new helios.TxInput( // pfp_approver
                 new helios.TxOutputId(getNewFakeUtxoId()),
                 new helios.TxOutput(
-                    helios.Address.fromHash(helios.ValidatorHash.fromHex('01234567890123456789012345678901234567890123456789000003')),
+                    helios.Address.fromHash(helios.ValidatorHash.fromHex(adaHandleBytes)),
                     new helios.Value(BigInt(1), new helios.Assets([[POLICY_ID, [[`${AssetNameLabel.LBL_222}${Buffer.from('pfp_policy_ids').toString('hex')}`, 1]]]])),
                     helios.Datum.inline(helios.UplcData.fromCbor(this.pfpApproversCbor))
             ))
@@ -323,4 +325,301 @@ export class PzFixtures extends Fixtures {
         // console.log('CID = ' +  'z' + base58.encode([...Buffer.from(hash, 'hex')]), hash);
         return 'z' + base58.encode([...Buffer.from(hash, 'hex')]);   
     }
+}
+
+export class RevokeFixture extends Fixture {
+    handleName = 'virt@xar';
+    handleCbor: string;
+    assigneePubKeyHash: string = defaultAssigneeHash;
+    resolvedAddress = defaultResolvedAddress;
+    oldCip68Datum = {
+        constructor_0: [
+            defaultNft,
+            0,
+            {
+                virtual: {
+                    public_mint: 0,
+                    expires_slot: 0
+                },
+                resolved_addresses: {ada: defaultResolvedAddress},
+                ...defaultExtra
+            }
+        ]
+    };
+    oldCip68DatumCbor: string;
+
+    newCip68Datum = {
+        constructor_0: [
+            {
+                ...defaultNft,
+                image: "ipfs://pfp"
+            },
+            0,
+            {
+                virtual: {
+                    public_mint: 0,
+                    expires_slot: Date.now()
+                },
+                resolved_addresses: {ada: defaultResolvedAddress},
+                ...defaultExtra
+            }
+        ]
+    }
+    newCip68DatumCbor: string;
+    
+    pzSettings = defaultPzSettings;
+    pzSettingsCbor: string
+    
+    revokeRedeemer = {
+        constructor_2: [
+            [{constructor_2: []}, this.handleName],
+            'xar',
+            0
+        ]
+    };
+    revokeRedeemerCbor: string;
+    
+    handlePolicyHex = 'f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9a';
+    handlePolicyPubKeyHash: string = '4da965a049dfd15ed1ee19fba6e2974a0b79fc416dd1796a1f97f5e1';
+    nativeScript: helios.NativeScript = helios.NativeScript.fromJson({
+        type: 'sig',
+        keyHash: this.handlePolicyPubKeyHash
+    });
+
+    constructor(validatorHash: helios.ValidatorHash) {
+        super(validatorHash);
+        (this.oldCip68Datum.constructor_0[0] as any)['name'] = (this.oldCip68Datum.constructor_0[0] as any)['name'].replace('<handle>', this.handleName);
+        (this.newCip68Datum.constructor_0[0] as any)['name'] = (this.newCip68Datum.constructor_0[0] as any)['name'].replace('<handle>', this.handleName);
+    }
+    
+    async initialize(): Promise<RevokeFixture> {
+        const handleByteLength = this.handleName.length.toString(16);
+        const rootHandleName = this.handleName.split('@')[1];
+        this.revokeRedeemer.constructor_2[1] = rootHandleName;
+        this.handleCbor = `4${handleByteLength}${Buffer.from(this.handleName).toString('hex')}`;
+        this.oldCip68DatumCbor = await convertJsontoCbor(this.oldCip68Datum);
+        this.newCip68DatumCbor = await convertJsontoCbor(this.newCip68Datum);
+        this.revokeRedeemerCbor = (await convertJsontoCbor(this.revokeRedeemer));
+        this.resolvedAddress = helios.Address.fromHash(helios.PubKeyHash.fromHex(this.assigneePubKeyHash));
+        this.redeemer = helios.UplcData.fromCbor(this.revokeRedeemerCbor);
+        this.pzSettingsCbor = await convertJsontoCbor(this.pzSettings);
+        this.inputs = [     
+            new helios.TxInput( // money & collateral
+                new helios.TxOutputId(getNewFakeUtxoId()),
+                new helios.TxOutput(await getAddressAtDerivation(0), new helios.Value(BigInt(200000000))
+            )),
+            new helios.TxInput( // 222 Root Handle
+                new helios.TxOutputId(getNewFakeUtxoId()),
+                new helios.TxOutput(
+                    await getAddressAtDerivation(0),
+                    new helios.Value(BigInt(lovelace),
+                        new helios.Assets([[POLICY_ID, [[`${AssetNameLabel.LBL_222}${Buffer.from(rootHandleName).toString('hex')}`, BigInt(1)]]]]))
+            )),
+            new helios.TxInput( // 000 Virtual SubHandle
+                new helios.TxOutputId(getNewFakeUtxoId()),
+                new helios.TxOutput(
+                    this.scriptAddress,
+                    new helios.Value(BigInt(lovelace),
+                        new helios.Assets([[POLICY_ID, [[`${AssetNameLabel.LBL_000}${Buffer.from(this.handleName).toString('hex')}`, 1]]]])),
+                    helios.Datum.inline(helios.UplcData.fromCbor(this.oldCip68DatumCbor))
+            ))
+        ];
+        this.refInputs = [
+            new helios.TxInput( // pz_settings
+                new helios.TxOutputId(getNewFakeUtxoId()),
+                new helios.TxOutput(
+                    helios.Address.fromHash(helios.ValidatorHash.fromHex(adaHandleBytes)),
+                    new helios.Value(BigInt(1), new helios.Assets([[POLICY_ID, [[`${AssetNameLabel.LBL_222}${Buffer.from('pz_settings').toString('hex')}`, 1]]]])),
+                    helios.Datum.inline(helios.UplcData.fromCbor(this.pzSettingsCbor))
+            ))
+        ];
+        this.outputs = [
+            new helios.TxOutput( // 222 Root Handle
+                await getAddressAtDerivation(0),
+                new helios.Value(BigInt(lovelace),
+                    new helios.Assets([[POLICY_ID, [[`${AssetNameLabel.LBL_222}${Buffer.from(rootHandleName).toString('hex')}`, BigInt(1)]]]]))
+            )
+        ]
+        this.signatories = [helios.PubKeyHash.fromHex(this.handlePolicyPubKeyHash)];
+        return this;
+    }
+
+}
+
+export class UpdateFixture extends Fixture {
+    handleName = 'sub@xar';
+    handleCbor: string;
+    assigneePubKeyHash: string = defaultAssigneeHash;
+    resolvedAddress = defaultResolvedAddress;
+    oldCip68Datum = {
+        constructor_0: [
+            defaultNft,
+            0,
+            {
+                virtual: {
+                    public_mint: 0,
+                    expires_slot: Date.now()
+                },
+                resolved_addresses: {ada: `0x${defaultResolvedAddress.hex}`},
+                ...defaultExtra
+            }
+        ]
+    };
+    oldCip68DatumCbor: string;
+
+    newCip68Datum = {
+        constructor_0: [
+            defaultNft,
+            0,
+            {
+                virtual: {
+                    public_mint: 0,
+                    expires_slot: Date.now() + (365 * 24 * 60 * 60)
+                },
+                resolved_addresses: {ada: `0x${defaultResolvedAddress.hex}`},
+                ...defaultExtra
+            }
+        ]
+    }
+    newCip68DatumCbor: string;
+    
+    pzSettings = defaultPzSettings;
+    pzSettingsCbor: string
+    
+    adminSettings = [
+        [], // valid_contracts
+        [`0x${adminKeyBytes}`], // admin_creds
+        5000000, // virtual_price
+        10000000, // base_price
+        [[0,0]], // buy_down_prices
+        `0x`, // payment_address
+        365 * 24 *60 * 60, // expiry_duration
+    ];
+    adminSettingsCbor: string
+    
+    rootSettings = [
+            [ //nft
+                1, //public_minting_enabled
+                1, //pz_enabled
+                [[0, 10000000]], //tier_pricing
+                '0x', //creator_defaults,
+            ],
+            [ //virtual
+                1, //public_minting_enabled
+                1, //pz_enabled
+                [[0, 10000000]], //tier_pricing
+                '0x', //creator_defaults,
+            ],
+            0, //buy_down_price
+            0, //buy_down_paid
+            0, //buy_down_percent
+            `0x`, //agreed_terms
+            0, //migrate_sig_required
+            `0x`, //payment_address
+    ];
+    rootSettingsCbor: string
+
+    updateRedeemer = {
+        constructor_3: [
+            [{constructor_2: []}, this.handleName],
+            "xar",
+            [
+                1, //admin_settings
+                2, //root_settings
+                1, //contract_output
+                0  //root_handle
+            ]
+        ]
+    };
+    updateRedeemerCbor: string;
+    
+    handlePolicyHex = 'f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9a';
+    handlePolicyPubKeyHash: string = '4da965a049dfd15ed1ee19fba6e2974a0b79fc416dd1796a1f97f5e1';
+    nativeScript: helios.NativeScript = helios.NativeScript.fromJson({
+        type: 'sig',
+        keyHash: this.handlePolicyPubKeyHash
+    });
+
+    constructor(validatorHash: helios.ValidatorHash) {
+        super(validatorHash);
+        (this.oldCip68Datum.constructor_0[0] as any)['name'] = (this.oldCip68Datum.constructor_0[0] as any)['name'].replace('<handle>', this.handleName);
+        (this.newCip68Datum.constructor_0[0] as any)['name'] = (this.newCip68Datum.constructor_0[0] as any)['name'].replace('<handle>', this.handleName);
+    }
+    
+    async initialize(): Promise<UpdateFixture> {
+        const handleByteLength = this.handleName.length.toString(16);
+        const rootHandleName = this.handleName.split('@')[1];
+        this.handleCbor = `4${handleByteLength}${Buffer.from(this.handleName).toString('hex')}`;
+        this.oldCip68DatumCbor = await convertJsontoCbor(this.oldCip68Datum);
+        this.newCip68DatumCbor = await convertJsontoCbor(this.newCip68Datum);
+        this.updateRedeemer.constructor_3[1] = rootHandleName;
+        this.updateRedeemerCbor = (await convertJsontoCbor(this.updateRedeemer));
+        this.resolvedAddress = helios.Address.fromHash(helios.PubKeyHash.fromHex(this.assigneePubKeyHash));
+        this.redeemer = helios.UplcData.fromCbor(this.updateRedeemerCbor);
+        this.pzSettingsCbor = await convertJsontoCbor(this.pzSettings);
+        this.adminSettings[5] = `0x${(await getAddressAtDerivation(0)).toHex()}`
+        this.adminSettingsCbor = await convertJsontoCbor(this.adminSettings);
+        this.rootSettings[7] = `0x${(await getAddressAtDerivation(1)).toHex()}`
+        this.rootSettingsCbor = await convertJsontoCbor(this.rootSettings);
+        this.inputs = [     
+            new helios.TxInput( // money & collateral
+                new helios.TxOutputId(getNewFakeUtxoId()),
+                new helios.TxOutput(await getAddressAtDerivation(0), new helios.Value(BigInt(200000000))
+            )),
+            new helios.TxInput( // 222 Root Handle
+                new helios.TxOutputId(getNewFakeUtxoId()),
+                new helios.TxOutput(
+                    await getAddressAtDerivation(0),
+                    new helios.Value(BigInt(lovelace),
+                        new helios.Assets([[POLICY_ID, [[`${AssetNameLabel.LBL_222}${Buffer.from(rootHandleName).toString('hex')}`, BigInt(1)]]]]))
+            )),
+            new helios.TxInput( // 000 Virtual SubHandle
+                new helios.TxOutputId(getNewFakeUtxoId()),
+                new helios.TxOutput(
+                    this.scriptAddress,
+                    new helios.Value(BigInt(lovelace),
+                        new helios.Assets([[POLICY_ID, [[`${AssetNameLabel.LBL_000}${Buffer.from(this.handleName).toString('hex')}`, 1]]]])),
+                    helios.Datum.inline(helios.UplcData.fromCbor(this.oldCip68DatumCbor))
+            ))
+        ];
+        this.refInputs = [
+            new helios.TxInput( // pz_settings
+                new helios.TxOutputId(getNewFakeUtxoId()),
+                new helios.TxOutput(
+                    helios.Address.fromHash(helios.ValidatorHash.fromHex(adaHandleBytes)),
+                    new helios.Value(BigInt(1), new helios.Assets([[POLICY_ID, [[`${AssetNameLabel.LBL_222}${Buffer.from('pz_settings').toString('hex')}`, 1]]]])),
+                    helios.Datum.inline(helios.UplcData.fromCbor(this.pzSettingsCbor))
+            )),
+            new helios.TxInput( // admin settings
+                new helios.TxOutputId(getNewFakeUtxoId()),
+                new helios.TxOutput(
+                    await getAddressAtDerivation(0),
+                    new helios.Value(BigInt(1), new helios.Assets([[POLICY_ID, [[`${AssetNameLabel.LBL_222}${Buffer.from('sh_settings').toString('hex')}`, 1]]]])),
+                    helios.Datum.inline(helios.UplcData.fromCbor(this.adminSettingsCbor))
+            )),
+            new helios.TxInput( // root settings
+                new helios.TxOutputId(getNewFakeUtxoId()),
+                new helios.TxOutput(
+                    await getAddressAtDerivation(0),
+                    new helios.Value(BigInt(1), new helios.Assets([[POLICY_ID, [[`${AssetNameLabel.LBL_001}${Buffer.from(rootHandleName).toString('hex')}`, 1]]]])),
+                    helios.Datum.inline(helios.UplcData.fromCbor(this.rootSettingsCbor))
+            ))
+        ];
+        this.outputs = [
+            new helios.TxOutput( // 222 Root Handle
+                await getAddressAtDerivation(0),
+                new helios.Value(BigInt(lovelace),
+                    new helios.Assets([[POLICY_ID, [[`${AssetNameLabel.LBL_222}${Buffer.from(rootHandleName).toString('hex')}`, BigInt(1)]]]]))
+            ),
+            new helios.TxOutput(// 000 Virtual SubHandle
+                this.scriptAddress,
+                new helios.Value(BigInt(lovelace),
+                    new helios.Assets([[POLICY_ID, [[`${AssetNameLabel.LBL_000}${Buffer.from(this.handleName).toString('hex')}`, 1]]]])),
+                helios.Datum.inline(helios.UplcData.fromCbor(this.newCip68DatumCbor))
+            )
+        ]
+        this.signatories = [helios.PubKeyHash.fromHex(this.handlePolicyPubKeyHash)];
+        return this;
+    }
+
 }

@@ -55,7 +55,7 @@ console.log(`${Color.FgMagenta}----------------------------TESTS START----------
         const context = new ScriptContext().initPz(pzRedeemer.calculateCid());
         context.outputs.find(output => output.has([`MintingPolicyHash::new(${pfp_policy})`, 'LBL_222', '"pfp"'])).replace([`MintingPolicyHash::new(${pfp_policy})`, 'LBL_222', '"pfp"'], [`MintingPolicyHash::new(${pfp_policy})`, '', '"pfp"']);
         context.referenceInputs.splice(context.referenceInputs.findIndex(input => input.output.has([`MintingPolicyHash::new(${pfp_policy})`, 'LBL_100', '"pfp"'])), 1);
-        pzRedeemer.indexes = `PzIndexes {pfp_approver: 2, bg_approver: 1, pfp_datum: 1, bg_datum: 0, pz_settings: 3, required_asset: 4, owner_settings: 5, contract_output: 3, pz_assets: 0, provider_fee: 2}`;
+        pzRedeemer.indexes = `PzIndexes {pfp_approver: 2, bg_approver: 1, pfp_datum: 1, bg_datum: 0, required_asset: 4, owner_settings: 5, contract_output: 3, pz_assets: 0, provider_fee: 2}`;
         const datum = new Datum(pzRedeemer.calculateCid());
         datum.extra.pfp_asset = `OutputDatum::new_inline(${pfp_policy}706670).data`;
         context.outputs.find(output => output.has(['HANDLE_POLICY', 'LBL_100', `"${handle}"`])).datum = datum.render();
@@ -71,7 +71,7 @@ console.log(`${Color.FgMagenta}----------------------------TESTS START----------
         const datum = new Datum(pzRedeemer.calculateCid());
         delete datum.extra.pfp_image;
         delete datum.extra.pfp_asset;
-        pzRedeemer.indexes = 'PzIndexes { pfp_approver: 3, bg_approver: 2, pfp_datum: 1, bg_datum: 0, pz_settings: 4, required_asset: 5, owner_settings: 6, contract_output: 3, pz_assets: 0, provider_fee: 2 }';
+        pzRedeemer.indexes = 'PzIndexes { pfp_approver: 3, bg_approver: 2, pfp_datum: 1, bg_datum: 0, required_asset: 5, owner_settings: 6, contract_output: 3, pz_assets: 0, provider_fee: 2 }';
         context.outputs.find(output => output.has(['HANDLE_POLICY', 'LBL_100', `"${handle}"`])).datum = datum.render();
         const bgDefaults = new BackgroundDefaults();
         bgDefaults.extra.require_asset_collections = `OutputDatum::new_inline([]ByteArray{${handles_policy}+LBL_222+"${handle}".encode_utf8()}).data`;
@@ -352,7 +352,7 @@ console.log(`${Color.FgMagenta}----------------------------TESTS START----------
     await tester.testCase(false, "PERSONALIZE", "bg_policy_ids missing", () => {
         const pzRedeemer = new PzRedeemer();
         const context = new ScriptContext().initPz(pzRedeemer.calculateCid());
-        pzRedeemer.indexes = 'PzIndexes { pfp_approver: 2, bg_approver: 2, pfp_datum: 1, bg_datum: 0, pz_settings: 3, required_asset: 1, owner_settings: 5, contract_output: 3, pz_assets: 0, provider_fee: 2 }';
+        pzRedeemer.indexes = 'PzIndexes { pfp_approver: 2, bg_approver: 2, pfp_datum: 1, bg_datum: 0, required_asset: 1, owner_settings: 5, contract_output: 3, pz_assets: 0, provider_fee: 2 }';
         context.referenceInputs.splice(context.referenceInputs.findIndex(input => input.output.has(['HANDLE_POLICY', 'LBL_222', '"bg_policy_ids"'])), 1);
         const program = tester.createProgram(contract, new Datum().render(), pzRedeemer.render(), context.render());
         return { contract: program.compile(optimized), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
@@ -367,7 +367,7 @@ console.log(`${Color.FgMagenta}----------------------------TESTS START----------
         const pzRedeemer = new PzRedeemer();
         const context = new ScriptContext().initPz(pzRedeemer.calculateCid());
         context.referenceInputs.splice(context.referenceInputs.findIndex(input => input.output.has(['HANDLE_POLICY', 'LBL_222', '"pfp_policy_ids"'])), 1);
-        pzRedeemer.indexes = 'PzIndexes { pfp_approver: 3, bg_approver: 2, pfp_datum: 1, bg_datum: 0, pz_settings: 3, required_asset: 1, owner_settings: 5, contract_output: 3, pz_assets: 0, provider_fee: 2 }';
+        pzRedeemer.indexes = 'PzIndexes { pfp_approver: 3, bg_approver: 2, pfp_datum: 1, bg_datum: 0, required_asset: 1, owner_settings: 5, contract_output: 3, pz_assets: 0, provider_fee: 2 }';
         const program = tester.createProgram(contract, new Datum().render(), pzRedeemer.render(), context.render());
         return { contract: program.compile(optimized), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
     }, "pfp_policy_ids reference input not present or not from valid provider")
@@ -380,11 +380,11 @@ console.log(`${Color.FgMagenta}----------------------------TESTS START----------
     await tester.testCase(false, "PERSONALIZE", "pz_settings invalid", () => {
         const pzRedeemer = new PzRedeemer();
         const context = new ScriptContext().initPz(pzRedeemer.calculateCid());
-        pzRedeemer.indexes = 'PzIndexes { pfp_approver: 3, bg_approver: 2, pfp_datum: 1, bg_datum: 0, pz_settings: 3, required_asset: 1, owner_settings: 5, contract_output: 3, pz_assets: 0, provider_fee: 2 }';
+        pzRedeemer.indexes = 'PzIndexes { pfp_approver: 3, bg_approver: 2, pfp_datum: 1, bg_datum: 0, required_asset: 1, owner_settings: 5, contract_output: 3, pz_assets: 0, provider_fee: 2 }';
         context.referenceInputs.splice(context.referenceInputs.indexOf(context.referenceInputs.find(input => input.output.has(['HANDLE_POLICY', 'LBL_222', '"pz_settings"']))), 1);
         const program = tester.createProgram(contract, new Datum().render(), pzRedeemer.render(), context.render());
         return { contract: program.compile(optimized), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
-    }, "Invalid pz_settings reference input")
+    }, "not found")
     await tester.testCase(false, "PERSONALIZE", "pz_settings wrong hash", () => {
         const context = new ScriptContext().initPz(pzRedeemer.calculateCid());
         context.referenceInputs.find(input => input.output.has(['HANDLE_POLICY', 'LBL_222', `"pz_settings"`])).output.hash = '#123456789012345678901234567890123456789012345678901234af'

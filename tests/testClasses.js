@@ -47,11 +47,11 @@ export class ScriptContext {
     addFeeOutputs() {
       const goodTreasuryOutput = new TxOutput(`${treasury_bytes}`, [], '');
       goodTreasuryOutput.datumType = 'inline';
-      goodTreasuryOutput.datum = `"${handle}".encode_utf8()`;
+      goodTreasuryOutput.datum = `b"${handle}"`;
       goodTreasuryOutput.lovelace = 1500000;
       const goodProviderOutput = new TxOutput(`${pz_provider_bytes}`, [], '');
       goodProviderOutput.datumType = 'inline';
-      goodProviderOutput.datum = `"${handle}".encode_utf8()`;
+      goodProviderOutput.datum = `b"${handle}"`;
       goodProviderOutput.lovelace = 3500000;
       this.outputs.push(goodTreasuryOutput);
       this.outputs.push(goodProviderOutput);
@@ -226,7 +226,7 @@ export class ScriptContext {
       if (this.assets != [] && this.value == null) {
         this.value = '';
         for (let i=0;i<this.assets.length;i++) {
-          this.value += `+ Value::new(AssetClass::new(${this.assets[i][0]}, ${this.assets[i][1] ? `${this.assets[i][1]} + ` : ''}${this.assets[i][2]}.encode_utf8()), 1)`;
+          this.value += `+ Value::new(AssetClass::new(${this.assets[i][0]}, ${this.assets[i][1] ? `${this.assets[i][1]} + ` : ''}b${this.assets[i][2]}), 1)`;
         }
       }
       let hashString = 'validator(Validator';
@@ -247,10 +247,10 @@ export class ScriptContext {
   }
   
   export class PzRedeemer {
-    handle = `"${handle}"`;
-    rootHandle = `""`;
+    handle = `b"${handle}"`;
+    rootHandle = `b""`;
     type = "HandleType::HANDLE{}";
-    indexes = 'PzIndexes { pfp_approver: 3, bg_approver: 2, pfp_datum: 1, bg_datum: 0, pz_settings: 4, required_asset: 1, owner_settings: 6, contract_output: 3, pz_assets: 0, provider_fee: 2 }';
+    indexes = 'PzIndexes { pfp_approver: 3, bg_approver: 2, pfp_datum: 1, bg_datum: 0, required_asset: 1, owner_settings: 6, contract_output: 3, pz_assets: 0, provider_fee: 2 }';
     designer = {
       pfp_border_color: 'OutputDatum::new_inline(#22d1af).data',
       qr_inner_eye: 'OutputDatum::new_inline("dots,#0a1fd4").data',
@@ -279,7 +279,7 @@ export class ScriptContext {
     constructor(reset=false) {
       this.reset = reset ? 1 : 0;
       if (reset) {
-        this.indexes = 'PzIndexes { pfp_approver: 3, bg_approver: 2, pfp_datum: 1, bg_datum: 0, pz_settings: 4, required_asset: 1, owner_settings: 6, contract_output: 0, pz_assets: 5, provider_fee: 0 }';
+        this.indexes = 'PzIndexes { pfp_approver: 3, bg_approver: 2, pfp_datum: 1, bg_datum: 0, required_asset: 1, owner_settings: 6, contract_output: 0, pz_assets: 5, provider_fee: 0 }';
         this.designer = {};
       }
     }
@@ -325,15 +325,15 @@ export class ScriptContext {
   export class MigrateRedeemer {
     variant = '';
     type = "HandleType::HANDLE{}";
-    handle = `"${handle}"`;
-    indexes = 'PzIndexes { pfp_approver: 0, bg_approver: 0, pfp_datum: 0, bg_datum: 0, pz_settings: 0, required_asset: 0, owner_settings: 0, contract_output: 0, pz_assets: 0, provider_fee: 0 }';
+    handle = `b"${handle}"`;
+    index = 0;
 
     constructor(variant='MIGRATE') {
       this.variant = variant;
     }
   
     render() {
-        return `Redeemer::MIGRATE { handle: Handle {name: ${this.handle}, type: ${this.type}}, indexes: ${this.indexes} }`;
+        return `Redeemer::MIGRATE { handle: Handle {name: ${this.handle}, type: ${this.type}}, output_index: ${this.index} }`;
     }
   
   }
@@ -343,7 +343,7 @@ export class ScriptContext {
     constructor() {}
   
     render() {
-        return `Redeemer::RETURN_TO_SENDER {0}`;
+        return `Redeemer::RETURN_TO_SENDER`;
     }
   
   }

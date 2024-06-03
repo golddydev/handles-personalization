@@ -1,26 +1,31 @@
 import fs from "fs";
 import * as helios from "@koralabs/helios";
-import { ContractTester, Test,  getAddressAtDerivation } from '@koralabs/kora-labs-contract-testing';
-import { PzFixtures } from "./fixtures";
+import { ContractTester, Fixture, Test, getAddressAtDerivation } from '@koralabs/kora-labs-contract-testing';
+import { PzFixture, RevokeFixture, UpdateFixture } from "./fixtures";
+import { AssetNameLabel } from "@koralabs/kora-labs-common";
 helios.config.set({ IS_TESTNET: false, AUTO_SET_VALIDITY_RANGE: true });
 
 const runTests = async (file: string) => {
-    let contractFile = fs.readFileSync(file).toString();
-    const program = helios.Program.new(contractFile); //new instance
-    const contract = program.compile(true);
-
-    let fixtures = await (new PzFixtures(contract.validatorHash).initialize());
     const walletAddress = await getAddressAtDerivation(0);
     const tester = new ContractTester(walletAddress, false);
     await tester.init();
-    
+
+    let contractFile = fs.readFileSync(file).toString();
+    const program = helios.Program.new(contractFile); //new instance
+    const setupRevokeTx = (fixture: Fixture) => {          
+        const revokeTx = new helios.Tx();
+        const fixt = fixture as RevokeFixture;
+        revokeTx.attachScript(fixt.nativeScript);
+        revokeTx.mintTokens(fixt.handlePolicyHex, [[`${AssetNameLabel.LBL_000}${Buffer.from(fixt.handleName).toString('hex')}`, -1]], null);
+        return revokeTx;
+    }
     Promise.all([
-        // SHOULD APPROVE
-        tester.test("PERSONALIZE", "main - test most things", new Test(program, () => fixtures)),
-        tester.test("PERSONALIZE", "unenforced defaults", new Test(program, async () => {
-            const fixtures = new PzFixtures(contract.validatorHash);
-            (fixtures.bgDatum.constructor_0[2] as any) = {};
-            (fixtures.pzRedeemer.constructor_0[3] as any) = {
+        // PERSONALIZE - SHOULD APPROVE
+        tester.test("PERSONALIZE", "main - test most things", new Test(program, async (hash) => {return await (new PzFixture(hash).initialize())})),
+        tester.test("PERSONALIZE", "unenforced defaults", new Test(program, async (hash) => {
+            const fixture = new PzFixture(hash);
+            (fixture.bgDatum.constructor_0[2] as any) = {};
+            (fixture.pzRedeemer.constructor_0[3] as any) = {
                 pfp_border_color: '0x22d1af',
                 qr_inner_eye: 'square,#0a1fd4',
                 qr_outer_eye: 'square,#0a1fd5',
@@ -37,24 +42,27 @@ const runTests = async (file: string) => {
                 circuit_color: '0x22d1af',
                 qr_link: '',
                 socials: [],
-                svg_version: 1,}
-            return await fixtures.initialize();
+                svg_version: 1
+            }
+            return await fixture.initialize();
         })),
 
-        // SHOULD DENY
-        tester.test("PERSONALIZE", "exclusives set, no creator", new Test(program, async () => {
-            const fixtures = new PzFixtures(contract.validatorHash);
-            (fixtures.bgDatum.constructor_0[2] as any) = {};
-            return await fixtures.initialize();
+        // PERSONALIZE - SHOULD DENY
+        tester.test("PERSONALIZE", "exclusives set, no creator", new Test(program, async (hash) => {
+            const fixture = new PzFixture(hash);
+            (fixture.bgDatum.constructor_0[2] as any) = {};
+            return await fixture.initialize();
         }), false, 'qr_inner_eye is not set correctly'),
-        // tester.test("GROUP", "example test 2", new Test(program, () => fixtures, () => {
-        //     // custom tx setup
-        //     return new helios.Tx();
-        // }), false, "expected error message"),
+
+        // REVOKE - SHOULD APPROVE
+        tester.test("REVOKE", "private mint", new Test(program, async (hash) => {return await (new RevokeFixture(hash).initialize())}, setupRevokeTx)),
+
+        // UPDATE - SHOULD APPROVE
+        tester.test("UPDATE", "private mint", new Test(program, async (hash) => {return await (new UpdateFixture(hash).initialize())})),
     ]
     ).then(() => {tester.displayStats()});
 }
 
 (async()=> {
-    await runTests('.//contract.helios')
+    await runTests('./contract.helios')
 })(); 
