@@ -570,17 +570,20 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
             old_res_opt: Option[Data] = old_extra.get_safe("resolved_addresses");
             new_res_opt: Option[Data] = new_extra.get_safe("resolved_addresses");
             new_resolved: Map[String]Data = if (new_res_opt == Option[Data]::None) {Map[String]Data{}} else {Map[String]Data::from_data(new_res_opt.unwrap())};
-            resolved_ada: Option[Data] = new_resolved.get_safe("ada");
+            resolved_ada_opt: Option[Data] = new_resolved.get_safe("ada");
+            resolved_ada: Bool = resolved_ada_opt == Option[Data]::None;
+            owner_handle: Value = Value::new(AssetClass::new(HANDLE_POLICY, LBL_222 + name), 1);
+            owner_found: Bool = pz_asset_output.value.contains(owner_handle);
             (address: Address, sub_check: Bool, LBL: ByteArray) = type.switch {
                 HANDLE => {
-                    assert(resolved_ada == Option[Data]::None, "resolved_addresses can't contain 'ada'");
-                    assert(reset || pz_asset_output.value.contains(Value::new(AssetClass::new(HANDLE_POLICY, LBL_222 + name), 1)), "Handle input not present");
+                    assert(resolved_ada, "resolved_addresses can't contain 'ada'");
+                    assert(reset || owner_found, "Handle input not present");
                     (pz_asset_output.address, false, LBL_100)
                 },
                 NFT_SUBHANDLE => {
                     owner_settings: OwnerSettings = check_sub_handle_settings(name, root_handle, root_sett_index, pz_min_fee, subhandle_share_percent, ref_inputs, tx);
-                    assert(resolved_ada == Option[Data]::None, "resolved_addresses can't contain 'ada'");
-                    assert(reset || pz_asset_output.value.contains(Value::new(AssetClass::new(HANDLE_POLICY, LBL_222 + name), 1)), "Handle input not present");
+                    assert(resolved_ada, "resolved_addresses can't contain 'ada'");
+                    assert(reset || owner_found, "Handle input not present");
                     assert(reset == false || owner_settings.nft.pz_enabled, "Root SubHandle settings prohibit Personalization");
                     (pz_asset_output.address, if (reset) {owner_settings.nft.pz_enabled} else {true}, LBL_100)
                 },
@@ -588,7 +591,7 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                     owner_settings: OwnerSettings = check_sub_handle_settings(name, root_handle, root_sett_index, pz_min_fee, subhandle_share_percent, ref_inputs, tx);
                     old_ada_address: Address = Address::from_bytes(ByteArray::from_data(Map[String]Data::from_data(old_res_opt.unwrap()).get("ada")));
                     assert(reset == false || tx.is_signed_by(old_ada_address.credential.switch{p: PubKey => p.hash, else => error("Only PubKeyHashes are supported")}), "Tx not signed by virtual SubHandle holder");
-                    new_ada_address: Address = Address::from_bytes(ByteArray::from_data(resolved_ada.unwrap()));
+                    new_ada_address: Address = Address::from_bytes(ByteArray::from_data(resolved_ada_opt.unwrap()));
                     assert(new_ada_address == old_ada_address, "resolved_addresses.ada must not change");
                     assert(reset == false || owner_settings.virtual.pz_enabled, "Root SubHandle settings prohibit Personalization");
                     old_virt: Map[String]Data = Map[String]Data::from_data(old_extra.head.second);

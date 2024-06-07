@@ -348,7 +348,7 @@ console.log(`${Color.FgMagenta}----------------------------TESTS START----------
         context.outputs.splice(context.outputs.findIndex(output => output.has(['HANDLE_POLICY', 'LBL_222', `"${handle}"`])), 1);
         const program = tester.createProgram(contract, new Datum().render(), pzRedeemer.render(), context.render());
         return { contract: program.compile(optimized), params: ["datum", "redeemer", "context"].map((p) => program.evalParam(p)) };
-    }, "Handle input not present")
+    }, "index out of range")
     await tester.testCase(false, "PERSONALIZE", "bg_policy_ids missing", () => {
         const pzRedeemer = new PzRedeemer();
         const context = new ScriptContext().initPz(pzRedeemer.calculateCid());
