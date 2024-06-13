@@ -99,6 +99,17 @@ struct PzSettings {
     subhandle_share_percent: Int
 }
 
+struct FontShadowSize {
+    x: Int
+    y: Int
+    blur: Int
+}
+
+struct PfpOffset {
+    x: Int
+    y: Int
+}
+
 enum Datum {
     CIP68 {
         nft: Map[String]Data
@@ -370,10 +381,10 @@ func designer_settings_are_valid(designer: Map[String]Data, defaults: Map[String
             assert(prop_equals_designer_default(Option[Data]::Some{value}, designer.get_safe(key), false, forced), key + " is not set correctly");
             font_shadow_size_opt: Option[Data] = designer.get_safe(key);
             assert(font_shadow_size_opt == Option[Data]::None || (
-                font_shadow_size: []Int = []Int::from_data(font_shadow_size_opt.unwrap()); 
-                font_shadow_size.get(0) >= -20 && font_shadow_size.get(0) <= 20 && // x
-                font_shadow_size.get(1) >= -20 && font_shadow_size.get(1) <= 20 && // y
-                font_shadow_size.get(2) >= 0 && font_shadow_size.get(2) <= 20)     // blur
+                FontShadowSize {x, y, blur} = FontShadowSize::from_data(font_shadow_size_opt.unwrap()); 
+                x >= -20 && x <= 20 &&   // x
+                y >= -20 && y <= 20 &&   // y
+                blur >= 0 && blur <= 20) // blur
             , "font_shadow_size is out of bounds")
         }
         else if ( key == "pfp_zoom" ) {
@@ -389,10 +400,10 @@ func designer_settings_are_valid(designer: Map[String]Data, defaults: Map[String
             pfp_zoom_opt: Option[Data] = designer.get_safe("pfp_zoom");
             pfp_offset_opt: Option[Data] = designer.get_safe(key);
             assert(pfp_offset_opt == Option[Data]::None || (
-                pfp_offset: []Int = []Int::from_data(pfp_offset_opt.unwrap());
+                PfpOffset {x, y} = PfpOffset::from_data(pfp_offset_opt.unwrap());
                 offset_max: Int = ((576 * ((if (pfp_zoom_opt == Option[Data]::None) { 100 } else { Int::from_data(pfp_zoom_opt.unwrap()) }) - 100)) / 100) / 2;
-                pfp_offset.get(0) >= -offset_max && pfp_offset.get(0) <= offset_max && // x
-                pfp_offset.get(1) >= -offset_max && pfp_offset.get(1) <= offset_max)   // y
+                x >= -offset_max && x <= offset_max && // x
+                y >= -offset_max && y <= offset_max)   // y
             , "pfp_offset is out of bounds")
         }
     });
@@ -415,10 +426,10 @@ func designer_settings_are_valid(designer: Map[String]Data, defaults: Map[String
         }
         else if (key == "font_shadow_size") {
             assert(prop_equals_designer_default(defaults.get_safe(key), Option[Data]::Some{value}, false, forced), key + " is not set correctly");
-            font_shadow_size: []Int = []Int::from_data(value); 
-            assert(font_shadow_size.get(0) >= -20 && font_shadow_size.get(0) <= 20 &&
-                font_shadow_size.get(1) >= -20 && font_shadow_size.get(1) <= 20 &&
-                font_shadow_size.get(2) >= 0 && font_shadow_size.get(2) <= 20
+            FontShadowSize {x, y, blur} = FontShadowSize::from_data(value); 
+            assert(x >= -20 && x <= 20 &&
+                y >= -20 && y <= 20 &&
+                blur >= 0 && blur <= 20
             , "font_shadow_size is out of bounds")
         }
         else if (key == "pfp_zoom") {
@@ -429,9 +440,9 @@ func designer_settings_are_valid(designer: Map[String]Data, defaults: Map[String
         else if ( key == "pfp_offset" ) {
             assert(prop_equals_designer_default(defaults.get_safe(key), Option[Data]::Some{value}, false, forced), key + " is not set correctly");
             pfp_zoom_opt: Option[Data] = designer.get_safe("pfp_zoom");
-            pfp_offset: []Int = []Int::from_data(value);
+            PfpOffset {x, y} = PfpOffset::from_data(value);
             offset_max: Int = ((576 * ((if (pfp_zoom_opt == Option[Data]::None) { 100 } else { Int::from_data(pfp_zoom_opt.unwrap()) }) - 100)) / 100) / 2;
-            assert(pfp_offset.get(0) >= -offset_max && pfp_offset.get(0) <= offset_max && pfp_offset.get(1) >= -offset_max && pfp_offset.get(1) <= offset_max, "pfp_offset is out of bounds")
+            assert(x >= -offset_max && x <= offset_max && y >= -offset_max && y <= offset_max, "pfp_offset is out of bounds")
         }
     });
 
