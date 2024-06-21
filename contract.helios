@@ -73,6 +73,7 @@ struct SubHandleSettings {
     pz_enabled: Bool
     tier_pricing: [][]Int
     default_styles: Data
+    save_original_address: Int
 }
 
 //(001) token
@@ -83,8 +84,8 @@ struct OwnerSettings {
     buy_down_paid: Int
     buy_down_percent: Int
     agreed_terms: Data
-    migrate_sig_required: Int
     payment_address: ByteArray
+    migrate_sig_required: Int
 }
 
 struct PzSettings {

@@ -52,12 +52,27 @@ const runTests = async (file: string) => {
         (fixture.bgDatum.constructor_0[2] as any) = {};
         return await fixture.initialize();
     }), false, 'qr_inner_eye is not set correctly'),
+    // Should deny if pz is disabled
+    // should pz if assignee signed virtual
+    // Should reset to default styles
+    // virtual must have resolved_addresses.ada
 
     // REVOKE - SHOULD APPROVE
     await tester.test("REVOKE", "private mint", new Test(program, async (hash) => {return await (new RevokeFixture(hash).initialize())}, setupRevokeTx)),
+    // should only revoke if private
+    // should only revoke if public and expired
+    // should only revoke if signed by root or admin
 
     // UPDATE - SHOULD APPROVE
     await tester.test("UPDATE", "private mint", new Test(program, async (hash) => {return await (new UpdateFixture(hash).initialize())}))
+    // should only update if private
+    // should only update if assignee signed
+    // can update to any address within wallet
+    // should extend if assignee signed
+    // virtual must have resolved_addresses.ada
+    // main payment private/public or admin_signed
+    // root payment public
+
     tester.displayStats();
 }
 
