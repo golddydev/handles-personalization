@@ -8,7 +8,7 @@ helios.config.set({ IS_TESTNET: false, AUTO_SET_VALIDITY_RANGE: true });
 const runTests = async (file: string) => {
     const walletAddress = await getAddressAtDerivation(0);
     const tester = new ContractTester(walletAddress, false);
-    await tester.init();
+    await tester.init("UPDATE", "private mint");
 
     let contractFile = fs.readFileSync(file).toString();
     const program = helios.Program.new(contractFile); //new instance
@@ -21,6 +21,7 @@ const runTests = async (file: string) => {
     }
     // PERSONALIZE - SHOULD APPROVE
     await tester.test("PERSONALIZE", "main - test most things", new Test(program, async (hash) => {return await (new PzFixture(hash).initialize())})),
+
     await tester.test("PERSONALIZE", "unenforced defaults", new Test(program, async (hash) => {
         const fixture = new PzFixture(hash);
         (fixture.bgDatum.constructor_0[2] as any) = {};

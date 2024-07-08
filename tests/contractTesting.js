@@ -25,6 +25,7 @@ export function init(groupName=null, testName=null) {
   group = groupName;
   test = testName;
 }
+
 export async function testCase(shouldApprove, testGroup, testName, setup, message=null, perfTest=false) {
   if (group == null || group == testGroup) {
     if (test == null || test == testName) {

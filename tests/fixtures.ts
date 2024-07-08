@@ -66,6 +66,7 @@ export const defaultPzSettings = [
 export const defaultAssigneeHash: string = '4da965a049dfd15ed1ee19fba6e2974a0b79fc416dd1796a1f97f5e2';
 export const defaultResolvedAddress = helios.Address.fromHash(helios.PubKeyHash.fromHex(defaultAssigneeHash));
 
+// The default fixture tests happy path with most features/lines of code executed
 export class PzFixture extends Fixture {
     handleName = 'xar123456';
     handleCbor: string;
@@ -514,8 +515,8 @@ export class UpdateFixture extends Fixture {
             0, //buy_down_paid
             0, //buy_down_percent
             `0x`, //agreed_terms
-            0, //migrate_sig_required
             `0x`, //payment_address
+            0, //migrate_sig_required
     ];
     rootSettingsCbor: string
 
