@@ -13,7 +13,7 @@ helios.config.set({ IS_TESTNET: false, AUTO_SET_VALIDITY_RANGE: true });
 const runTests = async (file: string) => {
   const walletAddress = await getAddressAtDerivation(0);
   const tester = new ContractTester(walletAddress, false);
-  await tester.init('PERSONALIZE', `resolved_addresses can't contain ada`);
+  await tester.init('PERSONALIZE', `pz is disabled`);
 
   let contractFile = fs.readFileSync(file).toString();
   const program = helios.Program.new(contractFile); //new instance
@@ -103,6 +103,24 @@ const runTests = async (file: string) => {
   );
 
   // Should deny if pz is disabled
+  await tester.test(
+    'PERSONALIZE',
+    `pz is disabled`,
+    new Test(program, async (hash) => {
+      const fixture = new PzFixture(hash);
+      fixture.handleName = 'dev@golddy'; /// nft subhandle
+      fixture.pzRedeemer.constructor_0[4] = true; /// `resest` set to true
+      (fixture.pzRedeemer.constructor_0[0] as any) = [
+        { constructor_1: [] },
+        fixture.handleName,
+      ]; /// update redeemer as `NFT_SUBHANDLE` type
+      (fixture.pzRedeemer.constructor_0[1] as any) = 'golddy'; /// root handle name
+      return await fixture.initialize();
+    }),
+    false,
+    `Root SubHandle settings prohibit Personalization`
+  );
+
   // should pz if assignee signed virtual
   // Should reset to default styles
   // virtual must have resolved_addresses.ada

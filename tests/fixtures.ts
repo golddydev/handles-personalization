@@ -151,6 +151,28 @@ export class PzFixture extends Fixture {
     pfpApprovers = { [`0x${PFP_POLICY_ID}`]: {'0x000de140706670': [0,0,0],'0x706670706670': [0,0,0]} }
     pfpApproversCbor: string;
 
+    rootSettings = [
+        [ //nft
+            1, //public_minting_enabled
+            0, //pz_enabled
+            [[0, 10000000]], //tier_pricing
+            '0x', //creator_defaults,
+        ],
+        [ //virtual
+            1, //public_minting_enabled
+            1, //pz_enabled
+            [[0, 10000000]], //tier_pricing
+            '0x', //creator_defaults,
+        ],
+        0, //buy_down_price
+        0, //buy_down_paid
+        0, //buy_down_percent
+        `0x`, //agreed_terms
+        0, //migrate_sig_required
+        `0x`, //payment_address
+    ];
+    rootSettingsCbor: string
+
     pzRedeemer = {
         constructor_0: [
             [{constructor_0: []}, this.handleName],
@@ -161,7 +183,7 @@ export class PzFixture extends Fixture {
                 2, //pfp_datum
                 0, //bg_datum
                 2, //required_asset
-                0, //owner_settings
+                6, //owner_settings
                 0, //contract_output
                 1, //pz_assets
                 3, //provider_fee
@@ -212,6 +234,10 @@ export class PzFixture extends Fixture {
     }
     
     async initialize(): Promise<PzFixture> {
+        /// in case `this.handleName` is updated after constructor
+        (this.oldCip68Datum.constructor_0[0] as any)['name'] = `$${this.handleName}`;
+        (this.newCip68Datum.constructor_0[0] as any)['name'] = `$${this.handleName}`;
+        const rootHandleName = this.handleName.split('@')[1];
         const handleByteLength = this.handleName.length.toString(16);
         this.handleCbor = `4${handleByteLength}${Buffer.from(this.handleName).toString('hex')}`;
         const designerCbor = (await convertJsontoCbor(this.pzRedeemer.constructor_0[3])).replace('9fff', '80');
@@ -227,6 +253,8 @@ export class PzFixture extends Fixture {
         this.bgApproversCbor = await convertJsontoCbor(this.bgApprovers);
         this.pfpApproversCbor = await convertJsontoCbor(this.pfpApprovers);
         this.requiredAssetCbor = await convertJsontoCbor(this.requiredAsset);
+        this.rootSettings[7] = `0x${(await getAddressAtDerivation(1)).toHex()}`
+        this.rootSettingsCbor = await convertJsontoCbor(this.rootSettings);
         this.redeemer = helios.UplcData.fromCbor(this.pzRedeemerCbor);
         this.inputs = [            
             new helios.TxInput( // money & collateral
@@ -289,6 +317,13 @@ export class PzFixture extends Fixture {
                     helios.Address.fromHash(helios.ValidatorHash.fromHex(adaHandleBytes)),
                     new helios.Value(BigInt(1), new helios.Assets([[POLICY_ID, [[`${AssetNameLabel.LBL_222}${Buffer.from('pfp_policy_ids').toString('hex')}`, 1]]]])),
                     helios.Datum.inline(helios.UplcData.fromCbor(this.pfpApproversCbor))
+            )),
+            new helios.TxInput( // root settings
+                new helios.TxOutputId(getNewFakeUtxoId()),
+                new helios.TxOutput(
+                    await getAddressAtDerivation(0),
+                    new helios.Value(BigInt(1), new helios.Assets([[POLICY_ID, [[`${AssetNameLabel.LBL_001}${Buffer.from(rootHandleName).toString('hex')}`, 1]]]])),
+                    helios.Datum.inline(helios.UplcData.fromCbor(this.rootSettingsCbor))
             ))
         ];
         this.outputs = [
