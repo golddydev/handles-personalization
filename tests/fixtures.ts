@@ -317,15 +317,18 @@ export class PzFixture extends Fixture {
                     helios.Address.fromHash(helios.ValidatorHash.fromHex(adaHandleBytes)),
                     new helios.Value(BigInt(1), new helios.Assets([[POLICY_ID, [[`${AssetNameLabel.LBL_222}${Buffer.from('pfp_policy_ids').toString('hex')}`, 1]]]])),
                     helios.Datum.inline(helios.UplcData.fromCbor(this.pfpApproversCbor))
-            )),
-            new helios.TxInput( // root settings
-                new helios.TxOutputId(getNewFakeUtxoId()),
-                new helios.TxOutput(
-                    await getAddressAtDerivation(0),
-                    new helios.Value(BigInt(1), new helios.Assets([[POLICY_ID, [[`${AssetNameLabel.LBL_001}${Buffer.from(rootHandleName).toString('hex')}`, 1]]]])),
-                    helios.Datum.inline(helios.UplcData.fromCbor(this.rootSettingsCbor))
             ))
         ];
+        if (rootHandleName && this.rootSettingsCbor)
+            this.refInputs.push(
+                new helios.TxInput( // root settings
+                    new helios.TxOutputId(getNewFakeUtxoId()),
+                    new helios.TxOutput(
+                        await getAddressAtDerivation(0),
+                        new helios.Value(BigInt(1), new helios.Assets([[POLICY_ID, [[`${AssetNameLabel.LBL_001}${Buffer.from(rootHandleName).toString('hex')}`, 1]]]])),
+                        helios.Datum.inline(helios.UplcData.fromCbor(this.rootSettingsCbor))
+                ))
+            );
         this.outputs = [
             new helios.TxOutput( // 100 Reference Token
                 this.latestScriptAddress,
