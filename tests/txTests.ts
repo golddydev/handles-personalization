@@ -1,8 +1,8 @@
 import fs from "fs";
 import * as helios from "@koralabs/helios";
 import { ContractTester, Fixture, Test, getAddressAtDerivation } from '@koralabs/kora-labs-contract-testing';
-import { PzFixture, RevokeFixture, UpdateFixture } from "./fixtures";
-import { AssetNameLabel } from "@koralabs/kora-labs-common";
+import { defaultResolvedAddress, PzFixture, RevokeFixture, UpdateFixture } from "./fixtures";
+import { AssetNameLabel, getSlotNumberFromDate } from "@koralabs/kora-labs-common";
 helios.config.set({ IS_TESTNET: false, AUTO_SET_VALIDITY_RANGE: true });
 
 const runTests = async (file: string) => {
@@ -12,11 +12,13 @@ const runTests = async (file: string) => {
 
     let contractFile = fs.readFileSync(file).toString();
     const program = helios.Program.new(contractFile); //new instance
-    const setupRevokeTx = (fixture: Fixture) => {          
+    const setupRevokeTx = (fixture: Fixture, validFrom?: bigint) => {          
         const revokeTx = new helios.Tx();
         const fixt = fixture as RevokeFixture;
         revokeTx.attachScript(fixt.nativeScript);
         revokeTx.mintTokens(fixt.handlePolicyHex, [[`${AssetNameLabel.LBL_000}${Buffer.from(fixt.handleName).toString('hex')}`, -1]], null);
+        if (validFrom != undefined) revokeTx.validFrom(validFrom);
+        
         return revokeTx;
     }
     // PERSONALIZE - SHOULD APPROVE
@@ -67,6 +69,7 @@ const runTests = async (file: string) => {
     await tester.test("PERSONALIZE", "pz is disabled", new Test(program, async (hash) => {
         const fixture = new PzFixture(hash);
         fixture.handleName = 'dev@golddy'; /// nft subhandle
+        (fixture.rootSettings[0] as any)[1] = 0; /// OwnerSetting NFT pz_enabled to false
         fixture.pzRedeemer.constructor_0[4] = true; /// `resest` set to true
         (fixture.pzRedeemer.constructor_0[0] as any) = [
           { constructor_1: [] },
@@ -75,15 +78,68 @@ const runTests = async (file: string) => {
         (fixture.pzRedeemer.constructor_0[1] as any) = 'golddy'; /// root handle name
         return await fixture.initialize();
     }), false, "Root SubHandle settings prohibit Personalization");
+
     // should pz if assignee signed virtual
+    await tester.test("PERSONALIZE", "should pz if assignee signed virtual", new Test(program, async (hash) => {
+        const fixture = new PzFixture(hash);
+        fixture.handleName = 'dev@golddy'; /// nft subhandle
+        (fixture.oldCip68Datum.constructor_0[2] as any)['resolved_addresses'] = {
+            ada: `0x${defaultResolvedAddress.toHex()}`,
+        }; /// resolved address
+        fixture.pzRedeemer.constructor_0[4] = true; /// `resest` set to true
+        (fixture.pzRedeemer.constructor_0[0] as any) = [
+          { constructor_2: [] },
+          fixture.handleName,
+        ]; /// update redeemer as `VIRTUAL_SUBHANDLE` type
+        (fixture.pzRedeemer.constructor_0[1] as any) = 'golddy'; /// root handle name
+        return await fixture.initialize();
+    }), false, "Tx not signed by virtual SubHandle holder");
+
     // Should reset to default styles
     // virtual must have resolved_addresses.ada
 
-    // REVOKE - SHOULD APPROVE
-    await tester.test("REVOKE", "private mint", new Test(program, async (hash) => {return await (new RevokeFixture(hash).initialize())}, setupRevokeTx)),
-    // should only revoke if private
+    // REVOKE - SHOULD APPROVE - should only revoke if private
+    await tester.test("REVOKE", "private mint", new Test(program, async (hash) => {
+        const initialized =  await (new RevokeFixture(hash).initialize());
+        return initialized;
+    }, setupRevokeTx)),
+
     // should only revoke if public and expired
-    // should only revoke if signed by root or admin
+    await tester.test("REVOKE", "public and expired", new Test(program, async (hash) => {
+        const fixture = new RevokeFixture(hash);
+        (fixture.oldCip68Datum.constructor_0[2] as any).virtual = { 
+            public_mint: 1, /// public = true
+            expires_slot: Date.now()
+        }
+        const initialized =  await fixture.initialize();
+        initialized.inputs?.splice(1, 1); /// remove 222 root handle from input
+        initialized.outputs = []; /// remove 222 root handle from input
+        return initialized;
+    }, (fixture) => setupRevokeTx(fixture, BigInt(getSlotNumberFromDate(new Date(Date.now() + 1_000_000)))))),
+
+     // should Deny revoke if public but NOT expired
+     await tester.test("REVOKE", "public and not expired", new Test(program, async (hash) => {
+            const fixture = new RevokeFixture(hash);
+            (fixture.oldCip68Datum.constructor_0[2] as any).virtual = { 
+                public_mint: 1, /// public = true
+                expires_slot: Date.now()
+            }
+            const initialized =  await fixture.initialize();
+            initialized.inputs?.splice(1, 1); /// remove 222 root handle from input
+            initialized.outputs = []; /// remove 222 root handle from input
+            return initialized;
+        }, (fixture) => setupRevokeTx(fixture, BigInt(getSlotNumberFromDate(new Date(Date.now() - 1_000_000))))),
+        false, "Publicly minted Virtual SubHandle hasn't expired"),
+
+    // should Deny revoke if NOT signed by root or admin 
+    await tester.test("REVOKE", "private and not signed by root", new Test(program, async (hash) => {
+            const fixture = new RevokeFixture(hash);
+            const initialized =  await fixture.initialize();
+            initialized.inputs?.splice(1, 1); /// remove 222 root handle from input
+            initialized.outputs = []; /// remove 222 root handle from input
+            return initialized;
+        }, (fixture) => setupRevokeTx(fixture)),
+        false, "Publicly minted Virtual SubHandle hasn't expired"),
 
     // UPDATE - SHOULD APPROVE
     await tester.test("UPDATE", "private mint", new Test(program, async (hash) => {return await (new UpdateFixture(hash).initialize())}))

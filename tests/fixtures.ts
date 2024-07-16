@@ -154,7 +154,7 @@ export class PzFixture extends Fixture {
     rootSettings = [
         [ //nft
             1, //public_minting_enabled
-            0, //pz_enabled
+            1, //pz_enabled
             [[0, 10000000]], //tier_pricing
             '0x', //creator_defaults,
         ],
