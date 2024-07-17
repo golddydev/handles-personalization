@@ -1,14 +1,14 @@
 import fs from "fs";
 import * as helios from "@koralabs/helios";
 import { ContractTester, Fixture, Test, getAddressAtDerivation } from '@koralabs/kora-labs-contract-testing';
-import { defaultResolvedAddress, PzFixture, RevokeFixture, UpdateFixture } from "./fixtures";
+import { defaultAssigneeHash, defaultNft, defaultResolvedAddress, PzFixture, RevokeFixture, UpdateFixture } from "./fixtures";
 import { AssetNameLabel, getSlotNumberFromDate } from "@koralabs/kora-labs-common";
 helios.config.set({ IS_TESTNET: false, AUTO_SET_VALIDITY_RANGE: true });
 
 const runTests = async (file: string) => {
     const walletAddress = await getAddressAtDerivation(0);
     const tester = new ContractTester(walletAddress, false);
-    await tester.init("PERSONALIZE", "pz is disabled");
+    await tester.init("UPDATE", "assignee signed",);
 
     let contractFile = fs.readFileSync(file).toString();
     const program = helios.Program.new(contractFile); //new instance
@@ -20,6 +20,13 @@ const runTests = async (file: string) => {
         if (validFrom != undefined) revokeTx.validFrom(validFrom);
         
         return revokeTx;
+    }
+    const setupUpdateTx = (fixture: Fixture, validFrom?: bigint) => {
+        const tx = new helios.Tx();
+        const fixt = fixture as UpdateFixture;
+        if (validFrom != undefined) tx.validFrom(validFrom);
+        
+        return tx;
     }
     // PERSONALIZE - SHOULD APPROVE
     await tester.test("PERSONALIZE", "main - test most things", new Test(program, async (hash) => {return await (new PzFixture(hash).initialize())})),
@@ -117,8 +124,8 @@ const runTests = async (file: string) => {
         return initialized;
     }, (fixture) => setupRevokeTx(fixture, BigInt(getSlotNumberFromDate(new Date(Date.now() + 1_000_000)))))),
 
-     // should Deny revoke if public but NOT expired
-     await tester.test("REVOKE", "public and not expired", new Test(program, async (hash) => {
+    // should Deny revoke if public but NOT expired
+    await tester.test("REVOKE", "public and not expired", new Test(program, async (hash) => {
             const fixture = new RevokeFixture(hash);
             (fixture.oldCip68Datum.constructor_0[2] as any).virtual = { 
                 public_mint: 1, /// public = true
@@ -129,7 +136,7 @@ const runTests = async (file: string) => {
             initialized.outputs = []; /// remove 222 root handle from input
             return initialized;
         }, (fixture) => setupRevokeTx(fixture, BigInt(getSlotNumberFromDate(new Date(Date.now() - 1_000_000))))),
-        false, "Publicly minted Virtual SubHandle hasn't expired"),
+    false, "Publicly minted Virtual SubHandle hasn't expired"),
 
     // should Deny revoke if NOT signed by root or admin 
     await tester.test("REVOKE", "private and not signed by root", new Test(program, async (hash) => {
@@ -139,12 +146,61 @@ const runTests = async (file: string) => {
             initialized.outputs = []; /// remove 222 root handle from input
             return initialized;
         }, (fixture) => setupRevokeTx(fixture)),
-        false, "Publicly minted Virtual SubHandle hasn't expired"),
+    false, "Publicly minted Virtual SubHandle hasn't expired"),
 
-    // UPDATE - SHOULD APPROVE
-    await tester.test("UPDATE", "private mint", new Test(program, async (hash) => {return await (new UpdateFixture(hash).initialize())}))
-    // should only update if private
-    // should only update if assignee signed
+    // UPDATE - SHOULD APPROVE - should only update if private
+    await tester.test("UPDATE", "private mint", new Test(program, async (hash) => {
+        const fixture = new UpdateFixture(hash);
+        return await fixture.initialize();
+    })),
+
+    // should Deny if we update pz rather than virtual & resolved address
+    await tester.test("UPDATE", "update pz", new Test(program, async (hash) => {
+        const fixture = new UpdateFixture(hash);
+        (fixture.newCip68Datum.constructor_0[2] as any).portal = "ipfs://new_cid"; /// update pz
+        return await fixture.initialize();
+    }), false, "Restricted changes are not allowed"),
+
+    // should Deny if we update nft rather than virtual & resolved address
+    await tester.test("UPDATE", "update nft", new Test(program, async (hash) => {
+        const fixture = new UpdateFixture(hash);
+        (fixture.newCip68Datum.constructor_0[0] as any) = {
+            ...defaultNft,
+            image: "ipfs://new_image"
+        }; /// update nft
+        return await fixture.initialize();
+    }), false, "Restricted changes are not allowed"),
+
+    // should Deny update if assignee NOT signed when public, and root handle not signed
+    await tester.test("UPDATE", "assignee not signed", new Test(program, async (hash) => {
+        const fixture = new UpdateFixture(hash);
+        (fixture.oldCip68Datum.constructor_0[2] as any).virtual.public_mint = 1; /// make public
+        (fixture.newCip68Datum.constructor_0[2] as any).virtual.expires_slot = Date.now(); /// not extend
+        fixture.inputs?.splice(1, 0); /// remove 222 root_handle in inputs
+        fixture.outputs?.splice(0, 0); /// remove 222 root_handle in outputs
+        return await fixture.initialize();
+    }), false, "No valid signature"),
+
+    // should update if assignee signed when public, and root handle not signed
+    await tester.test("UPDATE", "assignee signed", new Test(program, async (hash) => {
+        const fixture = new UpdateFixture(hash);
+        (fixture.oldCip68Datum.constructor_0[2] as any).virtual.public_mint = 1; /// make public
+        (fixture.newCip68Datum.constructor_0[2] as any).virtual.expires_slot = Date.now(); /// not extend
+        fixture.inputs?.splice(1, 0); /// remove 222 root_handle in inputs (remove root_signed)
+        fixture.outputs?.splice(0, 0); /// remove 222 root_handle in outputs (remove root_signed)
+        const initialized =  await fixture.initialize();
+        initialized.signatories?.push(helios.PubKeyHash.fromHex(defaultAssigneeHash)); /// sign with assignee's pub key hash
+        return initialized;
+    })),
+
+    // should Deny update if root signed when public, and expired
+    // await tester.test("UPDATE", "root signed", new Test(program, async (hash) => {
+    //     const fixture = new UpdateFixture(hash);
+    //     (fixture.oldCip68Datum.constructor_0[2] as any).virtual.public_mint = 1; /// make public
+    //     const initialized =  await fixture.initialize();
+    //     return initialized;
+    // }, (fixture) => setupUpdateTx(fixture, BigInt(getSlotNumberFromDate(new Date(Date.now() + 1_000_000)))))), /// make expired
+
     // can update to any address within wallet
     // should extend if assignee signed
     // virtual must have resolved_addresses.ada

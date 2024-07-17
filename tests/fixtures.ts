@@ -655,7 +655,12 @@ export class UpdateFixture extends Fixture {
                 new helios.Value(BigInt(lovelace),
                     new helios.Assets([[POLICY_ID, [[`${AssetNameLabel.LBL_000}${Buffer.from(this.handleName).toString('hex')}`, 1]]]])),
                 helios.Datum.inline(helios.UplcData.fromCbor(this.newCip68DatumCbor))
-            )
+            ),
+            // new helios.TxOutput( // pay to main address
+            //     helios.Address.fromHash(helios.PubKeyHash.fromHex(this.adminSettings[5].slice(4))),
+            //     new helios.Value(BigInt(5000000)),
+            //     helios.Datum.inline(helios.UplcData.fromCbor(this.handleCbor))
+            // ),
         ]
         this.signatories = [helios.PubKeyHash.fromHex(this.handlePolicyPubKeyHash)];
         return this;
