@@ -8,7 +8,7 @@ helios.config.set({ IS_TESTNET: false, AUTO_SET_VALIDITY_RANGE: true });
 const runTests = async (file: string) => {
     const walletAddress = await getAddressAtDerivation(0);
     const tester = new ContractTester(walletAddress, false);
-    await tester.init("UPDATE", "private mint");
+    await tester.init("REVOKE", "public mint not expired");
 
     let contractFile = fs.readFileSync(file).toString();
     const program = helios.Program.new(contractFile); //new instance
@@ -60,6 +60,12 @@ const runTests = async (file: string) => {
 
     // REVOKE - SHOULD APPROVE
     await tester.test("REVOKE", "private mint", new Test(program, async (hash) => {return await (new RevokeFixture(hash).initialize())}, setupRevokeTx)),
+    await tester.test("REVOKE", "public mint not expired", new Test(program, async (hash) => {
+        const fixture = new RevokeFixture(hash);
+        (fixture.oldCip68Datum.constructor_0[2] as any)['virtual']['public_mint'] = 1;
+        (fixture.oldCip68Datum.constructor_0[2] as any)['virtual']['expires_time'] = Date.now();
+        return await fixture.initialize()
+    }, setupRevokeTx), false, 'Publicly minted Virtual SubHandle hasn\'t expired'),
     // should only revoke if private
     // should only revoke if public and expired
     // should only revoke if signed by root or admin

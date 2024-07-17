@@ -66,6 +66,7 @@ struct MainSubHandleSettings { // Kora's settings
     buy_down_prices: [][]Int
     payment_address: ByteArray
     expiry_duration: Int
+    renewal_window: Int
 }
 
 struct SubHandleSettings {
@@ -220,10 +221,10 @@ func calculate_shared_fee(pz_min_fee: Int, subhandle_share_percent: Int, ck_fee:
     } else {0}
 }
 
-func fees_are_paid(time_range: TimeRange, outputs: []TxOutput, tx: Tx, grace_period:Int, treasury_cred: ByteArray, treasury_fee: Int, pz_min_fee: Int, subhandle_share_percent: Int, pz_providers: Map[ByteArray]ByteArray, handle: ByteArray, index: Int, is_sub:Bool, last_edited_slot_opt: Option[Data]) -> Bool {
-    if (last_edited_slot_opt != Option[Data]::None && (
-        last_edited_slot: Int = Int::from_data(last_edited_slot_opt.unwrap());
-        time_range.start < Time::new(last_edited_slot + grace_period)))
+func fees_are_paid(time_range: TimeRange, outputs: []TxOutput, tx: Tx, grace_period:Int, treasury_cred: ByteArray, treasury_fee: Int, pz_min_fee: Int, subhandle_share_percent: Int, pz_providers: Map[ByteArray]ByteArray, handle: ByteArray, index: Int, is_sub:Bool, last_edited_time_opt: Option[Data]) -> Bool {
+    if (last_edited_time_opt != Option[Data]::None && (
+        last_edited_time: Int = Int::from_data(last_edited_time_opt.unwrap());
+        time_range.start < Time::new(last_edited_time + grace_period)))
     {
             // We don't charge the fees if within the grace period
             true
@@ -658,7 +659,7 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
         
             if (reset == false) {
                 assert(require_asset_valid, "Required asset not correct");
-                assert(fees_are_paid(time_range, outputs, tx, grace_period, treasury_cred, treasury_fee, pz_min_fee, subhandle_share_percent, pz_providers, name, prov_fee_index, sub_check, old_extra.get_safe("last_edited_slot")) 
+                assert(fees_are_paid(time_range, outputs, tx, grace_period, treasury_cred, treasury_fee, pz_min_fee, subhandle_share_percent, pz_providers, name, prov_fee_index, sub_check, old_extra.get_safe("last_edited_time")) 
                     && cbor_hashes_to_cid(designer, new_designer), "Contract failed validation");
                 assert(designer_settings_are_valid(designer, defaults), "Personalization settings checks failed");
                 true
@@ -733,9 +734,9 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
             type.switch {
                 VIRTUAL_SUBHANDLE => {
                     old_virt: Map[String]Data = Map[String]Data::from_data(old_extra.head.second);
-                    public: Bool = old_virt.get_safe("public_mint").switch{p: Some => Int::from_data(p.unwrap()).to_bool(), else => false};
+                    public: Bool = Int::from_data(old_virt.get("public_mint")).to_bool();
                     root_signed: Bool = outputs.get(owner_index).value.contains(Value::new(AssetClass::new(HANDLE_POLICY, LBL_222 + root_handle), 1));
-                    expired: Bool = time_range.start > Time::new(Int::from_data(old_virt.get("expires_slot")));
+                    expired: Bool = time_range.start > Time::new(Int::from_data(old_virt.get("expires_time")));
                     assert((public == false && root_signed) || (public && expired), "Publicly minted Virtual SubHandle hasn't expired");
                     minted.get(AssetClass::new(HANDLE_POLICY, LBL_000 + name)) == -1
                 },
@@ -747,7 +748,7 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
             type.switch {
                 VIRTUAL_SUBHANDLE => {
                     old_virt: Map[String]Data = Map[String]Data::from_data(old_extra.head.second);
-                    public: Bool = old_virt.get_safe("public_mint").switch{p: Some => Int::from_data(p.unwrap()).to_bool(), else => false};
+                    public: Bool = Int::from_data(old_virt.get("public_mint")).to_bool();
                     old_tail: Map[String]Data = old_extra.tail; // virtual and resolved_addresses must be first
                     old_pz: Map[String]Data = old_tail.tail; // virtual and resolved_addresses must be first
                     new_datum: Datum::CIP68 = Datum::CIP68::from_data(get_datum(outputs.get(contr_outp_index).datum, datums));
@@ -755,8 +756,8 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                     new_virt: Map[String]Data = Map[String]Data::from_data(new_extra.head.second);
                     new_tail: Map[String]Data = new_extra.tail; // virtual and resolved_addresses must be first
                     new_pz: Map[String]Data = new_tail.tail; // virtual and resolved_addresses must be first
-                    old_expiry: Int = Int::from_data(old_virt.get("expires_slot"));
-                    new_expiry: Int = Int::from_data(new_virt.get("expires_slot"));
+                    old_expiry: Int = Int::from_data(old_virt.get("expires_time"));
+                    new_expiry: Int = Int::from_data(new_virt.get("expires_time"));
                     expired: Bool = time_range.start > Time::new(old_expiry);
                     old_address: Address = Address::from_bytes(ByteArray::from_data(Map[String]Data::from_data(old_tail.head.second).get("ada")));
                     new_address: Address = Address::from_bytes(ByteArray::from_data(Map[String]Data::from_data(new_tail.head.second).get("ada")));
@@ -784,12 +785,13 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                     }
                     else if (public && root_signed && expired) {
                         // Admin, Public expired mint, I want to extend and change address
-                        extended && good_main_payment
+                        extended && good_main_payment // && public_mint is false
                     }
                     else if (assignee_signed_pay || assignee_signed_stake) {
                         // Public, I want to extend or change address
+                       
                         addr_change_approved: Bool = address_changed == false || (new_address.staking_credential == old_address.staking_credential && assignee_signed_stake);
-                        (addr_change_approved && ((extended && good_main_payment && good_root_payment) || extended == false))
+                        (addr_change_approved && ((extended && good_main_payment && good_root_payment) || extended == false)) // && public_minting is enabled
                     }
                     else {
                         error("No valid signature")

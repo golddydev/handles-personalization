@@ -340,7 +340,7 @@ export class RevokeFixture extends Fixture {
             {
                 virtual: {
                     public_mint: 0,
-                    expires_slot: 0
+                    expires_time: 0
                 },
                 resolved_addresses: {ada: defaultResolvedAddress},
                 ...defaultExtra
@@ -359,7 +359,7 @@ export class RevokeFixture extends Fixture {
             {
                 virtual: {
                     public_mint: 0,
-                    expires_slot: Date.now()
+                    expires_time: Date.now()
                 },
                 resolved_addresses: {ada: defaultResolvedAddress},
                 ...defaultExtra
@@ -459,7 +459,7 @@ export class UpdateFixture extends Fixture {
             {
                 virtual: {
                     public_mint: 0,
-                    expires_slot: Date.now()
+                    expires_time: Date.now()
                 },
                 resolved_addresses: {ada: `0x${defaultResolvedAddress.hex}`},
                 ...defaultExtra
@@ -475,7 +475,7 @@ export class UpdateFixture extends Fixture {
             {
                 virtual: {
                     public_mint: 0,
-                    expires_slot: Date.now() + (365 * 24 * 60 * 60)
+                    expires_time: Date.now() + (365 * 24 * 60 * 60)
                 },
                 resolved_addresses: {ada: `0x${defaultResolvedAddress.hex}`},
                 ...defaultExtra
@@ -494,7 +494,7 @@ export class UpdateFixture extends Fixture {
         10000000, // base_price
         [[0,0]], // buy_down_prices
         `0x`, // payment_address
-        365 * 24 *60 * 60, // expiry_duration
+        365 * 24 *60 * 60 * 1000, // expiry_duration
     ];
     adminSettingsCbor: string
     
