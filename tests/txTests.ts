@@ -1,14 +1,14 @@
 import fs from "fs";
 import * as helios from "@koralabs/helios";
 import { ContractTester, Fixture, Test, getAddressAtDerivation } from '@koralabs/kora-labs-contract-testing';
-import { PzFixture, RevokeFixture, UpdateFixture } from "./fixtures";
+import { defaultAssigneeHash, PzFixture, RevokeFixture, UpdateFixture } from "./fixtures";
 import { AssetNameLabel } from "@koralabs/kora-labs-common";
 helios.config.set({ IS_TESTNET: false, AUTO_SET_VALIDITY_RANGE: true });
 
 const runTests = async (file: string) => {
     const walletAddress = await getAddressAtDerivation(0);
     const tester = new ContractTester(walletAddress, false);
-    await tester.init("REVOKE", "public mint not expired");
+    await tester.init();
 
     let contractFile = fs.readFileSync(file).toString();
     const program = helios.Program.new(contractFile); //new instance
@@ -71,7 +71,17 @@ const runTests = async (file: string) => {
     // should only revoke if signed by root or admin
 
     // UPDATE - SHOULD APPROVE
-    await tester.test("UPDATE", "private mint", new Test(program, async (hash) => {return await (new UpdateFixture(hash).initialize())}))
+    await tester.test("UPDATE", "private mint", new Test(program, async (hash) => {return await (new UpdateFixture(hash).initialize())})),
+    await tester.test("UPDATE", "public assignee extend", new Test(program, async (hash) => {
+        const fixture = new UpdateFixture(hash);
+        (fixture.oldCip68Datum.constructor_0[2] as any)['virtual']['public_mint'] = 1;
+        (fixture.oldCip68Datum.constructor_0[2] as any)['virtual']['expires_time'] = Date.now() + 365 * 24 * 60 * 60 * 1000;
+        fixture.inputs?.splice(1, 1); /// remove 222 root_handle in inputs (remove root_signed)
+        fixture.outputs?.splice(0, 1); /// remove 222 root_handle in outputs (remove root_signed)
+        const initialized =  await fixture.initialize();
+        initialized.signatories?.push(helios.PubKeyHash.fromHex(defaultAssigneeHash)); /// sign with assignee's pub key hash
+        return await (fixture.initialize())
+    }))
     // should only update if private
     // should only update if assignee signed
     // can update to any address within wallet

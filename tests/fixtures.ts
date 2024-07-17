@@ -494,7 +494,8 @@ export class UpdateFixture extends Fixture {
         10000000, // base_price
         [[0,0]], // buy_down_prices
         `0x`, // payment_address
-        365 * 24 *60 * 60 * 1000, // expiry_duration
+        365 * 24 * 60 * 60 * 1000, // expiry_duration
+        30 * 24 * 60 * 60 * 1000, // renewal_window
     ];
     adminSettingsCbor: string
     
@@ -617,7 +618,12 @@ export class UpdateFixture extends Fixture {
                 new helios.Value(BigInt(lovelace),
                     new helios.Assets([[POLICY_ID, [[`${AssetNameLabel.LBL_000}${Buffer.from(this.handleName).toString('hex')}`, 1]]]])),
                 helios.Datum.inline(helios.UplcData.fromCbor(this.newCip68DatumCbor))
-            )
+            ),
+            new helios.TxOutput( // pay to main address
+                helios.Address.fromHash(helios.PubKeyHash.fromHex(this.adminSettings[5].slice(4))),
+                new helios.Value(BigInt(5000000)),
+                helios.Datum.inline(helios.UplcData.fromCbor(this.handleCbor))
+            ),
         ]
         this.signatories = [helios.PubKeyHash.fromHex(this.handlePolicyPubKeyHash)];
         return this;
