@@ -8,7 +8,7 @@ helios.config.set({ IS_TESTNET: false, AUTO_SET_VALIDITY_RANGE: true });
 const runTests = async (file: string) => {
     const walletAddress = await getAddressAtDerivation(0);
     const tester = new ContractTester(walletAddress, false);
-    await tester.init("PERSONALIZE", "resolved_addresses can't contain ada");
+    await tester.init("UPDATE", "public assignee extend");
 
     let contractFile = fs.readFileSync(file).toString();
     const program = helios.Program.new(contractFile); //new instance
@@ -66,9 +66,9 @@ const runTests = async (file: string) => {
     // Should Deny if resolved_address contain ada for `HANDLE` type
     await tester.test("PERSONALIZE", "resolved_addresses can't contain ada", new Test(program, async (hash) => {
         const fixture = new PzFixture(hash);
-        (fixture.oldCip68Datum.constructor_0[2] as any) = {
-            ...(fixture.oldCip68Datum.constructor_0[2] as any),
-            'resolved_addresses': { ada: `0x${defaultResolvedAddress.toHex()}` },
+        (fixture.newCip68Datum.constructor_0[2] as any) = {
+            ...(fixture.newCip68Datum.constructor_0[2] as any),
+            resolved_addresses: {ada: `0x${defaultResolvedAddress.toHex()}`},
         };
         return await fixture.initialize();
     }), false, "resolved_addresses can't contain 'ada'");
@@ -84,6 +84,9 @@ const runTests = async (file: string) => {
           fixture.handleName,
         ]; /// update redeemer as `NFT_SUBHANDLE` type
         (fixture.pzRedeemer.constructor_0[1] as any) = 'golddy'; /// root handle name
+        /// in case `this.handleName` is updated after constructor
+        (fixture.oldCip68Datum.constructor_0[0] as any)['name'] = `$${fixture.handleName}`;
+        (fixture.newCip68Datum.constructor_0[0] as any)['name'] = `$${fixture.handleName}`;
         return await fixture.initialize();
     }), false, "Root SubHandle settings prohibit Personalization");
 
@@ -93,7 +96,7 @@ const runTests = async (file: string) => {
         fixture.handleName = 'dev@golddy'; /// nft subhandle
         (fixture.oldCip68Datum.constructor_0[2] as any) = {
             ...(fixture.oldCip68Datum.constructor_0[2] as any),
-            'resolved_addresses': { ada: `0x${defaultResolvedAddress.toHex()}` },
+            resolved_addresses: {ada: `0x${defaultResolvedAddress.toHex()}`},
         }; /// resolved address
         fixture.pzRedeemer.constructor_0[4] = true; /// `resest` set to true
         (fixture.pzRedeemer.constructor_0[0] as any) = [
@@ -101,6 +104,9 @@ const runTests = async (file: string) => {
           fixture.handleName,
         ]; /// update redeemer as `VIRTUAL_SUBHANDLE` type
         (fixture.pzRedeemer.constructor_0[1] as any) = 'golddy'; /// root handle name
+        /// in case `this.handleName` is updated after constructor
+        (fixture.oldCip68Datum.constructor_0[0] as any)['name'] = `$${fixture.handleName}`;
+        (fixture.newCip68Datum.constructor_0[0] as any)['name'] = `$${fixture.handleName}`;
         return await fixture.initialize();
     }), false, "Tx not signed by virtual SubHandle holder");
 
@@ -109,27 +115,45 @@ const runTests = async (file: string) => {
 
     // REVOKE - SHOULD APPROVE
     await tester.test("REVOKE", "private mint", new Test(program, async (hash) => {return await (new RevokeFixture(hash).initialize())}, setupRevokeTx)),
+
+    // show Deny if public but NOT expired
     await tester.test("REVOKE", "public mint not expired", new Test(program, async (hash) => {
         const fixture = new RevokeFixture(hash);
-        (fixture.oldCip68Datum.constructor_0[2] as any)['virtual']['public_mint'] = 1;
-        (fixture.oldCip68Datum.constructor_0[2] as any)['virtual']['expires_time'] = Date.now();
+        (fixture.oldCip68Datum.constructor_0[2] as any)['virtual'] = {
+            public_mint: 1,
+            expires_time: Date.now(),
+        };
         return await fixture.initialize()
     }, setupRevokeTx), false, 'Publicly minted Virtual SubHandle hasn\'t expired'),
     // should only revoke if private
     // should only revoke if public and expired
     // should only revoke if signed by root or admin
 
-    // UPDATE - SHOULD APPROVE
-    await tester.test("UPDATE", "private mint", new Test(program, async (hash) => {return await (new UpdateFixture(hash).initialize())})),
+    // UPDATE - SHOULD APPROVE - private & root_signed - address_changed
+    await tester.test("UPDATE", "private mint", new Test(program, async (hash) => {
+        const fixture = new UpdateFixture(hash);
+        /// update resolved_address
+        (fixture.newCip68Datum.constructor_0[2] as any)["resolved_addresses"] 
+            = {ada: `0x${helios.Address.fromHash(helios.PubKeyHash.fromHex("4da965a049dfd15ed1ee19fba6e2974a0b79fc416dd1796a1f978888")).hex}`};
+        return await fixture.initialize();
+    })),
     await tester.test("UPDATE", "public assignee extend", new Test(program, async (hash) => {
         const fixture = new UpdateFixture(hash);
-        (fixture.oldCip68Datum.constructor_0[2] as any)['virtual']['public_mint'] = 1;
-        (fixture.oldCip68Datum.constructor_0[2] as any)['virtual']['expires_time'] = Date.now() + 365 * 24 * 60 * 60 * 1000;
-        fixture.inputs?.splice(1, 1); /// remove 222 root_handle in inputs (remove root_signed)
-        fixture.outputs?.splice(0, 1); /// remove 222 root_handle in outputs (remove root_signed)
+        (fixture.oldCip68Datum.constructor_0[2] as any)['virtual'] = {
+            public_mint: 1,
+            expires_time: Date.now() + 365 * 24 * 60 * 60 * 1000,
+        };
+        (fixture.updateRedeemer.constructor_3[2] as any) = [
+            1, //admin_settings
+            2, //root_settings
+            0, //contract_output - /// update index because we remove one output below
+            0  //root_handle
+        ];
         const initialized =  await fixture.initialize();
+        initialized.inputs?.splice(1, 1); /// remove 222 root_handle in inputs (remove root_signed)
+        initialized.outputs?.splice(0, 1); /// remove 222 root_handle in outputs (remove root_signed)
         initialized.signatories?.push(helios.PubKeyHash.fromHex(defaultAssigneeHash)); /// sign with assignee's pub key hash
-        return await (fixture.initialize())
+        return initialized;
     }))
     // should only update if private
     // should only update if assignee signed

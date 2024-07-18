@@ -234,9 +234,6 @@ export class PzFixture extends Fixture {
     }
     
     async initialize(): Promise<PzFixture> {
-        /// in case `this.handleName` is updated after constructor
-        (this.oldCip68Datum.constructor_0[0] as any)['name'] = `$${this.handleName}`;
-        (this.newCip68Datum.constructor_0[0] as any)['name'] = `$${this.handleName}`;
         const rootHandleName = this.handleName.split('@')[1];
         const handleByteLength = this.handleName.length.toString(16);
         this.handleCbor = `4${handleByteLength}${Buffer.from(this.handleName).toString('hex')}`;
