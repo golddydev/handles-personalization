@@ -510,7 +510,7 @@ export class UpdateFixture extends Fixture {
             {
                 virtual: {
                     public_mint: 0,
-                    expires_time: Date.now() + (365 * 24 * 60 * 60)
+                    expires_time: Date.now() + (365 * 24 * 60 * 60 * 1000)
                 },
                 resolved_addresses: {ada: `0x${defaultResolvedAddress.hex}`},
                 ...defaultExtra
@@ -551,8 +551,8 @@ export class UpdateFixture extends Fixture {
             0, //buy_down_paid
             0, //buy_down_percent
             `0x`, //agreed_terms
-            `0x`, //payment_address
             0, //migrate_sig_required
+            `0x`, //payment_address
     ];
     rootSettingsCbor: string
 
@@ -656,6 +656,11 @@ export class UpdateFixture extends Fixture {
             ),
             new helios.TxOutput( // pay to main address
                 helios.Address.fromHash(helios.PubKeyHash.fromHex(this.adminSettings[5].slice(4))),
+                new helios.Value(BigInt(5000000)),
+                helios.Datum.inline(helios.UplcData.fromCbor(this.handleCbor))
+            ),
+            new helios.TxOutput( // pay to root address
+                helios.Address.fromHash(helios.PubKeyHash.fromHex(this.rootSettings[7].slice(4))),
                 new helios.Value(BigInt(5000000)),
                 helios.Datum.inline(helios.UplcData.fromCbor(this.handleCbor))
             ),
