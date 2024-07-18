@@ -378,7 +378,7 @@ export class RevokeFixture extends Fixture {
             {
                 virtual: {
                     public_mint: 0,
-                    expires_slot: 0
+                    expires_time: 0
                 },
                 resolved_addresses: {ada: defaultResolvedAddress},
                 ...defaultExtra
@@ -397,7 +397,7 @@ export class RevokeFixture extends Fixture {
             {
                 virtual: {
                     public_mint: 0,
-                    expires_slot: Date.now()
+                    expires_time: Date.now()
                 },
                 resolved_addresses: {ada: defaultResolvedAddress},
                 ...defaultExtra
@@ -497,7 +497,7 @@ export class UpdateFixture extends Fixture {
             {
                 virtual: {
                     public_mint: 0,
-                    expires_slot: Date.now()
+                    expires_time: Date.now()
                 },
                 resolved_addresses: {ada: `0x${defaultResolvedAddress.hex}`},
                 ...defaultExtra
@@ -513,7 +513,7 @@ export class UpdateFixture extends Fixture {
             {
                 virtual: {
                     public_mint: 0,
-                    expires_slot: Date.now() + (365 * 24 * 60 * 60)
+                    expires_time: Date.now() + (365 * 24 * 60 * 60)
                 },
                 resolved_addresses: {ada: `0x${defaultResolvedAddress.hex}`},
                 ...defaultExtra
@@ -532,7 +532,8 @@ export class UpdateFixture extends Fixture {
         10000000, // base_price
         [[0,0]], // buy_down_prices
         `0x`, // payment_address
-        365 * 24 *60 * 60, // expiry_duration
+        365 * 24 * 60 * 60 * 1000, // expiry_duration
+        30 * 24 * 60 * 60 * 1000, // renewal_window
     ];
     adminSettingsCbor: string
     
@@ -656,11 +657,11 @@ export class UpdateFixture extends Fixture {
                     new helios.Assets([[POLICY_ID, [[`${AssetNameLabel.LBL_000}${Buffer.from(this.handleName).toString('hex')}`, 1]]]])),
                 helios.Datum.inline(helios.UplcData.fromCbor(this.newCip68DatumCbor))
             ),
-            // new helios.TxOutput( // pay to main address
-            //     helios.Address.fromHash(helios.PubKeyHash.fromHex(this.adminSettings[5].slice(4))),
-            //     new helios.Value(BigInt(5000000)),
-            //     helios.Datum.inline(helios.UplcData.fromCbor(this.handleCbor))
-            // ),
+            new helios.TxOutput( // pay to main address
+                helios.Address.fromHash(helios.PubKeyHash.fromHex(this.adminSettings[5].slice(4))),
+                new helios.Value(BigInt(5000000)),
+                helios.Datum.inline(helios.UplcData.fromCbor(this.handleCbor))
+            ),
         ]
         this.signatories = [helios.PubKeyHash.fromHex(this.handlePolicyPubKeyHash)];
         return this;
