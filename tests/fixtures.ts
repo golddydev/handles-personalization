@@ -151,6 +151,28 @@ export class PzFixture extends Fixture {
     pfpApprovers = { [`0x${PFP_POLICY_ID}`]: {'0x000de140706670': [0,0,0],'0x706670706670': [0,0,0]} }
     pfpApproversCbor: string;
 
+    rootSettings = [
+        [ //nft
+            1, //public_minting_enabled
+            1, //pz_enabled
+            [[0, 10000000]], //tier_pricing
+            '0x', //creator_defaults,
+        ],
+        [ //virtual
+            1, //public_minting_enabled
+            1, //pz_enabled
+            [[0, 10000000]], //tier_pricing
+            '0x', //creator_defaults,
+        ],
+        0, //buy_down_price
+        0, //buy_down_paid
+        0, //buy_down_percent
+        `0x`, //agreed_terms
+        0, //migrate_sig_required
+        `0x`, //payment_address
+    ];
+    rootSettingsCbor: string
+
     pzRedeemer = {
         constructor_0: [
             [{constructor_0: []}, this.handleName],
@@ -161,7 +183,7 @@ export class PzFixture extends Fixture {
                 2, //pfp_datum
                 0, //bg_datum
                 2, //required_asset
-                0, //owner_settings
+                6, //owner_settings
                 0, //contract_output
                 1, //pz_assets
                 3, //provider_fee
@@ -212,6 +234,7 @@ export class PzFixture extends Fixture {
     }
     
     async initialize(): Promise<PzFixture> {
+        const rootHandleName = this.handleName.split('@')[1];
         const handleByteLength = this.handleName.length.toString(16);
         this.handleCbor = `4${handleByteLength}${Buffer.from(this.handleName).toString('hex')}`;
         const designerCbor = (await convertJsontoCbor(this.pzRedeemer.constructor_0[3])).replace('9fff', '80');
@@ -227,6 +250,8 @@ export class PzFixture extends Fixture {
         this.bgApproversCbor = await convertJsontoCbor(this.bgApprovers);
         this.pfpApproversCbor = await convertJsontoCbor(this.pfpApprovers);
         this.requiredAssetCbor = await convertJsontoCbor(this.requiredAsset);
+        this.rootSettings[7] = `0x${(await getAddressAtDerivation(1)).toHex()}`
+        this.rootSettingsCbor = await convertJsontoCbor(this.rootSettings);
         this.redeemer = helios.UplcData.fromCbor(this.pzRedeemerCbor);
         this.inputs = [            
             new helios.TxInput( // money & collateral
@@ -291,6 +316,16 @@ export class PzFixture extends Fixture {
                     helios.Datum.inline(helios.UplcData.fromCbor(this.pfpApproversCbor))
             ))
         ];
+        if (rootHandleName && this.rootSettingsCbor)
+            this.refInputs.push(
+                new helios.TxInput( // root settings
+                    new helios.TxOutputId(getNewFakeUtxoId()),
+                    new helios.TxOutput(
+                        await getAddressAtDerivation(0),
+                        new helios.Value(BigInt(1), new helios.Assets([[POLICY_ID, [[`${AssetNameLabel.LBL_001}${Buffer.from(rootHandleName).toString('hex')}`, 1]]]])),
+                        helios.Datum.inline(helios.UplcData.fromCbor(this.rootSettingsCbor))
+                ))
+            );
         this.outputs = [
             new helios.TxOutput( // 100 Reference Token
                 this.latestScriptAddress,
@@ -475,7 +510,7 @@ export class UpdateFixture extends Fixture {
             {
                 virtual: {
                     public_mint: 0,
-                    expires_time: Date.now() + (365 * 24 * 60 * 60)
+                    expires_time: Date.now() + (365 * 24 * 60 * 60 * 1000)
                 },
                 resolved_addresses: {ada: `0x${defaultResolvedAddress.hex}`},
                 ...defaultExtra
@@ -516,8 +551,8 @@ export class UpdateFixture extends Fixture {
             0, //buy_down_paid
             0, //buy_down_percent
             `0x`, //agreed_terms
-            `0x`, //payment_address
             0, //migrate_sig_required
+            `0x`, //payment_address
     ];
     rootSettingsCbor: string
 
@@ -621,6 +656,11 @@ export class UpdateFixture extends Fixture {
             ),
             new helios.TxOutput( // pay to main address
                 helios.Address.fromHash(helios.PubKeyHash.fromHex(this.adminSettings[5].slice(4))),
+                new helios.Value(BigInt(5000000)),
+                helios.Datum.inline(helios.UplcData.fromCbor(this.handleCbor))
+            ),
+            new helios.TxOutput( // pay to root address
+                helios.Address.fromHash(helios.PubKeyHash.fromHex(this.rootSettings[7].slice(4))),
                 new helios.Value(BigInt(5000000)),
                 helios.Datum.inline(helios.UplcData.fromCbor(this.handleCbor))
             ),
