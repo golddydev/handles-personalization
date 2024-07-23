@@ -773,7 +773,7 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                     assert(old_pz == new_pz && old_datum.nft == new_datum.nft, "Restricted changes are not allowed");
                     main_payment_address: Address = Address::from_bytes(main_pay_addr);
                     root_payment_address: Address = Address::from_bytes(root_pay_addr);
-                    extended: Bool = (old_expiry + expiry_duration == new_expiry) && time_range.start > Time::new(new_expiry - renewal_window); // Can only extend within the window
+                    extended: Bool = (old_expiry + expiry_duration == new_expiry) && time_range.start > Time::new(old_expiry - renewal_window); // Can only extend within the window
                     address_changed: Bool = old_address != new_address;
                     admin_signed: Bool = admin_has_signed_tx(admin_creds, signatories);
                     good_main_payment: Bool = tx.value_paid_to(main_payment_address, name).contains(Value::lovelace(main_virt_price));
