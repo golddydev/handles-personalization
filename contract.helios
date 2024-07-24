@@ -159,6 +159,7 @@ const LBL_100: ByteArray = #000643b0
 const LBL_001: ByteArray = #00001070
 const LBL_000: ByteArray = #00000000
 const PZ_HANDLE: AssetClass = AssetClass::new(HANDLE_POLICY, LBL_222 + b"pz_settings")
+const agreed_terms: String = "https://handle.me/$tou"
 
 func holder_addresses_match(address1: Address, address2: Address) -> Bool {
     if (address1.staking_credential == Option[StakingCredential]::None || address2.staking_credential == Option[StakingCredential]::None) {
@@ -461,16 +462,24 @@ func designer_settings_are_valid(designer: Map[String]Data, defaults: Map[String
     true
 }
 
+// Save this for when we migrate - we can clean these up then
+// new_st_hash: ByteArray = ByteArray::from_data(new_extra.get("standard_image_hash"));
+// prev_st_hash: ByteArray = ByteArray::from_data(prev_extra.get("standard_image_hash"));
+// assert(new_extra.get("standard_image") == prev_extra.get("standard_image")
+//     && (new_st_hash == prev_st_hash || (new_st_hash.show() == prev_st_hash.decode_utf8()))
+//     && new_extra.get_safe("original_address") == prev_extra.get_safe("original_address"), "Immutables have changed");
+
 func immutables_are_unchanged(prev_nft: Datum::CIP68, new_nft: Datum::CIP68, prev_extra: Map[String]Data, new_extra: Map[String]Data) -> Bool {
     assert(prev_extra.get("standard_image") == new_extra.get("standard_image")
-    && prev_extra.get("standard_image_hash") == new_extra.get("standard_image_hash")
-    && prev_extra.get_safe("original_address") == new_extra.get_safe("original_address"), "Immutables have changed");
-    immutables = []String{"name", "mediaType", "og", "og_number", "rarity", "length", "characters", "numeric_modifiers"};
+        && prev_extra.get("standard_image_hash") == new_extra.get("standard_image_hash")
+        && prev_extra.get_safe("original_address") == new_extra.get_safe("original_address"), "Immutables have changed");
+    immutables = []String{"image", "mediaType"};
     prev_nft.nft.for_each((key: String, value: Data) -> {
-        if (immutables.any((i: String) -> Bool {key == i})) { 
+        if (immutables.all((i: String) -> Bool {key != i})) { 
             assert(value == new_nft.nft.get(key), "Immutable '" + key + "' has changed")
         }
     });
+    assert(String::from_data(new_extra.get("agreed_terms")) == agreed_terms, "agreed_terms must be set");
     true
 }
 
