@@ -159,7 +159,7 @@ const LBL_100: ByteArray = #000643b0
 const LBL_001: ByteArray = #00001070
 const LBL_000: ByteArray = #00000000
 const PZ_HANDLE: AssetClass = AssetClass::new(HANDLE_POLICY, LBL_222 + b"pz_settings")
-const agreed_terms: String = "https://handle.me/$tou"
+const agreed_terms: String = "https://handle.me/$/tou"
 
 func holder_addresses_match(address1: Address, address2: Address) -> Bool {
     if (address1.staking_credential == Option[StakingCredential]::None || address2.staking_credential == Option[StakingCredential]::None) {
