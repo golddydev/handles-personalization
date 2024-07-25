@@ -798,7 +798,7 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                     else if (assignee_signed_pay || assignee_signed_stake) {
                         // Public, I want to extend or change address
                         addr_change_approved: Bool = address_changed == false || (new_address.staking_credential == old_address.staking_credential && assignee_signed_stake);
-                        (addr_change_approved && ((extended && good_main_payment && good_root_payment) || extended == false)) && virt_sett.public_minting_enabled.to_bool() // Only if minting is enabled
+                        (addr_change_approved && ((extended && good_main_payment && good_root_payment) || old_expiry == new_expiry)) && virt_sett.public_minting_enabled.to_bool() // Only if minting is enabled
                     }
                     else {
                         error("No valid signature")
