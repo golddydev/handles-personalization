@@ -677,7 +677,7 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                 && Int::from_data(new_nsfw) == 0;
         
             if (reset == false) {
-                if (designed) {
+                if (designed && new_designer != old_extra.get_safe("designer")) {
                     assert(require_asset_valid, "Required asset not correct");
                     assert(fees_are_paid(time_range, outputs, tx, grace_period, treasury_cred, treasury_fee, pz_min_fee, subhandle_share_percent, pz_providers, name, prov_fee_index, type != HandleType::HANDLE, old_extra.get_safe("last_edited_time")) 
                         && designer_settings_are_valid(designer, defaults, new_designer), "Personalization settings checks failed");
