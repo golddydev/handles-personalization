@@ -377,7 +377,7 @@ export class ScriptContext {
       vendor: 'OutputDatum::new_inline("ipfs://cid").data',
       default: 'OutputDatum::new_inline(1).data',
       last_update_address: `OutputDatum::new_inline(#60 + ${owner_bytes}).data`,
-      agreed_terms: 'OutputDatum::new_inline("https://tou").data',
+      agreed_terms: 'OutputDatum::new_inline("https://handle.me/$/tou").data',
       trial: 'OutputDatum::new_inline(0).data',
       nsfw: 'OutputDatum::new_inline(0).data',
       migrate_sig_required: 'OutputDatum::new_inline(0).data',

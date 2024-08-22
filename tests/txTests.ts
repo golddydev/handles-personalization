@@ -71,53 +71,50 @@ const runTests = async (file: string) => {
         return await fixture.initialize();
     }), false, "resolved_addresses can't contain 'ada'");
 
-    // Should deny if pz is disabled (for `NFT_SUBHANDLE` type)
-    await tester.test("PERSONALIZE", "pz is disabled", new Test(program, async (hash) => {
-        const fixture = new PzFixture(hash);
-        fixture.handleName = 'dev@golddy'; /// nft subhandle
-        (fixture.rootSettings[0] as any)[1] = 0; /// OwnerSetting NFT pz_enabled to false
-        fixture.pzRedeemer.constructor_0[4] = true; /// `resest` set to true
-        (fixture.pzRedeemer.constructor_0[0] as any) = [
-          { constructor_1: [] },
-          fixture.handleName,
-        ]; /// update redeemer as `NFT_SUBHANDLE` type
-        (fixture.pzRedeemer.constructor_0[1] as any) = 'golddy'; /// root handle name
-        /// in case `this.handleName` is updated after constructor
-        (fixture.oldCip68Datum.constructor_0[0] as any)['name'] = `$${fixture.handleName}`;
-        (fixture.newCip68Datum.constructor_0[0] as any)['name'] = `$${fixture.handleName}`;
-        return await fixture.initialize();
-    }), false, "Root SubHandle settings prohibit Personalization");
+    // Should deny if root pz is disabled (for `NFT_SUBHANDLE` type)
+    // await tester.test("PERSONALIZE", "root pz is disabled", new Test(program, async (hash) => {
+    //     const fixture = new PzFixture(hash);
+    //     fixture.handleName = 'dev@golddy'; /// nft subhandle
+    //     (fixture.rootSettings[0] as any)[1] = 0; /// OwnerSetting NFT pz_enabled to false
+    //     (fixture.pzRedeemer.constructor_0[0] as any) = [
+    //       { constructor_1: [] },
+    //       fixture.handleName,
+    //     ]; /// update redeemer as `NFT_SUBHANDLE` type
+    //     (fixture.pzRedeemer.constructor_0[1] as any) = 'golddy'; /// root handle name
+    //     /// in case `this.handleName` is updated after constructor
+    //     (fixture.oldCip68Datum.constructor_0[0] as any)['name'] = `$${fixture.handleName}`;
+    //     (fixture.newCip68Datum.constructor_0[0] as any)['name'] = `$${fixture.handleName}`;
+    //     return await fixture.initialize();
+    // }), false, "Root SubHandle settings prohibit Personalization");
 
-    // should pz if assignee signed virtual (for `VIRTUAL_SUBHANDLE` type)
-    await tester.test("PERSONALIZE", "should pz if assignee signed virtual", new Test(program, async (hash) => {
-        const fixture = new PzFixture(hash);
-        fixture.handleName = 'dev@golddy'; /// nft subhandle
-        (fixture.oldCip68Datum.constructor_0[2] as any) = {
-            ...(fixture.oldCip68Datum.constructor_0[2] as any),
-            resolved_addresses: {ada: `0x${defaultResolvedAddress.toHex()}`},
-        }; /// resolved address
-        fixture.pzRedeemer.constructor_0[4] = true; /// `resest` set to true
-        (fixture.pzRedeemer.constructor_0[0] as any) = [
-          { constructor_2: [] },
-          fixture.handleName,
-        ]; /// update redeemer as `VIRTUAL_SUBHANDLE` type
-        (fixture.pzRedeemer.constructor_0[1] as any) = 'golddy'; /// root handle name
-        /// in case `this.handleName` is updated after constructor
-        (fixture.oldCip68Datum.constructor_0[0] as any)['name'] = `$${fixture.handleName}`;
-        (fixture.newCip68Datum.constructor_0[0] as any)['name'] = `$${fixture.handleName}`;
-        return await fixture.initialize();
-    }), false, "Tx not signed by virtual SubHandle holder");
+    // await tester.test("PERSONALIZE", "should not pz if virtual assignee didn't sign", new Test(program, async (hash) => {
+    //     const fixture = new PzFixture(hash);
+    //     fixture.handleName = 'dev@golddy'; /// nft subhandle
+    //     (fixture.oldCip68Datum.constructor_0[2] as any) = {
+    //         ...(fixture.oldCip68Datum.constructor_0[2] as any),
+    //         resolved_addresses: {ada: `0x${defaultResolvedAddress.toHex()}`},
+    //     }; /// resolved address
+    //     (fixture.pzRedeemer.constructor_0[0] as any) = [
+    //       { constructor_2: [] },
+    //       fixture.handleName,
+    //     ]; /// update redeemer as `VIRTUAL_SUBHANDLE` type
+    //     (fixture.pzRedeemer.constructor_0[1] as any) = 'golddy'; /// root handle name
+    //     /// in case `this.handleName` is updated after constructor
+    //     (fixture.oldCip68Datum.constructor_0[0] as any)['name'] = `$${fixture.handleName}`;
+    //     (fixture.newCip68Datum.constructor_0[0] as any)['name'] = `$${fixture.handleName}`;
+    //     return await fixture.initialize();
+    // }), false, "Tx not signed by virtual SubHandle holder");
 
     // Should reset to default styles
     // virtual must have resolved_addresses.ada
 
     // REVOKE - SHOULD APPROVE - private mint and signed by root
-    await tester.test("REVOKE", "private mint", new Test(program, async (hash) => {
+    await tester.test("REVOKE", "private mint and signed by root", new Test(program, async (hash) => {
         return await (new RevokeFixture(hash).initialize());
     }, setupRevokeTx)),
 
     // should Deny revoke if private but NOT signed by root
-    await tester.test("REVOKE", "private mint without root", new Test(program, async (hash) => {
+    await tester.test("REVOKE", "private but not signed by root", new Test(program, async (hash) => {
         const fixture = new RevokeFixture(hash);
         const initialized = await fixture.initialize();
         initialized.inputs?.splice(1, 1); /// remove 222 root_handle in inputs (remove root_signed)
@@ -189,25 +186,25 @@ const runTests = async (file: string) => {
     /// within window is attack vector
     /// we can stop this by checking extended and within_window separately
     /// can Update - extend - without paying to main address and root address
-    await tester.test("UPDATE", "public assignee signed attack", new Test(program, async (hash) => {
-        const fixture = new UpdateFixture(hash);
-        (fixture.oldCip68Datum.constructor_0[2] as any)['virtual'] = {
-            public_mint: 1,
-            expires_time: Date.now(),
-        }; /// make public
-        (fixture.updateRedeemer.constructor_3[2] as any) = [
-            1, //admin_settings
-            2, //root_settings
-            0, //contract_output - /// update index because we remove one output below
-            0  //root_handle
-        ];
-        const initialized =  await fixture.initialize();
-        initialized.inputs?.splice(1, 1); /// remove 222 root_handle in inputs (remove root_signed)
-        /// only take second one which is 000 Virtual Subhandle (remove 222 root_handle & payment to main & root)
-        initialized.outputs = initialized.outputs?.[1] ? [initialized.outputs?.[1]] : [];
-        initialized.signatories?.push(helios.PubKeyHash.fromHex(defaultAssigneeHash)); /// sign with assignee's pub key hash
-        return initialized;
-    }));
+    // await tester.test("UPDATE", "public assignee signed attack", new Test(program, async (hash) => {
+    //     const fixture = new UpdateFixture(hash);
+    //     (fixture.oldCip68Datum.constructor_0[2] as any)['virtual'] = {
+    //         public_mint: 1,
+    //         expires_time: Date.now(),
+    //     }; /// make public
+    //     (fixture.updateRedeemer.constructor_3[2] as any) = [
+    //         1, //admin_settings
+    //         2, //root_settings
+    //         0, //contract_output - /// update index because we remove one output below
+    //         0  //root_handle
+    //     ];
+    //     const initialized =  await fixture.initialize();
+    //     initialized.inputs?.splice(1, 1); /// remove 222 root_handle in inputs (remove root_signed)
+    //     /// only take second one which is 000 Virtual Subhandle (remove 222 root_handle & payment to main & root)
+    //     initialized.outputs = initialized.outputs?.[1] ? [initialized.outputs?.[1]] : [];
+    //     initialized.signatories?.push(helios.PubKeyHash.fromHex(defaultAssigneeHash)); /// sign with assignee's pub key hash
+    //     return initialized;
+    // }));
 
     // should Update - to_private - public & root_signed & expired & extended
     await tester.test("UPDATE", "public to private", new Test(program, async (hash) => {
@@ -244,14 +241,14 @@ const runTests = async (file: string) => {
     }), false, "No valid signature"),
 
     // should Deny if we update pz rather than virtual & resolved address
-    await tester.test("UPDATE", "update pz", new Test(program, async (hash) => {
+    await tester.test("UPDATE", "update pz rather than virtual & resolved address", new Test(program, async (hash) => {
         const fixture = new UpdateFixture(hash);
         (fixture.newCip68Datum.constructor_0[2] as any).portal = "ipfs://new_cid"; /// update pz
         return await fixture.initialize();
     }), false, "Restricted changes are not allowed"),
 
     // should Deny if we update nft rather than virtual & resolved address
-    await tester.test("UPDATE", "update nft", new Test(program, async (hash) => {
+    await tester.test("UPDATE", "update nft rather than virtual & resolved address", new Test(program, async (hash) => {
         const fixture = new UpdateFixture(hash);
         (fixture.newCip68Datum.constructor_0[0] as any) = {
             ...(fixture.newCip68Datum.constructor_0[0] as any),

@@ -40,7 +40,7 @@ export const defaultExtra = {
     vendor: "ipfs://cid",
     default: 1,
     last_update_address: `0x${helios.bytesToHex((await getAddressAtDerivation(0)).bytes)}`,
-    agreed_terms: "https://tou",
+    agreed_terms: "https://handle.me/$/tou",
     trial: 0,
     nsfw: 0,
     migrate_sig_required: 0,
@@ -167,7 +167,7 @@ export class PzFixture extends Fixture {
         0, //buy_down_price
         0, //buy_down_paid
         0, //buy_down_percent
-        `0x`, //agreed_terms
+        `0x68747470733A2F2F68616E646C652E6D652F242F746F75`, //agreed_terms
         0, //migrate_sig_required
         `0x`, //payment_address
     ];
@@ -550,7 +550,7 @@ export class UpdateFixture extends Fixture {
             0, //buy_down_price
             0, //buy_down_paid
             0, //buy_down_percent
-            `0x`, //agreed_terms
+            `0x68747470733A2F2F68616E646C652E6D652F242F746F75`, //agreed_terms
             0, //migrate_sig_required
             `0x`, //payment_address
     ];

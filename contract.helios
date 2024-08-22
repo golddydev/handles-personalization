@@ -249,16 +249,6 @@ func fees_are_paid(time_range: TimeRange, outputs: []TxOutput, tx: Tx, grace_per
     }
 }
 
-func cbor_hashes_to_cid(designer: Map[String]Data, designer_hash: Option[Data]) -> Bool {
-    ipfs = ByteArray::from_data(designer_hash.unwrap());
-    // This strips away "ipfs://z" (the z can be removed - see CID multiformats)
-    multihash: ByteArray = Int::from_base58(ipfs.slice(8, ipfs.length).decode_utf8()).to_big_endian();
-    // This strips away 0x01 0x70 0x12 0x20 (CIDv1, base58, sha2, 32 bytes)
-    //print(multihash.show() + " == " + designer.serialize().sha2().show());
-    assert(multihash.slice(4, multihash.length) == designer.serialize().sha2(), "Personalization designer settings hash doesn't match CID multihash");
-    true
-}
-
 func parse_asset(asset_data: Data) -> AssetClass {
     if (asset_data == EMPTY_DATA) {
         EMPTY_ASSET
@@ -354,112 +344,118 @@ func prop_equals_designer_default(default: Option[Data], property: Option[Data],
         && (exclusive == false || has_val == false)) // Can only have a value at this point if not exclusive
 }
 
-func designer_settings_are_valid(designer: Map[String]Data, defaults: Map[String]Data) -> Bool {
-    forced: Bool = (
-        force: Option[Data] = defaults.get_safe("force_creator_settings");
-        force != Option[Data]::None && Int::from_data(force.unwrap()).to_bool() == true
-    );
-    simple_props = []String{"bg_border_colors", "bg_colors", "circuit_colors", "pfp_border_colors", "font_shadow_colors"};
-    simp_equal_props = []String{"qr_bg_color", "socials_color"};
-    simp_excl_props = []String{"text_ribbon_gradient", "font_color", "font", "qr_image"};
-    qr_props = []String{"qr_inner_eye", "qr_outer_eye", "qr_dot"};
-    defaults.for_each((key: String, value: Data) -> {
-        if (simple_props.any((p: String) -> Bool {key == p})) {
-            key_bytes: ByteArray = key.encode_utf8();
-            key_singluar: String = key_bytes.slice(0, key_bytes.length - 1).decode_utf8();
-            assert(prop_in_designer_array(Option[Data]::Some{value}, designer.get_safe(key_singluar), forced), key_singluar + " is not set correctly")
-        }
-        else if (simp_excl_props.any((p: String) -> Bool {key == p})) {
-            assert(prop_equals_designer_default(Option[Data]::Some{value}, designer.get_safe(key), true, forced), key + " is not set correctly")
-        }
-        else if (qr_props.any((p: String) -> Bool {key == p})) {
-            val = String::from_data(value);
-            val_des: String = designer.get_safe(key).switch{None => {""}, Some{s} => {String::from_data(s)}};
-            assert((forced && val == val_des) || (forced == false && (val_des.starts_with("square,") || val == val_des)), key + " is not set correctly")
-        }
-        else if (simp_equal_props.any((p: String) -> Bool {key == p})) {
-            assert(prop_equals_designer_default(Option[Data]::Some{value}, designer.get_safe(key), false, forced), key + " is not set correctly")
-        }
-        else if (key == "font_shadow_size") {
-            assert(prop_equals_designer_default(Option[Data]::Some{value}, designer.get_safe(key), false, forced), key + " is not set correctly");
-            font_shadow_size_opt: Option[Data] = designer.get_safe(key);
-            assert(font_shadow_size_opt == Option[Data]::None || (
-                FontShadowSize {x, y, blur} = FontShadowSize::from_data(font_shadow_size_opt.unwrap()); 
-                x >= -20 && x <= 20 &&   // x
-                y >= -20 && y <= 20 &&   // y
-                blur >= 0 && blur <= 20) // blur
-            , "font_shadow_size is out of bounds")
-        }
-        else if ( key == "pfp_zoom" ) {
-            assert(prop_equals_designer_default(Option[Data]::Some{value}, designer.get_safe(key), false, forced), key + " is not set correctly");
-            pfp_zoom_opt: Option[Data] = designer.get_safe(key);
-            assert(pfp_zoom_opt == Option[Data]::None || (
-                pfp_zoom: Int = Int::from_data(pfp_zoom_opt.unwrap()); 
-                pfp_zoom >= 100 && pfp_zoom <= 200)
-            , "pfp_zoom is out of bounds")
-        }
-        else if ( key == "pfp_offset" ) {
-            assert(prop_equals_designer_default(Option[Data]::Some{value}, designer.get_safe(key), false, forced), key + " is not set correctly");
-            pfp_zoom_opt: Option[Data] = designer.get_safe("pfp_zoom");
-            pfp_offset_opt: Option[Data] = designer.get_safe(key);
-            assert(pfp_offset_opt == Option[Data]::None || (
-                PfpOffset {x, y} = PfpOffset::from_data(pfp_offset_opt.unwrap());
+func designer_settings_are_valid(designer: Map[String]Data, defaults: Map[String]Data, designer_hash: Option[Data]) -> Bool {
+        ipfs = ByteArray::from_data(designer_hash.unwrap());
+        // This strips away "ipfs://z" (the z can be removed - see CID multiformats)
+        multihash: ByteArray = Int::from_base58(ipfs.slice(8, ipfs.length).decode_utf8()).to_big_endian();
+        // This strips away 0x01 0x70 0x12 0x20 (CIDv1, base58, sha2, 32 bytes)
+        //print(multihash.show() + " == " + designer.serialize().sha2().show());
+        assert(multihash.slice(4, multihash.length) == designer.serialize().sha2(), "Personalization designer settings hash doesn't match CID multihash");
+
+        forced: Bool = (
+            force: Option[Data] = defaults.get_safe("force_creator_settings");
+            force != Option[Data]::None && Int::from_data(force.unwrap()).to_bool() == true
+        );
+        simple_props = []String{"bg_border_colors", "bg_colors", "circuit_colors", "pfp_border_colors", "font_shadow_colors"};
+        simp_equal_props = []String{"qr_bg_color", "socials_color"};
+        simp_excl_props = []String{"text_ribbon_gradient", "font_color", "font", "qr_image"};
+        qr_props = []String{"qr_inner_eye", "qr_outer_eye", "qr_dot"};
+        defaults.for_each((key: String, value: Data) -> {
+            if (simple_props.any((p: String) -> Bool {key == p})) {
+                key_bytes: ByteArray = key.encode_utf8();
+                key_singluar: String = key_bytes.slice(0, key_bytes.length - 1).decode_utf8();
+                assert(prop_in_designer_array(Option[Data]::Some{value}, designer.get_safe(key_singluar), forced), key_singluar + " is not set correctly")
+            }
+            else if (simp_excl_props.any((p: String) -> Bool {key == p})) {
+                assert(prop_equals_designer_default(Option[Data]::Some{value}, designer.get_safe(key), true, forced), key + " is not set correctly")
+            }
+            else if (qr_props.any((p: String) -> Bool {key == p})) {
+                val = String::from_data(value);
+                val_des: String = designer.get_safe(key).switch{None => {""}, Some{s} => {String::from_data(s)}};
+                assert((forced && val == val_des) || (forced == false && (val_des.starts_with("square,") || val == val_des)), key + " is not set correctly")
+            }
+            else if (simp_equal_props.any((p: String) -> Bool {key == p})) {
+                assert(prop_equals_designer_default(Option[Data]::Some{value}, designer.get_safe(key), false, forced), key + " is not set correctly")
+            }
+            else if (key == "font_shadow_size") {
+                assert(prop_equals_designer_default(Option[Data]::Some{value}, designer.get_safe(key), false, forced), key + " is not set correctly");
+                font_shadow_size_opt: Option[Data] = designer.get_safe(key);
+                assert(font_shadow_size_opt == Option[Data]::None || (
+                    FontShadowSize {x, y, blur} = FontShadowSize::from_data(font_shadow_size_opt.unwrap()); 
+                    x >= -20 && x <= 20 &&   // x
+                    y >= -20 && y <= 20 &&   // y
+                    blur >= 0 && blur <= 20) // blur
+                , "font_shadow_size is out of bounds")
+            }
+            else if ( key == "pfp_zoom" ) {
+                assert(prop_equals_designer_default(Option[Data]::Some{value}, designer.get_safe(key), false, forced), key + " is not set correctly");
+                pfp_zoom_opt: Option[Data] = designer.get_safe(key);
+                assert(pfp_zoom_opt == Option[Data]::None || (
+                    pfp_zoom: Int = Int::from_data(pfp_zoom_opt.unwrap()); 
+                    pfp_zoom >= 100 && pfp_zoom <= 200)
+                , "pfp_zoom is out of bounds")
+            }
+            else if ( key == "pfp_offset" ) {
+                assert(prop_equals_designer_default(Option[Data]::Some{value}, designer.get_safe(key), false, forced), key + " is not set correctly");
+                pfp_zoom_opt: Option[Data] = designer.get_safe("pfp_zoom");
+                pfp_offset_opt: Option[Data] = designer.get_safe(key);
+                assert(pfp_offset_opt == Option[Data]::None || (
+                    PfpOffset {x, y} = PfpOffset::from_data(pfp_offset_opt.unwrap());
+                    offset_max: Int = ((576 * ((if (pfp_zoom_opt == Option[Data]::None) { 100 } else { Int::from_data(pfp_zoom_opt.unwrap()) }) - 100)) / 100) / 2;
+                    x >= -offset_max && x <= offset_max && // x
+                    y >= -offset_max && y <= offset_max)   // y
+                , "pfp_offset is out of bounds")
+            }
+        });
+
+        designer.for_each((key: String, value: Data) -> {
+            if (simple_props.any((p: String) -> Bool {key + "s" == p})) {
+                assert(prop_in_designer_array(defaults.get_safe(key + "s"), Option[Data]::Some{value}, forced), key + " is not set correctly")
+            }
+            else if (simp_excl_props.any((p: String) -> Bool {key == p})) {
+                assert(prop_equals_designer_default(defaults.get_safe(key), Option[Data]::Some{value}, true, forced), key + " is not set correctly")
+            }
+            else if (qr_props.any((p: String) -> Bool {key == p})) {
+                def_val: Option[Data] = defaults.get_safe(key);
+                val_def: String = def_val.switch{None => {""}, Some{s} => {String::from_data(s)}};
+                val_des = String::from_data(value);
+                assert(def_val == Option[Data]::None && val_des.starts_with("square,") || (forced && val_def == val_des) || (forced == false && (val_des.starts_with("square,") || val_def == val_des)), key + " is not set correctly")
+            }
+            else if (simp_equal_props.any((p: String) -> Bool {key == p})) {
+                assert(prop_equals_designer_default(defaults.get_safe(key), Option[Data]::Some{value}, false, forced), key + " is not set correctly")
+            }
+            else if (key == "font_shadow_size") {
+                assert(prop_equals_designer_default(defaults.get_safe(key), Option[Data]::Some{value}, false, forced), key + " is not set correctly");
+                FontShadowSize {x, y, blur} = FontShadowSize::from_data(value); 
+                assert(x >= -20 && x <= 20 &&
+                    y >= -20 && y <= 20 &&
+                    blur >= 0 && blur <= 20
+                , "font_shadow_size is out of bounds")
+            }
+            else if (key == "pfp_zoom") {
+                assert(prop_equals_designer_default(defaults.get_safe(key), Option[Data]::Some{value}, false, forced), key + " is not set correctly");
+                pfp_zoom = Int::from_data(value);
+                assert(pfp_zoom >= 100 && pfp_zoom <= 200, "pfp_zoom is out of bounds")
+            }
+            else if ( key == "pfp_offset" ) {
+                assert(prop_equals_designer_default(defaults.get_safe(key), Option[Data]::Some{value}, false, forced), key + " is not set correctly");
+                pfp_zoom_opt: Option[Data] = designer.get_safe("pfp_zoom");
+                PfpOffset {x, y} = PfpOffset::from_data(value);
                 offset_max: Int = ((576 * ((if (pfp_zoom_opt == Option[Data]::None) { 100 } else { Int::from_data(pfp_zoom_opt.unwrap()) }) - 100)) / 100) / 2;
-                x >= -offset_max && x <= offset_max && // x
-                y >= -offset_max && y <= offset_max)   // y
-            , "pfp_offset is out of bounds")
-        }
-    });
+                assert(x >= -offset_max && x <= offset_max && y >= -offset_max && y <= offset_max, "pfp_offset is out of bounds")
+            }
+        });
 
-    designer.for_each((key: String, value: Data) -> {
-        if (simple_props.any((p: String) -> Bool {key + "s" == p})) {
-            assert(prop_in_designer_array(defaults.get_safe(key + "s"), Option[Data]::Some{value}, forced), key + " is not set correctly")
-        }
-        else if (simp_excl_props.any((p: String) -> Bool {key == p})) {
-            assert(prop_equals_designer_default(defaults.get_safe(key), Option[Data]::Some{value}, true, forced), key + " is not set correctly")
-        }
-        else if (qr_props.any((p: String) -> Bool {key == p})) {
-            def_val: Option[Data] = defaults.get_safe(key);
-            val_def: String = def_val.switch{None => {""}, Some{s} => {String::from_data(s)}};
-            val_des = String::from_data(value);
-            assert(def_val == Option[Data]::None && val_des.starts_with("square,") || (forced && val_def == val_des) || (forced == false && (val_des.starts_with("square,") || val_def == val_des)), key + " is not set correctly")
-        }
-        else if (simp_equal_props.any((p: String) -> Bool {key == p})) {
-            assert(prop_equals_designer_default(defaults.get_safe(key), Option[Data]::Some{value}, false, forced), key + " is not set correctly")
-        }
-        else if (key == "font_shadow_size") {
-            assert(prop_equals_designer_default(defaults.get_safe(key), Option[Data]::Some{value}, false, forced), key + " is not set correctly");
-            FontShadowSize {x, y, blur} = FontShadowSize::from_data(value); 
-            assert(x >= -20 && x <= 20 &&
-                y >= -20 && y <= 20 &&
-                blur >= 0 && blur <= 20
-            , "font_shadow_size is out of bounds")
-        }
-        else if (key == "pfp_zoom") {
-            assert(prop_equals_designer_default(defaults.get_safe(key), Option[Data]::Some{value}, false, forced), key + " is not set correctly");
-            pfp_zoom = Int::from_data(value);
-            assert(pfp_zoom >= 100 && pfp_zoom <= 200, "pfp_zoom is out of bounds")
-        }
-        else if ( key == "pfp_offset" ) {
-            assert(prop_equals_designer_default(defaults.get_safe(key), Option[Data]::Some{value}, false, forced), key + " is not set correctly");
-            pfp_zoom_opt: Option[Data] = designer.get_safe("pfp_zoom");
-            PfpOffset {x, y} = PfpOffset::from_data(value);
-            offset_max: Int = ((576 * ((if (pfp_zoom_opt == Option[Data]::None) { 100 } else { Int::from_data(pfp_zoom_opt.unwrap()) }) - 100)) / 100) / 2;
-            assert(x >= -offset_max && x <= offset_max && y >= -offset_max && y <= offset_max, "pfp_offset is out of bounds")
-        }
-    });
-
-    (_, ribbon_gradient_val_data: Data) = has_value_unwrapped(defaults.get_safe("text_ribbon_gradient"));
-    creator_ribbon_colors: []ByteArray = defaults.get_safe("text_ribbon_colors").switch{None => {[]ByteArray{}}, Some{d} => {[]ByteArray::from_data(d)}};
-    ribbon_colors: []ByteArray = designer.get_safe("text_ribbon_colors").switch{None => {[]ByteArray{}}, Some{d} => {[]ByteArray::from_data(d)}};
-    gradient: Bool = ByteArray::from_data(ribbon_gradient_val_data) == "radial".encode_utf8() || ByteArray::from_data(ribbon_gradient_val_data).starts_with("linear".encode_utf8());
-    assert((defaults.get_safe("text_ribbon_colors") == Option[Data]::None && ribbon_colors.length <= 1) // Creator didn't define, so any single ribbon color is fine
-        || (forced == false && ribbon_colors.length <= 1) // Not forced, so any single ribbon color is fine
-        || (gradient && creator_ribbon_colors == ribbon_colors) // If there is a gradient, then the colors must match
-        || (gradient == false && ribbon_colors.length == 1 && creator_ribbon_colors.any((color: ByteArray) -> Bool {color == ribbon_colors.get_singleton()}))
-    , "text_ribbon_colors is not set correctly");
-
-    true
+        (_, ribbon_gradient_val_data: Data) = has_value_unwrapped(defaults.get_safe("text_ribbon_gradient"));
+        creator_ribbon_colors: []ByteArray = defaults.get_safe("text_ribbon_colors").switch{None => {[]ByteArray{}}, Some{d} => {[]ByteArray::from_data(d)}};
+        ribbon_colors: []ByteArray = designer.get_safe("text_ribbon_colors").switch{None => {[]ByteArray{}}, Some{d} => {[]ByteArray::from_data(d)}};
+        gradient: Bool = ByteArray::from_data(ribbon_gradient_val_data) == "radial".encode_utf8() || ByteArray::from_data(ribbon_gradient_val_data).starts_with("linear".encode_utf8());
+        assert((defaults.get_safe("text_ribbon_colors") == Option[Data]::None && ribbon_colors.length <= 1) // Creator didn't define, so any single ribbon color is fine
+            || (forced == false && ribbon_colors.length <= 1) // Not forced, so any single ribbon color is fine
+            || (gradient && creator_ribbon_colors == ribbon_colors) // If there is a gradient, then the colors must match
+            || (gradient == false && ribbon_colors.length == 1 && creator_ribbon_colors.any((color: ByteArray) -> Bool {color == ribbon_colors.get_singleton()}))
+        , "text_ribbon_colors is not set correctly");
+        true
 }
 
 // Save this for when we migrate - we can clean these up then
@@ -553,15 +549,18 @@ func pz_datum_is_valid(
         bg_datum
 }
 
-func check_sub_handle_settings(handle: ByteArray, root_handle: ByteArray, root_sett_index: Int, pz_min_fee: Int, subhandle_share_percent: Int, ref_inputs: []TxInput, tx: Tx, rst: Bool) -> OwnerSettings {
-    assert(handle.ends_with(b"@" + root_handle), "Incorrect root handle for SubHandle");
-    owner_output: TxOutput = ref_inputs.get(root_sett_index).output;
-    owner_settings: OwnerSettings = OwnerSettings::from_data(owner_output.datum.get_inline_data());
-    assert(owner_output.value.contains(Value::new(AssetClass::new(HANDLE_POLICY, LBL_001 + root_handle), 1)) 
-        && tx.value_paid_to(
-            Address::from_bytes(owner_settings.payment_address), 
-            handle).contains(Value::lovelace(calculate_shared_fee(pz_min_fee, subhandle_share_percent, rst == false))), "Fee not paid to root Handle");
-    owner_settings
+func check_sub_handle_settings(handle: ByteArray, root_handle: ByteArray, root_sett_index: Int, pz_min_fee: Int, subhandle_share_percent: Int, ref_inputs: []TxInput, tx: Tx, type: HandleType, rst: Bool) -> Bool {
+    if (type != HandleType::HANDLE) {
+        assert(handle.ends_with(b"@" + root_handle), "Incorrect root handle for SubHandle");
+        owner_output: TxOutput = ref_inputs.get(root_sett_index).output;
+        OwnerSettings{ SubHandleSettings{ _, nft_enabled, _, _, _ }, SubHandleSettings{ _, virt_enabled, _, _, _ }, _, _, _, _, _, payment_address } = OwnerSettings::from_data(owner_output.datum.get_inline_data());
+        assert(owner_output.value.contains(Value::new(AssetClass::new(HANDLE_POLICY, LBL_001 + root_handle), 1)) 
+            && tx.value_paid_to(
+                Address::from_bytes(payment_address), 
+                handle).contains(Value::lovelace(calculate_shared_fee(pz_min_fee, subhandle_share_percent, rst == false))), "Fee not paid to root Handle");
+        (type == HandleType::NFT_SUBHANDLE && nft_enabled == 1) || (type == HandleType::VIRTUAL_SUBHANDLE && virt_enabled == 1)
+    }
+    else {true}
 }
 
 func get_virtual_price(length: Int, tiers: [][]Int) -> Int {
@@ -606,33 +605,33 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
             resolved_ada_opt: Option[Data] = new_resolved.get_safe("ada");
             resolved_ada: Bool = resolved_ada_opt == Option[Data]::None;
             owner_handle: Value = Value::new(AssetClass::new(HANDLE_POLICY, LBL_222 + name), 1);
-            owner_found: Bool = pz_asset_output.value.contains(owner_handle);
-            (address: Address, sub_check: Bool, LBL: ByteArray) = type.switch {
+            owner_found: Bool = reset || pz_asset_output.value.contains(owner_handle);
+            new_designer: Option[Data] = new_extra.get_safe("designer");
+            sub_pz_enabled: Bool = old_extra.get_safe("pz_enabled").switch{None => 0, s: Some => Int::from_data(s.unwrap())}.to_bool();
+            //sub_pz_enabled: Bool = old_extra.get_safe("pz_enabled") != Option[Data]::None;
+            root_pz_enabled: Bool = check_sub_handle_settings(name, root_handle, root_sett_index, pz_min_fee, subhandle_share_percent, ref_inputs, tx, type, reset);
+            (address: Address, LBL: ByteArray) = type.switch {
                 HANDLE => {
-                    assert(resolved_ada, "resolved_addresses can't contain 'ada'");
-                    assert(reset || owner_found, "Handle input not present");
-                    (pz_asset_output.address, false, LBL_100)
+                    (pz_asset_output.address,LBL_100)
                 },
                 NFT_SUBHANDLE => {
-                    owner_settings: OwnerSettings = check_sub_handle_settings(name, root_handle, root_sett_index, pz_min_fee, subhandle_share_percent, ref_inputs, tx, reset);
-                    assert(resolved_ada, "resolved_addresses can't contain 'ada'");
-                    assert(reset || owner_found, "Handle input not present");
-                    assert(reset == false || owner_settings.nft.pz_enabled == 1, "Root SubHandle settings prohibit Personalization");
-                    (pz_asset_output.address, if (reset) {owner_settings.nft.pz_enabled == 0} else {true}, LBL_100)
+                    (pz_asset_output.address, LBL_100)
                 },
                 VIRTUAL_SUBHANDLE => {
-                    owner_settings: OwnerSettings = check_sub_handle_settings(name, root_handle, root_sett_index, pz_min_fee, subhandle_share_percent, ref_inputs, tx, reset);
                     old_ada_address: Address = Address::from_bytes(ByteArray::from_data(Map[String]Data::from_data(old_res_opt.unwrap()).get("ada")));
-                    assert(reset == false || tx.is_signed_by(old_ada_address.credential.switch{p: PubKey => p.hash, else => error("Only PubKeyHashes are supported")}), "Tx not signed by virtual SubHandle holder");
+                    assert(reset || tx.is_signed_by(old_ada_address.credential.switch{p: PubKey => p.hash, else => error("Only PubKeyHashes are supported")}), "Tx not signed by virtual SubHandle holder");
                     new_ada_address: Address = Address::from_bytes(ByteArray::from_data(resolved_ada_opt.unwrap()));
                     assert(new_ada_address == old_ada_address, "resolved_addresses.ada must not change");
-                    assert(reset == false || owner_settings.virtual.pz_enabled == 1, "Root SubHandle settings prohibit Personalization");
                     old_virt: Map[String]Data = Map[String]Data::from_data(old_extra.head.second);
                     new_virt: Map[String]Data = Map[String]Data::from_data(new_extra.head.second);
                     assert(old_virt == new_virt, "Virtual SubHandle datum must not change");
-                    (new_ada_address,  if (reset) {owner_settings.virtual.pz_enabled == 0} else {true}, LBL_000)
+                    (new_ada_address, LBL_000)
                 }
             };
+            assert(type == HandleType::HANDLE || reset || sub_pz_enabled || root_pz_enabled, "Root SubHandle settings prohibit Personalization");
+            assert(type == HandleType::HANDLE || sub_pz_enabled || (root_pz_enabled && new_extra.get_safe("pz_enabled") != Option[Data]::None), "Root SubHandle settings prohibit Personalization");
+            assert(type == HandleType::VIRTUAL_SUBHANDLE || owner_found, "Handle input not present");
+            assert(type == HandleType::VIRTUAL_SUBHANDLE || resolved_ada, "resolved_addresses can't contain 'ada'");
             assert(new_output.value.contains(Value::new(AssetClass::new(HANDLE_POLICY, LBL + name), 1)), "Contract output not present");
             pfp_approvers: Map[ByteArray]Map[ByteArray][]Int = get_approver_datum("pfp", pfp_appr_index, pz_providers, settings_cred, ref_inputs);
             bg_approvers: Map[ByteArray]Map[ByteArray][]Int = get_approver_datum("bg", bg_appr_index, pz_providers, settings_cred, ref_inputs);
@@ -654,7 +653,9 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
             new_pfp: Option[Data] = new_extra.get_safe("pfp_image");
             old_bg: Option[Data] = old_extra.get_safe("bg_image");
             new_bg: Option[Data] = new_extra.get_safe("bg_image");
-            new_designer: Option[Data] = new_extra.get_safe("designer");
+            new_nsfw: Data = new_extra.get("nsfw");
+            new_trial: Data = new_extra.get("trial");
+            designed: Bool = new_designer != Option[Data]::None;
             last_update_address: Address = Address::from_bytes(ByteArray::from_data(new_extra.get("last_update_address")));
             (check_bg: AssetClass, check_pfp: AssetClass) = if (reset) {(old_bg_asset, old_pfp_asset)} else {(new_bg_asset, new_pfp_asset)};            
             
@@ -665,19 +666,29 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
             defaults: Map[String]Data = if (bg_datum == EMPTY_CIP_68) { Map[String]Data{} } else { get_extra(bg_datum.extra) };
             
             require_asset_valid: Bool = check_required_assets(pz_asset_output, req_asset_index, name, check_pfp, defaults, ref_inputs, signatories, datums);
+
+            is_reset: Bool = new_image == new_standard
+                && new_img_hash == new_stand_hash
+                && new_pfp_asset_opt == EMPTY_DATA
+                && new_bg_asset_opt == EMPTY_DATA
+                && new_pfp == Option[Data]::None
+                && new_bg == Option[Data]::None
+                && designed == false
+                && Int::from_data(new_trial) == 0
+                && Int::from_data(new_nsfw) == 0;
         
             if (reset == false) {
-                assert(require_asset_valid, "Required asset not correct");
-                assert(fees_are_paid(time_range, outputs, tx, grace_period, treasury_cred, treasury_fee, pz_min_fee, subhandle_share_percent, pz_providers, name, prov_fee_index, sub_check, old_extra.get_safe("last_edited_time")) 
-                    && cbor_hashes_to_cid(designer, new_designer), "Contract failed validation");
-                assert(designer_settings_are_valid(designer, defaults), "Personalization settings checks failed");
-                true
+                if (designed) {
+                    assert(require_asset_valid, "Required asset not correct");
+                    assert(fees_are_paid(time_range, outputs, tx, grace_period, treasury_cred, treasury_fee, pz_min_fee, subhandle_share_percent, pz_providers, name, prov_fee_index, type != HandleType::HANDLE, old_extra.get_safe("last_edited_time")) 
+                        && designer_settings_are_valid(designer, defaults, new_designer), "Personalization settings checks failed");
+                    true
+                }
+                else {is_reset}
             }
             else {
                 signed_by_provider: Bool = signatories.any((signer: PubKeyHash) -> Bool { pz_providers.any((cred: ByteArray, _) -> Bool {signer == PubKeyHash::new(cred)})});
                 signed_by_owner: Bool = tx.is_signed_by(address.credential.switch{p: PubKey => p.hash, else => error("Only PubKeyHashes are supported")});
-                new_nsfw: Data = new_extra.get("nsfw");
-                new_trial: Data = new_extra.get("trial");
                 new_socials: String = new_extra.get_safe("socials").switch{s: Some => String::from_data(s.unwrap()), else => ""};
                 old_socials: String = old_extra.get_safe("socials").switch{s: Some => String::from_data(s.unwrap()), else => ""};
                 has_socials: Bool = old_socials != "";
@@ -695,18 +706,9 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                     });
     
                 // Only allow reset if designer settings are off or signed by a provider
-                if (designer_assets_valid == false || require_asset_valid == false || signed_by_provider || sub_check || signed_by_owner) {
-                    assert(
-                        new_image == new_standard
-                        && new_img_hash == new_stand_hash
-                        && new_pfp_asset_opt == EMPTY_DATA
-                        && new_bg_asset_opt == EMPTY_DATA
-                        && new_pfp == Option[Data]::None
-                        && new_bg == Option[Data]::None
-                        && new_designer == Option[Data]::None
-                        && Int::from_data(new_trial) == 0
-                        && Int::from_data(new_nsfw) == 0, "Personalization properties not properly reset");
-                        private_info_good
+                if (designer_assets_valid == false || require_asset_valid == false || signed_by_provider || signed_by_owner) {
+                    assert(is_reset, "Personalization properties not properly reset");
+                    private_info_good
                 }
                 else {
                     assert(
@@ -719,7 +721,7 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                         && new_designer == old_extra.get_safe("designer")
                         && new_trial == old_extra.get("trial")
                         && new_nsfw == old_extra.get("nsfw"), "Reset is not allowed or not authorized");
-                        private_info_good
+                    private_info_good
                 }
 
             }
