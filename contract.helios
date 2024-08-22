@@ -628,7 +628,7 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                 }
             };
             assert(type == HandleType::HANDLE || reset || sub_pz_enabled || root_pz_enabled, "Root SubHandle settings prohibit Personalization");
-            assert(type == HandleType::HANDLE || sub_pz_enabled || (root_pz_enabled && new_extra.get_safe("pz_enabled") != Option[Data]::None), "Root SubHandle settings prohibit Personalization");
+            assert(type == HandleType::HANDLE || sub_pz_enabled || (root_pz_enabled && Int::from_data(new_extra.get("pz_enabled")) == 1), "SubHandle 'pz_enabled' should be 1");
             assert(type == HandleType::VIRTUAL_SUBHANDLE || owner_found, "Handle input not present");
             assert(type == HandleType::VIRTUAL_SUBHANDLE || resolved_ada, "resolved_addresses can't contain 'ada'");
             assert(new_output.value.contains(Value::new(AssetClass::new(HANDLE_POLICY, LBL + name), 1)), "Contract output not present");
