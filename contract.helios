@@ -608,7 +608,6 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
             owner_found: Bool = reset || pz_asset_output.value.contains(owner_handle);
             new_designer: Option[Data] = new_extra.get_safe("designer");
             sub_pz_enabled: Bool = old_extra.get_safe("pz_enabled").switch{None => 0, s: Some => Int::from_data(s.unwrap())}.to_bool();
-            //sub_pz_enabled: Bool = old_extra.get_safe("pz_enabled") != Option[Data]::None;
             root_pz_enabled: Bool = check_sub_handle_settings(name, root_handle, root_sett_index, pz_min_fee, subhandle_share_percent, ref_inputs, tx, type, reset);
             (address: Address, LBL: ByteArray) = type.switch {
                 HANDLE => {
