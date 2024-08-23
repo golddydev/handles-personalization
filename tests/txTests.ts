@@ -8,7 +8,7 @@ helios.config.set({ IS_TESTNET: false, AUTO_SET_VALIDITY_RANGE: true });
 const runTests = async (file: string) => {
     const walletAddress = await getAddressAtDerivation(0);
     const tester = new ContractTester(walletAddress, false);
-    await tester.init("UPDATE");
+    await tester.init();
 
     let contractFile = fs.readFileSync(file).toString();
     const program = helios.Program.new(contractFile); //new instance
