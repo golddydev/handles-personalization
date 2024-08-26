@@ -68,15 +68,17 @@ export const defaultResolvedAddress = helios.Address.fromHash(helios.PubKeyHash.
 
 // The default fixture tests happy path with most features/lines of code executed
 export class PzFixture extends Fixture {
+    isVirtual = false;
+    changedDesigner = true;
     handleName = 'xar123456';
     handleCbor: string;
     latestScriptAddress: helios.Address;
 
     oldCip68Datum = {
         constructor_0: [
-            defaultNft,
+            { ...defaultNft },
             0,
-            defaultExtra
+            { ...defaultExtra }
         ]
     };
     oldCip68DatumCbor: string;
@@ -88,7 +90,7 @@ export class PzFixture extends Fixture {
                 image: "ipfs://pfp"
             },
             0,
-            defaultExtra
+            { ...defaultExtra }
         ]
     }
     newCip68DatumCbor: string;
@@ -140,7 +142,7 @@ export class PzFixture extends Fixture {
                 image: "ipfs://pfp"
             },
             0,
-            defaultExtra
+            { ...defaultExtra }
         ]
     }
     pfpDatumCbor: string;
@@ -173,6 +175,52 @@ export class PzFixture extends Fixture {
     ];
     rootSettingsCbor: string
 
+    oldDesigner = {
+        pfp_border_color: '0x22d1af',
+        qr_inner_eye: 'dots,#0a1fd4',
+        qr_outer_eye: 'dots,#0a1fd5',
+        qr_dot: 'dots,#0a1fd6',
+        qr_bg_color: '0x0a1fd3',
+        qr_image: 'https://img',
+        pfp_zoom: 130,
+        pfp_offset: [60, 60],
+        font: 'the font',
+        font_color: '0xffffff',
+        font_shadow_size: [12, 10, 8],
+        text_ribbon_colors: ['0x0a1fd3', '0x0a1fd4'],
+        text_ribbon_gradient: 'linear-45',
+        font_shadow_color: '0x22d1af',
+        socials_color: '0xffffff',
+        bg_border_color: '0x22d1af',
+        bg_color: '0x22d1af',
+        circuit_color: '0x22d1af',
+        qr_link: '',
+        socials: [],
+        svg_version: 1,
+    };
+    newDesigner = {
+        pfp_border_color: '0x22d1af',
+        qr_inner_eye: 'dots,#0a1fd4',
+        qr_outer_eye: 'dots,#0a1fd5',
+        qr_dot: 'dots,#0a1fd6',
+        qr_bg_color: '0x0a1fd3',
+        qr_image: 'https://img',
+        pfp_zoom: 130,
+        pfp_offset: [60, 60],
+        font: 'the font',
+        font_color: '0xffffff',
+        font_shadow_size: [12, 10, 8],
+        text_ribbon_colors: ['0x0a1fd3', '0x0a1fd4'],
+        text_ribbon_gradient: 'linear-45',
+        font_shadow_color: '0x22d1af',
+        socials_color: '0xffffff',
+        bg_border_color: '0x22d1af',
+        bg_color: '0x22d1af',
+        circuit_color: '0x22d1af',
+        qr_link: '',
+        socials: [],
+        svg_version: 1,
+    };
     pzRedeemer = {
         constructor_0: [
             [{constructor_0: []}, this.handleName],
@@ -188,29 +236,7 @@ export class PzFixture extends Fixture {
                 1, //pz_assets
                 3, //provider_fee
             ],
-            {
-                pfp_border_color: '0x22d1af',
-                qr_inner_eye: 'dots,#0a1fd4',
-                qr_outer_eye: 'dots,#0a1fd5',
-                qr_dot: 'dots,#0a1fd6',
-                qr_bg_color: '0x0a1fd3',
-                qr_image: 'https://img',
-                pfp_zoom: 130,
-                pfp_offset: [60, 60],
-                font: 'the font',
-                font_color: '0xffffff',
-                font_shadow_size: [12, 10, 8],
-                text_ribbon_colors: ['0x0a1fd3', '0x0a1fd4'],
-                text_ribbon_gradient: 'linear-45',
-                font_shadow_color: '0x22d1af',
-                socials_color: '0xffffff',
-                bg_border_color: '0x22d1af',
-                bg_color: '0x22d1af',
-                circuit_color: '0x22d1af',
-                qr_link: '',
-                socials: [],
-                svg_version: 1,
-            },
+            this.newDesigner,
             false
     ]
     };
@@ -218,9 +244,9 @@ export class PzFixture extends Fixture {
 
     requiredAsset = {
         constructor_0: [
-            defaultNft,
+            { ...defaultNft },
             0,
-            defaultExtra
+            { ...defaultExtra }
         ]
     };
     requiredAssetCbor: string;
@@ -237,13 +263,42 @@ export class PzFixture extends Fixture {
         const rootHandleName = this.handleName.split('@')[1];
         const handleByteLength = this.handleName.length.toString(16);
         this.handleCbor = `4${handleByteLength}${Buffer.from(this.handleName).toString('hex')}`;
-        const designerCbor = (await convertJsontoCbor(this.pzRedeemer.constructor_0[3])).replace('9fff', '80');
-        const designerCid = this.calculateCid(designerCbor);
-        (this.oldCip68Datum.constructor_0[2] as any)['designer'] = `ipfs://${designerCid}`;
-        (this.newCip68Datum.constructor_0[2] as any)['designer'] = `ipfs://${designerCid}`;
+
+        if (this.isVirtual) {
+            (this.oldCip68Datum.constructor_0[2] as any) = {
+                virtual: {
+                    public_mint: 0,
+                    expires_time: 0
+                },
+                resolved_addresses: {ada: `0x${defaultResolvedAddress.toHex()}`},
+                ...(this.oldCip68Datum.constructor_0[2] as any)
+            }; /// update datum for virtual subhandle
+            (this.newCip68Datum.constructor_0[2] as any) = {
+                virtual: {
+                    public_mint: 0,
+                    expires_time: 0
+                },
+                resolved_addresses: {ada: `0x${defaultResolvedAddress.toHex()}`},
+                ...(this.newCip68Datum.constructor_0[2] as any),
+                last_update_address: `0x${defaultResolvedAddress.toHex()}`,
+            }; /// update datum for virtual subhandle
+        }
+
+        if (this.changedDesigner) {
+            const oldDesignerCbor = (await convertJsontoCbor(this.oldDesigner)).replace('9fff', '80');
+            const oldDesignerCid = this.calculateCid(oldDesignerCbor);
+            const newDesignerCbor = (await convertJsontoCbor(this.newDesigner)).replace('9fff', '80');
+            const newDesignerCid = this.calculateCid(newDesignerCbor);
+            (this.oldCip68Datum.constructor_0[2] as any)['designer'] = `ipfs://${oldDesignerCid}`;
+            (this.newCip68Datum.constructor_0[2] as any)['designer'] = `ipfs://${newDesignerCid}`;
+        }
+
         this.oldCip68DatumCbor = await convertJsontoCbor(this.oldCip68Datum);
         this.newCip68DatumCbor = await convertJsontoCbor(this.newCip68Datum);
+
         this.pzSettingsCbor = await convertJsontoCbor(this.pzSettings);
+
+        this.pzRedeemer.constructor_0[3] = this.newDesigner;
         this.pzRedeemerCbor = (await convertJsontoCbor(this.pzRedeemer));
         this.bgDatumCbor = await convertJsontoCbor(this.bgDatum);
         this.pfpDatumCbor = await convertJsontoCbor(this.pfpDatum);
@@ -263,7 +318,7 @@ export class PzFixture extends Fixture {
                 new helios.TxOutput(
                     this.scriptAddress,
                     new helios.Value(BigInt(lovelace), new helios.Assets([[POLICY_ID, [
-                        [`${AssetNameLabel.LBL_100}${Buffer.from(this.handleName).toString('hex')}`, 1],
+                        [`${this.isVirtual ? AssetNameLabel.LBL_000 : AssetNameLabel.LBL_100}${Buffer.from(this.handleName).toString('hex')}`, 1],
                         [`${AssetNameLabel.LBL_222}${Buffer.from("bg").toString('hex')}`, 1],  
                         [`${AssetNameLabel.LBL_222}${Buffer.from(this.handleName).toString('hex')}`, 1]
                     ]],[PFP_POLICY_ID, [
@@ -329,7 +384,7 @@ export class PzFixture extends Fixture {
         this.outputs = [
             new helios.TxOutput( // 100 Reference Token
                 this.latestScriptAddress,
-                new helios.Value(BigInt(1), new helios.Assets([[POLICY_ID, [[`${AssetNameLabel.LBL_100}${Buffer.from(this.handleName).toString('hex')}`, BigInt(1)]]]])),
+                new helios.Value(BigInt(1), new helios.Assets([[POLICY_ID, [[`${this.isVirtual ? AssetNameLabel.LBL_000 : AssetNameLabel.LBL_100}${Buffer.from(this.handleName).toString('hex')}`, BigInt(1)]]]])),
                 helios.Datum.inline(helios.UplcData.fromCbor(this.newCip68DatumCbor))
             ),
             new helios.TxOutput( // Pz Assets
@@ -352,12 +407,20 @@ export class PzFixture extends Fixture {
                 helios.Datum.inline(helios.UplcData.fromCbor(this.handleCbor))
             )
         ];
+        if (rootHandleName)
+            this.outputs.push(
+                new helios.TxOutput( // Root Handle Fee
+                    await getAddressAtDerivation(1),
+                    new helios.Value(BigInt(3500000 / 2)),
+                    helios.Datum.inline(helios.UplcData.fromCbor(this.handleCbor))
+                )
+            );
         this.signatories = [ providerKeyHash ]; // Provider or admin PubKeyHash
         return this;        
     }
   
     calculateCid(designer: any) {
-        const hash = '01701220' + helios.bytesToHex(helios.Crypto.sha2_256([...Buffer.from(designer, 'hex')]));
+        const hash = '01701220' + helios.bytesToHex(helios.Crypto.sha2_256(helios.hexToBytes(designer)));
         // console.log('CID = ' +  'z' + base58.encode([...Buffer.from(hash, 'hex')]), hash);
         return 'z' + base58.encode([...Buffer.from(hash, 'hex')]);   
     }
@@ -370,7 +433,7 @@ export class RevokeFixture extends Fixture {
     resolvedAddress = defaultResolvedAddress;
     oldCip68Datum = {
         constructor_0: [
-            defaultNft,
+            { ...defaultNft },
             0,
             {
                 virtual: {
@@ -489,7 +552,7 @@ export class UpdateFixture extends Fixture {
     resolvedAddress = defaultResolvedAddress;
     oldCip68Datum = {
         constructor_0: [
-            defaultNft,
+            { ...defaultNft },
             0,
             {
                 virtual: {
@@ -505,7 +568,7 @@ export class UpdateFixture extends Fixture {
 
     newCip68Datum = {
         constructor_0: [
-            defaultNft,
+            { ...defaultNft },
             0,
             {
                 virtual: {

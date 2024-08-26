@@ -1,7 +1,7 @@
 import fs from "fs";
 import * as helios from "@koralabs/helios";
 import { ContractTester, Fixture, Test, getAddressAtDerivation } from '@koralabs/kora-labs-contract-testing';
-import { defaultAssigneeHash, defaultResolvedAddress, PzFixture, RevokeFixture, UpdateFixture } from "./fixtures";
+import { defaultAssigneeHash, defaultExtra, defaultNft, defaultResolvedAddress, PzFixture, RevokeFixture, UpdateFixture } from "./fixtures";
 import { AssetNameLabel } from "@koralabs/kora-labs-common";
 helios.config.set({ IS_TESTNET: false, AUTO_SET_VALIDITY_RANGE: true });
 
@@ -27,12 +27,16 @@ const runTests = async (file: string) => {
         return tx;
     }
     // PERSONALIZE - SHOULD APPROVE
-    await tester.test("PERSONALIZE", "main - test most things", new Test(program, async (hash) => {return await (new PzFixture(hash).initialize())})),
+    await tester.test("PERSONALIZE", "main - test most things", new Test(program, async (hash) => {
+        const fixture = new PzFixture(hash);
+        fixture.newDesigner.bg_color = "0x31bc23"; /// do pz
+        return await fixture.initialize();
+    }));
 
     await tester.test("PERSONALIZE", "unenforced defaults", new Test(program, async (hash) => {
         const fixture = new PzFixture(hash);
         (fixture.bgDatum.constructor_0[2] as any) = {};
-        (fixture.pzRedeemer.constructor_0[3] as any) = {
+        (fixture.newDesigner as any) = {
             pfp_border_color: '0x22d1af',
             qr_inner_eye: 'square,#0a1fd4',
             qr_outer_eye: 'square,#0a1fd5',
@@ -52,12 +56,87 @@ const runTests = async (file: string) => {
             svg_version: 1
         }
         return await fixture.initialize();
-    })),
+    }));
+
+    await tester.test("PERSONALIZE", "subhandle pz if pz_root enabled, pz_subhandle disabled", new Test(program, async (hash) => {
+        const fixture = new PzFixture(hash);
+        fixture.newDesigner.bg_color = "0x31bc23"; /// do pz
+        (fixture.newCip68Datum.constructor_0[2] as any)["pz_enabled"] = 1; /// enable pz in new datum
+        fixture.handleName = 'dev@golddy'; /// nft subhandle
+        (fixture.pzRedeemer.constructor_0[0] as any) = [
+          { constructor_1: [] },
+          fixture.handleName,
+        ]; /// update redeemer as `NFT_SUBHANDLE` type
+        (fixture.pzRedeemer.constructor_0[1] as any) = 'golddy'; /// root handle name
+        /// in case `this.handleName` is updated after constructor
+        (fixture.oldCip68Datum.constructor_0[0] as any)['name'] = `$${fixture.handleName}`;
+        (fixture.newCip68Datum.constructor_0[0] as any)['name'] = `$${fixture.handleName}`;
+        return await fixture.initialize();
+    }));
+
+    await tester.test("PERSONALIZE", "subhandle pz if pz_subhandle enabled, pz_root disabled", new Test(program, async (hash) => {
+        const fixture = new PzFixture(hash);
+        fixture.newDesigner.bg_color = "0x31bc23"; /// do pz
+        fixture.handleName = 'dev@golddy'; /// nft subhandle
+        (fixture.rootSettings[0] as any)[1] = 0; /// OwnerSetting NFT pz_enabled to false
+        (fixture.oldCip68Datum.constructor_0[2] as any)["pz_enabled"] = 1; /// enable subhandle pz
+        (fixture.pzRedeemer.constructor_0[0] as any) = [
+          { constructor_1: [] },
+          fixture.handleName,
+        ]; /// update redeemer as `NFT_SUBHANDLE` type
+        (fixture.pzRedeemer.constructor_0[1] as any) = 'golddy'; /// root handle name
+        /// in case `this.handleName` is updated after constructor
+        (fixture.oldCip68Datum.constructor_0[0] as any)['name'] = `$${fixture.handleName}`;
+        (fixture.newCip68Datum.constructor_0[0] as any)['name'] = `$${fixture.handleName}`;
+        return await fixture.initialize();
+    }));
+
+    await tester.test("PERSONALIZE", "virtual subhandle pz", new Test(program, async (hash) => {
+        const fixture = new PzFixture(hash);
+        fixture.isVirtual = true;
+        fixture.handleName = 'dev@golddy'; /// virtual subhandle
+        fixture.newDesigner.bg_color = "0x31bc23"; /// do pz
+        (fixture.oldCip68Datum.constructor_0[2] as any)["pz_enabled"] = 1; /// enable pz in old datum
+        (fixture.pzRedeemer.constructor_0[0] as any) = [
+          { constructor_2: [] },
+          fixture.handleName,
+        ]; /// update redeemer as `VIRTUAL_SUBHANDLE` type
+        (fixture.pzRedeemer.constructor_0[1] as any) = 'golddy'; /// root handle name
+        /// in case `this.handleName` is updated after constructor
+        (fixture.oldCip68Datum.constructor_0[0] as any)['name'] = `$${fixture.handleName}`;
+        (fixture.newCip68Datum.constructor_0[0] as any)['name'] = `$${fixture.handleName}`;
+        const initialized = await fixture.initialize();
+        /// sign by resolved address
+        if (defaultResolvedAddress.pubKeyHash) fixture.signatories?.push(defaultResolvedAddress.pubKeyHash);
+        return initialized;
+    }));
+
+    await tester.test("PERSONALIZE", "pz without designer change", new Test(program, async (hash) => {
+        const fixture = new PzFixture(hash);
+        /// disable designer change
+        fixture.changedDesigner = false;
+        /// make new datum as reset
+        fixture.newCip68Datum = {
+            constructor_0: [
+                {
+                    ...defaultNft,
+                },
+                0,
+                { ...defaultExtra, pfp_asset: undefined, bg_asset: undefined, pfp_image: undefined, bg_image: undefined, designer: undefined } as any
+            ]
+        };
+        (fixture.newCip68Datum.constructor_0[0] as any)['name'] = (fixture.newCip68Datum.constructor_0[0] as any)['name'].replace('<handle>', fixture.handleName);
+        const initialized = await fixture.initialize();
+        /// remove provider fee
+        initialized.outputs?.splice(3, 1);
+        return initialized;
+    }));
 
     // PERSONALIZE - SHOULD DENY
     await tester.test("PERSONALIZE", "exclusives set, no creator", new Test(program, async (hash) => {
         const fixture = new PzFixture(hash);
         (fixture.bgDatum.constructor_0[2] as any) = {};
+        fixture.newDesigner.qr_inner_eye = 'dots,#0a1fd3';
         return await fixture.initialize();
     }), false, 'qr_inner_eye is not set correctly'),
 
@@ -72,38 +151,38 @@ const runTests = async (file: string) => {
     }), false, "resolved_addresses can't contain 'ada'");
 
     // Should deny if root pz is disabled (for `NFT_SUBHANDLE` type)
-    // await tester.test("PERSONALIZE", "root pz is disabled", new Test(program, async (hash) => {
-    //     const fixture = new PzFixture(hash);
-    //     fixture.handleName = 'dev@golddy'; /// nft subhandle
-    //     (fixture.rootSettings[0] as any)[1] = 0; /// OwnerSetting NFT pz_enabled to false
-    //     (fixture.pzRedeemer.constructor_0[0] as any) = [
-    //       { constructor_1: [] },
-    //       fixture.handleName,
-    //     ]; /// update redeemer as `NFT_SUBHANDLE` type
-    //     (fixture.pzRedeemer.constructor_0[1] as any) = 'golddy'; /// root handle name
-    //     /// in case `this.handleName` is updated after constructor
-    //     (fixture.oldCip68Datum.constructor_0[0] as any)['name'] = `$${fixture.handleName}`;
-    //     (fixture.newCip68Datum.constructor_0[0] as any)['name'] = `$${fixture.handleName}`;
-    //     return await fixture.initialize();
-    // }), false, "Root SubHandle settings prohibit Personalization");
+    await tester.test("PERSONALIZE", "root pz is disabled", new Test(program, async (hash) => {
+        const fixture = new PzFixture(hash);
+        fixture.newDesigner.bg_color = "0x31bc23"; /// do pz
+        fixture.handleName = 'dev@golddy'; /// nft subhandle
+        (fixture.rootSettings[0] as any)[1] = 0; /// OwnerSetting NFT pz_enabled to false
+        (fixture.pzRedeemer.constructor_0[0] as any) = [
+          { constructor_1: [] },
+          fixture.handleName,
+        ]; /// update redeemer as `NFT_SUBHANDLE` type
+        (fixture.pzRedeemer.constructor_0[1] as any) = 'golddy'; /// root handle name
+        /// in case `this.handleName` is updated after constructor
+        (fixture.oldCip68Datum.constructor_0[0] as any)['name'] = `$${fixture.handleName}`;
+        (fixture.newCip68Datum.constructor_0[0] as any)['name'] = `$${fixture.handleName}`;
+        return await fixture.initialize();
+    }), false, "Root SubHandle settings prohibit Personalization");
 
-    // await tester.test("PERSONALIZE", "should not pz if virtual assignee didn't sign", new Test(program, async (hash) => {
-    //     const fixture = new PzFixture(hash);
-    //     fixture.handleName = 'dev@golddy'; /// nft subhandle
-    //     (fixture.oldCip68Datum.constructor_0[2] as any) = {
-    //         ...(fixture.oldCip68Datum.constructor_0[2] as any),
-    //         resolved_addresses: {ada: `0x${defaultResolvedAddress.toHex()}`},
-    //     }; /// resolved address
-    //     (fixture.pzRedeemer.constructor_0[0] as any) = [
-    //       { constructor_2: [] },
-    //       fixture.handleName,
-    //     ]; /// update redeemer as `VIRTUAL_SUBHANDLE` type
-    //     (fixture.pzRedeemer.constructor_0[1] as any) = 'golddy'; /// root handle name
-    //     /// in case `this.handleName` is updated after constructor
-    //     (fixture.oldCip68Datum.constructor_0[0] as any)['name'] = `$${fixture.handleName}`;
-    //     (fixture.newCip68Datum.constructor_0[0] as any)['name'] = `$${fixture.handleName}`;
-    //     return await fixture.initialize();
-    // }), false, "Tx not signed by virtual SubHandle holder");
+    await tester.test("PERSONALIZE", "should not pz if virtual assignee didn't sign", new Test(program, async (hash) => {
+        const fixture = new PzFixture(hash);
+        fixture.isVirtual = true;
+        fixture.handleName = 'dev@golddy'; /// virtual subhandle
+        fixture.newDesigner.bg_color = "0x31bc23"; /// do pz
+        (fixture.oldCip68Datum.constructor_0[2] as any)["pz_enabled"] = 1; /// enable pz in old datum
+        (fixture.pzRedeemer.constructor_0[0] as any) = [
+          { constructor_2: [] },
+          fixture.handleName,
+        ]; /// update redeemer as `VIRTUAL_SUBHANDLE` type
+        (fixture.pzRedeemer.constructor_0[1] as any) = 'golddy'; /// root handle name
+        /// in case `this.handleName` is updated after constructor
+        (fixture.oldCip68Datum.constructor_0[0] as any)['name'] = `$${fixture.handleName}`;
+        (fixture.newCip68Datum.constructor_0[0] as any)['name'] = `$${fixture.handleName}`;
+        return await fixture.initialize();
+    }), false, "Tx not signed by virtual SubHandle holder");
 
     // Should reset to default styles
     // virtual must have resolved_addresses.ada
@@ -181,30 +260,6 @@ const runTests = async (file: string) => {
         initialized.signatories?.push(helios.PubKeyHash.fromHex(defaultAssigneeHash)); /// sign with assignee's pub key hash
         return initialized;
     }, () => setupUpdateTx(new Date(Date.now() + (365 * 24 * 60 * 60 * 1000))))); // within window
-
-    /// WARNING!!! Attack vector
-    /// within window is attack vector
-    /// we can stop this by checking extended and within_window separately
-    /// can Update - extend - without paying to main address and root address
-    // await tester.test("UPDATE", "public assignee signed attack", new Test(program, async (hash) => {
-    //     const fixture = new UpdateFixture(hash);
-    //     (fixture.oldCip68Datum.constructor_0[2] as any)['virtual'] = {
-    //         public_mint: 1,
-    //         expires_time: Date.now(),
-    //     }; /// make public
-    //     (fixture.updateRedeemer.constructor_3[2] as any) = [
-    //         1, //admin_settings
-    //         2, //root_settings
-    //         0, //contract_output - /// update index because we remove one output below
-    //         0  //root_handle
-    //     ];
-    //     const initialized =  await fixture.initialize();
-    //     initialized.inputs?.splice(1, 1); /// remove 222 root_handle in inputs (remove root_signed)
-    //     /// only take second one which is 000 Virtual Subhandle (remove 222 root_handle & payment to main & root)
-    //     initialized.outputs = initialized.outputs?.[1] ? [initialized.outputs?.[1]] : [];
-    //     initialized.signatories?.push(helios.PubKeyHash.fromHex(defaultAssigneeHash)); /// sign with assignee's pub key hash
-    //     return initialized;
-    // }));
 
     // should Update - to_private - public & root_signed & expired & extended
     await tester.test("UPDATE", "public to private", new Test(program, async (hash) => {
