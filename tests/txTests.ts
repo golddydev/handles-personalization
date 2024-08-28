@@ -8,7 +8,7 @@ helios.config.set({ IS_TESTNET: false, AUTO_SET_VALIDITY_RANGE: true });
 const runTests = async (file: string) => {
     const walletAddress = await getAddressAtDerivation(0);
     const tester = new ContractTester(walletAddress, false);
-    await tester.init();
+    await tester.init("PERSONALIZE", "subhandle pz in grace period");
 
     let contractFile = fs.readFileSync(file).toString();
     const program = helios.Program.new(contractFile); //new instance
@@ -74,6 +74,26 @@ const runTests = async (file: string) => {
         return await fixture.initialize();
     }));
 
+    await tester.test("PERSONALIZE", "subhandle pz in grace period", new Test(program, async (hash) => {
+        const fixture = new PzFixture(hash);
+        fixture.newDesigner.bg_color = "0x31bc23"; /// do pz
+        (fixture.newCip68Datum.constructor_0[2] as any)["pz_enabled"] = 1; /// enable pz in new datum
+        (fixture.oldCip68Datum.constructor_0[2] as any)["last_edited_time"] = Date.now(); /// just edited
+        fixture.handleName = 'dev@golddy'; /// nft subhandle
+        (fixture.pzRedeemer.constructor_0[0] as any) = [
+          { constructor_1: [] },
+          fixture.handleName,
+        ]; /// update redeemer as `NFT_SUBHANDLE` type
+        (fixture.pzRedeemer.constructor_0[1] as any) = 'golddy'; /// root handle name
+        /// in case `this.handleName` is updated after constructor
+        (fixture.oldCip68Datum.constructor_0[0] as any)['name'] = `$${fixture.handleName}`;
+        (fixture.newCip68Datum.constructor_0[0] as any)['name'] = `$${fixture.handleName}`;
+        const initialized = await fixture.initialize();
+        /// remove provider fee
+        initialized.outputs?.splice(2, 2);
+        return initialized;
+    }));
+
     await tester.test("PERSONALIZE", "subhandle pz if pz_subhandle enabled, pz_root disabled", new Test(program, async (hash) => {
         const fixture = new PzFixture(hash);
         fixture.newDesigner.bg_color = "0x31bc23"; /// do pz
@@ -129,6 +149,17 @@ const runTests = async (file: string) => {
         const initialized = await fixture.initialize();
         /// remove provider fee
         initialized.outputs?.splice(3, 1);
+        return initialized;
+    }));
+
+    await tester.test("PERSONALIZE", "pz designer is set but unchanged", new Test(program, async (hash) => {
+        const fixture = new PzFixture(hash);
+        /// disable designer change
+        fixture.changedDesigner = false;
+        (fixture.newCip68Datum.constructor_0[0] as any)['name'] = (fixture.newCip68Datum.constructor_0[0] as any)['name'].replace('<handle>', fixture.handleName);
+        const initialized = await fixture.initialize();
+        /// remove provider fee
+        initialized.outputs?.splice(2, 2);
         return initialized;
     }));
 
