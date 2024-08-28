@@ -216,13 +216,7 @@ func get_approver_datum(asset_type: String, index:Int, pz_providers: Map[ByteArr
     Map[ByteArray]Map[ByteArray][]Int::from_data(output.datum.get_inline_data())
 }
 
-func calculate_shared_fee(pz_min_fee: Int, subhandle_share_percent: Int, ck_fee: Bool) -> Int {
-    if (ck_fee) {
-        pz_min_fee / (100 / subhandle_share_percent)
-    } else {0}
-}
-
-func fees_are_paid(time_range: TimeRange, outputs: []TxOutput, tx: Tx, grace_period:Int, treasury_cred: ByteArray, treasury_fee: Int, pz_min_fee: Int, subhandle_share_percent: Int, pz_providers: Map[ByteArray]ByteArray, handle: ByteArray, index: Int, is_sub:Bool, last_edited_time_opt: Option[Data]) -> Bool {
+func fees_are_paid(time_range: TimeRange, outputs: []TxOutput, tx: Tx, grace_period:Int, treasury_cred: ByteArray, treasury_fee: Int, pz_min_fee: Int, subhandle_share_percent: Int, pz_providers: Map[ByteArray]ByteArray, handle: ByteArray, index: Int, is_sub:Bool, last_edited_time_opt: Option[Data], payment_address: ByteArray) -> Bool {
     if (last_edited_time_opt != Option[Data]::None && (
         last_edited_time: Int = Int::from_data(last_edited_time_opt.unwrap());
         time_range.start < Time::new(last_edited_time + grace_period)))
@@ -237,14 +231,15 @@ func fees_are_paid(time_range: TimeRange, outputs: []TxOutput, tx: Tx, grace_per
 
         // PZ provider fee paid
         provider: TxOutput = outputs.get(index);
+        shared_fee: Int = (if (is_sub) {pz_min_fee / (100 / subhandle_share_percent)} else {0});
         assert(pz_providers.any((_, cred: ByteArray) -> Bool { provider.address.credential.switch {
             p: PubKey => {p == Credential::new_pubkey(PubKeyHash::new(cred))}, 
             v: Validator => {v == Credential::new_validator(ValidatorHash::new(cred))}}
-            && provider.value.contains(Value::lovelace(pz_min_fee - calculate_shared_fee(pz_min_fee, subhandle_share_percent, is_sub)))
+            && provider.value.contains(Value::lovelace(pz_min_fee - shared_fee))
             // Check that datum is attached so it can be spent (also guard against double satisfaction)
             && provider.datum.get_inline_data().switch{b: ByteArray => { b == handle }, else => {false}}
         }), "Personalization provider not found or fee unpaid");
-
+        assert(is_sub == false || tx.value_paid_to(Address::from_bytes(payment_address), handle).contains(Value::lovelace(shared_fee)), "Fee not paid to root Handle");
         true
     }
 }
@@ -549,18 +544,15 @@ func pz_datum_is_valid(
         bg_datum
 }
 
-func check_sub_handle_settings(handle: ByteArray, root_handle: ByteArray, root_sett_index: Int, pz_min_fee: Int, subhandle_share_percent: Int, ref_inputs: []TxInput, tx: Tx, type: HandleType, rst: Bool) -> Bool {
+func check_sub_handle_settings(handle: ByteArray, root_handle: ByteArray, root_sett_index: Int, ref_inputs: []TxInput, type: HandleType) -> (Bool, ByteArray) {
     if (type != HandleType::HANDLE) {
         assert(handle.ends_with(b"@" + root_handle), "Incorrect root handle for SubHandle");
         owner_output: TxOutput = ref_inputs.get(root_sett_index).output;
         OwnerSettings{ SubHandleSettings{ _, nft_enabled, _, _, _ }, SubHandleSettings{ _, virt_enabled, _, _, _ }, _, _, _, _, _, payment_address } = OwnerSettings::from_data(owner_output.datum.get_inline_data());
-        assert(owner_output.value.contains(Value::new(AssetClass::new(HANDLE_POLICY, LBL_001 + root_handle), 1)) 
-            && tx.value_paid_to(
-                Address::from_bytes(payment_address), 
-                handle).contains(Value::lovelace(calculate_shared_fee(pz_min_fee, subhandle_share_percent, rst == false))), "Fee not paid to root Handle");
-        (type == HandleType::NFT_SUBHANDLE && nft_enabled == 1) || (type == HandleType::VIRTUAL_SUBHANDLE && virt_enabled == 1)
+        assert(owner_output.value.contains(Value::new(AssetClass::new(HANDLE_POLICY, LBL_001 + root_handle), 1)), "Root settings not found");
+        ((type == HandleType::NFT_SUBHANDLE && nft_enabled == 1) || (type == HandleType::VIRTUAL_SUBHANDLE && virt_enabled == 1), payment_address)
     }
-    else {true}
+    else {(true, #)}
 }
 
 func get_virtual_price(length: Int, tiers: [][]Int) -> Int {
@@ -608,7 +600,7 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
             owner_found: Bool = reset || pz_asset_output.value.contains(owner_handle);
             new_designer: Option[Data] = new_extra.get_safe("designer");
             sub_pz_enabled: Bool = old_extra.get_safe("pz_enabled").switch{None => 0, s: Some => Int::from_data(s.unwrap())}.to_bool();
-            root_pz_enabled: Bool = check_sub_handle_settings(name, root_handle, root_sett_index, pz_min_fee, subhandle_share_percent, ref_inputs, tx, type, reset);
+            (root_pz_enabled: Bool, payment_address: ByteArray) = check_sub_handle_settings(name, root_handle, root_sett_index, ref_inputs, type);
             (address: Address, LBL: ByteArray) = type.switch {
                 HANDLE => {
                     (pz_asset_output.address,LBL_100)
@@ -679,11 +671,11 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
             if (reset == false) {
                 if (designed && new_designer != old_extra.get_safe("designer")) {
                     assert(require_asset_valid, "Required asset not correct");
-                    assert(fees_are_paid(time_range, outputs, tx, grace_period, treasury_cred, treasury_fee, pz_min_fee, subhandle_share_percent, pz_providers, name, prov_fee_index, type != HandleType::HANDLE, old_extra.get_safe("last_edited_time")) 
+                    assert(fees_are_paid(time_range, outputs, tx, grace_period, treasury_cred, treasury_fee, pz_min_fee, subhandle_share_percent, pz_providers, name, prov_fee_index, type != HandleType::HANDLE, old_extra.get_safe("last_edited_time"), payment_address) 
                         && designer_settings_are_valid(designer, defaults, new_designer), "Personalization settings checks failed");
                     true
                 }
-                else {is_reset}
+                else {designed || is_reset}
             }
             else {
                 signed_by_provider: Bool = signatories.any((signer: PubKeyHash) -> Bool { pz_providers.any((cred: ByteArray, _) -> Bool {signer == PubKeyHash::new(cred)})});
