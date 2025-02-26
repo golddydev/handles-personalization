@@ -682,11 +682,10 @@ func main(datum: Datum, redeemer: Redeemer, ctx: ScriptContext) -> Bool {
                 signed_by_owner: Bool = tx.is_signed_by(address.credential.switch{p: PubKey => p.hash, else => error("Only PubKeyHashes are supported")});
                 new_socials: String = new_extra.get_safe("socials").switch{s: Some => String::from_data(s.unwrap()), else => ""};
                 old_socials: String = old_extra.get_safe("socials").switch{s: Some => String::from_data(s.unwrap()), else => ""};
-                has_socials: Bool = old_socials != "";
     
                 private_info_good: Bool = (
                     if (!holder_addresses_match(Address::from_bytes(ByteArray::from_data(old_extra.get("last_update_address"))), last_update_address)) {
-                        assert(has_socials && (new_socials != ""), "Socials need to be reset");
+                        assert(new_socials == "", "Socials need to be reset");
                         assert(new_res_opt == Option[Data]::None, "resolved_addresses need to be reset");
                         true
                     }
